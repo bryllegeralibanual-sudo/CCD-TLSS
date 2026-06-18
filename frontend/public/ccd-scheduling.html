@@ -1,0 +1,2484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCD Scheduling System</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --color-background-primary:#fff;
+  --color-background-secondary:#f5f5f4;
+  --color-background-tertiary:#ebe9e3;
+  --color-text-primary:#1a1a18;
+  --color-text-secondary:#6b6b67;
+  --color-text-tertiary:#9b9b96;
+  --color-border-tertiary:rgba(0,0,0,.12);
+  --color-border-secondary:rgba(0,0,0,.22);
+  --border-radius-md:8px;
+  --border-radius-lg:12px;
+  --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+body{font-family:var(--font-sans);font-size:14px;color:var(--color-text-primary);background:var(--color-background-tertiary)}
+.app{display:flex;height:100vh}
+.sidebar{width:220px;min-width:220px;background:var(--color-background-primary);border-right:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-logo{padding:16px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.sidebar-logo h2{font-size:13px;font-weight:600}
+.sidebar-logo p{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.nav-section{padding:8px 0}
+.nav-label{font-size:10px;font-weight:600;color:var(--color-text-tertiary);padding:6px 16px 2px;text-transform:uppercase;letter-spacing:.06em}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 16px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);border-left:2px solid transparent;transition:background .15s}
+.nav-item:hover{background:var(--color-background-secondary);color:var(--color-text-primary)}
+.nav-item.active{color:#185FA5;background:#E6F1FB;border-left-color:#185FA5;font-weight:500}
+.nav-item i{font-size:16px;flex-shrink:0}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.topbar{padding:12px 24px;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.topbar h1{font-size:16px;font-weight:500}
+.content{padding:24px;flex:1}
+.page{display:none}
+.page.active{display:block}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:14px}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
+.metric-val{font-size:24px;font-weight:500}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:16px;margin-bottom:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-size:14px;font-weight:500}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;font-size:13px;color:var(--color-text-primary);font-family:var(--font-sans);transition:background .15s}
+.btn:hover{background:var(--color-background-secondary)}
+.btn-primary{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn-primary:hover{background:#0C447C;border-color:#0C447C}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-danger{color:#A32D2D;border-color:#F09595}
+.btn-danger:hover{background:#FCEBEB}
+.btn-success{background:#3B6D11;color:#fff;border-color:#3B6D11}
+.btn-success:hover{background:#27500A}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 12px;border-bottom:0.5px solid var(--color-border-tertiary);font-weight:500;font-size:12px;color:var(--color-text-secondary)}
+td{padding:8px 12px;border-bottom:0.5px solid var(--color-border-tertiary)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--color-background-secondary)}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-blue{background:#E6F1FB;color:#185FA5}
+.badge-green{background:#EAF3DE;color:#3B6D11}
+.badge-amber{background:#FAEEDA;color:#854F0B}
+.badge-red{background:#FCEBEB;color:#A32D2D}
+.badge-gray{background:#F1EFE8;color:#5F5E5A}
+.badge-purple{background:#EEEDFE;color:#534AB7}
+.badge-teal{background:#E0F5F5;color:#0E7C7B}
+input,select{padding:7px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);width:100%}
+input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px rgba(24,95,165,.1)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{margin-bottom:12px}
+.form-label{font-size:12px;color:var(--color-text-secondary);margin-bottom:4px;display:block}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);padding:20px;width:500px;max-width:95vw;border:0.5px solid var(--color-border-tertiary);max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.modal-title{font-size:15px;font-weight:500}
+.load-bar{height:6px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden;margin-top:4px}
+.load-fill{height:100%;border-radius:3px;transition:width .3s}
+.timetable{width:100%;border-collapse:collapse;font-size:12px}
+.timetable th{background:var(--color-background-secondary);padding:6px 8px;text-align:center;font-weight:500;border:0.5px solid var(--color-border-tertiary);font-size:12px}
+.timetable td{border:0.5px solid var(--color-border-tertiary);padding:2px;height:50px;vertical-align:top;min-width:100px}
+.sched-block{padding:3px 5px;border-radius:4px;font-size:10px;line-height:1.35;cursor:pointer;margin:1px}
+.sched-block:hover{opacity:.82}
+.sched-block.type-lab{border-left:3px solid rgba(0,0,0,.25) !important}
+.coverage-panel{margin-bottom:12px;padding:12px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);font-size:12px}
+.coverage-panel.ok{border-color:#A8D08D;background:#F3FAEF;color:#27500A}
+.coverage-panel.warn{border-color:#F09595;background:#FCEBEB;color:#A32D2D}
+.coverage-panel .coverage-title{font-size:13px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.coverage-panel ul{margin:8px 0 0 18px;padding:0;line-height:1.5}
+.conflict-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:var(--border-radius-md);background:#FCEBEB;border:0.5px solid #F09595;margin-bottom:8px}
+.tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.tab{padding:8px 18px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);border-bottom:2px solid transparent;margin-bottom:-0.5px;transition:color .15s}
+.tab.active{color:#185FA5;border-bottom-color:#185FA5;font-weight:500}
+.avail-cell{padding:5px;text-align:center;border-radius:4px;cursor:pointer;font-size:11px;border:0.5px solid var(--color-border-tertiary);transition:background .15s}
+.avail-cell.yes{background:#EAF3DE;color:#3B6D11;border-color:#C0DD97}
+.avail-cell.no{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
+.progress-steps{display:flex;align-items:center;gap:0;margin-bottom:24px}
+.step{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary)}
+.step-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;background:var(--color-background-secondary);color:var(--color-text-secondary);flex-shrink:0}
+.step.done .step-num{background:#EAF3DE;color:#3B6D11}
+.step.active .step-num{background:#185FA5;color:#fff}
+.step.active{color:var(--color-text-primary);font-weight:500}
+.step-line{flex:1;height:1px;background:var(--color-border-tertiary);min-width:20px}
+.empty-state{text-align:center;padding:48px 20px;color:var(--color-text-secondary)}
+.empty-state i{font-size:36px;margin-bottom:10px;display:block;opacity:.5}
+.search-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500;flex-shrink:0}
+.program-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:16px}
+.program-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:16px}
+.program-card h3{font-size:14px;font-weight:600;margin:8px 0 4px}
+.program-card p{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+.indicator-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.indicator{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 10px;min-width:88px}
+.indicator span{display:block;font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em}
+.indicator strong{display:block;font-size:15px;margin-top:2px}
+.program-family{border-left:3px solid #185FA5;padding-left:14px;margin-bottom:18px}
+.major-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}
+.major-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px}
+.section-preview{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.section-pill{font-size:11px;background:#fff;border:0.5px solid var(--color-border-tertiary);border-radius:20px;padding:3px 8px}
+.group-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 10px}
+.group-heading h3{font-size:15px;font-weight:600}
+.curr-folder{margin-bottom:16px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;background:var(--color-background-primary)}
+.curr-folder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+.curr-folder-title{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.curr-folder-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--color-text-secondary)}
+.prospectus-year{margin:12px 14px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden;background:var(--color-background-primary)}
+.year-title{background:var(--color-background-secondary);padding:10px 12px;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.semester-block{padding:12px;border-top:0.5px solid var(--color-border-tertiary)}
+.semester-title{font-size:12px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.subject-name-cell{display:flex;align-items:center;gap:8px;min-width:220px}
+.assignment-chip{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.assignment-summary{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+
+/* FIX: Load workspace — three columns: teachers | subjects | detail */
+.load-workspace{display:grid;grid-template-columns:260px 1fr;gap:16px}
+.load-teacher-panel,.load-subject-panel{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px}
+.load-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.load-panel-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.load-group{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden;margin-top:10px;background:var(--color-background-primary)}
+.load-group-title{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--color-background-secondary);padding:8px 10px;font-size:12px;font-weight:600}
+.load-group table{margin:0}
+
+/* Subjects panel splits into two rows */
+.load-right-panel{display:flex;flex-direction:column;gap:12px;overflow:hidden;position:relative}
+.load-subjects-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:0;display:flex;flex-direction:column;overflow-y:auto;height:100%}
+.load-subjects-head{padding:12px;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);position:sticky;top:0;z-index:20;display:flex;flex-direction:column;gap:10px;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+.load-teacher-tray-sticky{display:flex;flex-wrap:wrap;gap:8px;padding:8px 0 0 0;border-top:0.5px solid var(--color-border-tertiary)}
+.load-subjects-body{padding:0}
+.load-subjects-inner{padding:12px}
+.load-detail-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:0;overflow:hidden}
+.section-completion{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 6px;border-radius:3px;margin-left:6px;font-weight:500}
+.section-completion.complete{background:#EAF3DE;color:#3B6D11}
+.section-completion.partial{background:#FAEEDA;color:#854F0B}
+.subject-row.assigned{opacity:.7;background:var(--color-background-secondary)}
+.subject-assigned-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:2px 5px;border-radius:2px;background:#E6F1FB;color:#185FA5;margin-left:4px}
+
+.teacher-chip-list{display:flex;gap:8px;flex-wrap:wrap}
+.teacher-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:20px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);font-size:12px;cursor:grab;user-select:none}
+.teacher-chip:active{cursor:grabbing}
+.subject-drop-cell{border-radius:var(--border-radius-md);padding:6px;transition:background .15s,box-shadow .15s}
+.subject-drop-cell.drop-ready{background:#E6F1FB;box-shadow:inset 0 0 0 1px #185FA5}
+.subject-drop-cell.drop-blocked{background:#FCEBEB;box-shadow:inset 0 0 0 1px #A32D2D}
+.faculty-program-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.faculty-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px;display:flex;gap:12px;align-items:flex-start}
+.faculty-photo{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0}
+.faculty-info h4{font-size:14px;font-weight:600;margin-bottom:3px}
+.faculty-info p{font-size:12px;color:var(--color-text-secondary);line-height:1.45}
+
+/* FIX: Teacher tray — sticky at top of curriculum, collapsible */
+.teacher-tray{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px;margin-bottom:16px}
+.teacher-tray-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;cursor:pointer}
+.teacher-tray-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;color:#185FA5}
+.teacher-tray-body{display:block}
+.teacher-tray-body.collapsed{display:none}
+
+/* Lab/Lec split badge */
+.split-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:1px 6px;border-radius:3px;margin-left:4px}
+.split-badge.lec{background:#E6F1FB;color:#185FA5}
+.split-badge.lab{background:#E0F5F5;color:#0E7C7B}
+
+/* Unit cap warning bar */
+.unit-warn{background:#FAEEDA;border:0.5px solid #F0C070;border-radius:6px;padding:6px 10px;font-size:12px;color:#854F0B;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.unit-ok{background:#EAF3DE;border:0.5px solid #A8D08D;border-radius:6px;padding:6px 10px;font-size:12px;color:#3B6D11;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.unit-error{background:#FCEBEB;border:0.5px solid #F09595;border-radius:6px;padding:6px 10px;font-size:12px;color:#A32D2D;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h2>CCD Scheduling</h2>
+    <p id="sidebar-sem-label">AY 2024–2025 · 1st Semester</p>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Overview</div>
+    <div class="nav-item active" onclick="nav('dashboard')"><i class="ti ti-layout-dashboard"></i>Dashboard</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Setup</div>
+    <div class="nav-item" onclick="nav('programs')"><i class="ti ti-books"></i>Programs & Sections</div>
+    <div class="nav-item" onclick="nav('curriculum')"><i class="ti ti-file-description"></i>Curriculum</div>
+    <div class="nav-item" onclick="nav('rooms')"><i class="ti ti-building"></i>Rooms & Labs</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Faculty</div>
+    <div class="nav-item" onclick="nav('faculty')"><i class="ti ti-users"></i>Faculty List</div>
+    <div class="nav-item" onclick="nav('loads')"><i class="ti ti-briefcase"></i>Load Assignment</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Scheduling</div>
+    <div class="nav-item" onclick="nav('generator')"><i class="ti ti-calendar-event"></i>Schedule Generator</div>
+    <div class="nav-item" onclick="nav('conflicts')"><i class="ti ti-alert-triangle"></i>Conflict Check</div>
+    <div class="nav-item" onclick="nav('reports')"><i class="ti ti-report"></i>Reports</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+<div class="topbar">
+  <h1 id="page-title">Dashboard</h1>
+  <div style="display:flex;align-items:center;gap:10px">
+    <!-- FIX: Global semester/year selector -->
+    <select id="global-ay" style="width:130px;font-size:12px" onchange="updateGlobalSem()">
+      <option value="2024-2025">AY 2024–2025</option>
+      <option value="2025-2026">AY 2025–2026</option>
+      <option value="2026-2027">AY 2026–2027</option>
+    </select>
+    <select id="global-sem" style="width:140px;font-size:12px" onchange="updateGlobalSem()">
+      <option value="1st">1st Semester</option>
+      <option value="2nd">2nd Semester</option>
+      <option value="Summer">Summer Class</option>
+    </select>
+    <span style="font-size:13px;color:var(--color-text-secondary)">Registrar</span>
+    <div class="avatar" style="width:30px;height:30px;background:#E6F1FB;font-size:11px;color:#185FA5">RG</div>
+  </div>
+</div>
+<div class="content">
+
+<!-- ==================== DASHBOARD ==================== -->
+<div id="page-dashboard" class="page active">
+  <div class="grid-4">
+    <div class="metric"><div class="metric-label">Faculty registered</div><div class="metric-val" id="m-faculty">0</div></div>
+    <div class="metric"><div class="metric-label">Rooms & labs</div><div class="metric-val" id="m-rooms">0</div></div>
+    <div class="metric"><div class="metric-label">Subjects in curriculum</div><div class="metric-val" id="m-subjects">0</div></div>
+    <div class="metric"><div class="metric-label">Conflicts detected</div><div class="metric-val" id="m-conflicts" style="color:#A32D2D">0</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Programs & sections</span></div>
+      <table>
+        <thead><tr><th>Program</th><th>Sections/yr</th><th>Year levels</th><th>Total</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-blue">BTVTED-CP</span></td><td>2</td><td>4</td><td>8</td></tr>
+          <tr><td><span class="badge badge-purple">BTVTED-HVACRT</span></td><td>1</td><td>4</td><td>4</td></tr>
+          <tr><td><span class="badge badge-green">BECED</span></td><td>3</td><td>4</td><td>12</td></tr>
+          <tr><td><span class="badge badge-amber">BSENTREP</span></td><td>2</td><td>4</td><td>8</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Quick actions</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn" onclick="nav('faculty')"><i class="ti ti-user-plus"></i>Register faculty</button>
+        <button class="btn" onclick="nav('curriculum')"><i class="ti ti-upload"></i>Add curriculum subjects</button>
+        <button class="btn" onclick="nav('loads')"><i class="ti ti-briefcase"></i>Assign faculty loads</button>
+        <button class="btn btn-primary" onclick="nav('generator')"><i class="ti ti-calendar-event"></i>Generate schedule</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Scheduling workflow</span></div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px">
+      <span style="background:#E6F1FB;color:#185FA5;padding:4px 10px;border-radius:20px">1. Register faculty</span>
+      <i class="ti ti-arrow-right" style="color:var(--color-text-tertiary)"></i>
+      <span style="background:#E6F1FB;color:#185FA5;padding:4px 10px;border-radius:20px">2. Upload curriculum</span>
+      <i class="ti ti-arrow-right" style="color:var(--color-text-tertiary)"></i>
+      <span style="background:#E6F1FB;color:#185FA5;padding:4px 10px;border-radius:20px">3. Assign loads</span>
+      <i class="ti ti-arrow-right" style="color:var(--color-text-tertiary)"></i>
+      <span style="background:#E6F1FB;color:#185FA5;padding:4px 10px;border-radius:20px">4. Set up rooms</span>
+      <i class="ti ti-arrow-right" style="color:var(--color-text-tertiary)"></i>
+      <span style="background:#185FA5;color:#fff;padding:4px 10px;border-radius:20px">5. Generate schedule</span>
+      <i class="ti ti-arrow-right" style="color:var(--color-text-tertiary)"></i>
+      <span style="background:#EAF3DE;color:#3B6D11;padding:4px 10px;border-radius:20px">6. Publish</span>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PROGRAMS ==================== -->
+<div id="page-programs" class="page">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'programs-tab')">Programs</div>
+    <div class="tab" onclick="switchTab(this,'sections-tab')">All sections</div>
+  </div>
+  <div id="programs-tab">
+    <div class="search-bar">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-addprog')"><i class="ti ti-plus"></i>Add program</button>
+    </div>
+    <div id="prog-table"></div>
+  </div>
+  <div id="sections-tab" style="display:none">
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Section</th><th>Program</th><th>Year level</th></tr></thead>
+        <tbody id="sect-table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CURRICULUM ==================== -->
+<div id="page-curriculum" class="page">
+  <div class="search-bar" style="justify-content:space-between">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="cur-prog-filter" style="width:180px" onchange="renderCurriculum()">
+        <option value="">All programs</option>
+        <option value="BTVTED-CP">BTVTED-CP</option>
+        <option value="BTVTED-HVACRT">BTVTED-HVACRT</option>
+        <option value="BECED">BECEd</option>
+        <option value="BSENTREP">BS Entrep</option>
+      </select>
+      <select id="cur-yr-filter" style="width:130px" onchange="renderCurriculum()">
+        <option value="">All year levels</option>
+        <option value="1">1st year</option>
+        <option value="2">2nd year</option>
+        <option value="3">3rd year</option>
+        <option value="4">4th year</option>
+      </select>
+      <select id="cur-sem-filter" style="width:130px" onchange="renderCurriculum()">
+        <option value="">Both semesters</option>
+        <option value="1st">1st semester</option>
+        <option value="2nd">2nd semester</option>
+        <option value="Summer">Summer class</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openModal('modal-addsubj')"><i class="ti ti-plus"></i>Add subject</button>
+  </div>
+  <div id="curr-table"></div>
+</div>
+
+<!-- ==================== ROOMS ==================== -->
+<div id="page-rooms" class="page">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'classrooms-tab')">Classrooms</div>
+    <div class="tab" onclick="switchTab(this,'labs-tab')">Laboratories</div>
+    <div class="tab" onclick="switchTab(this,'room-timetable-tab')">Room timetable <span style="font-size:10px;background:#185FA5;color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">NEW</span></div>
+  </div>
+  <div id="classrooms-tab">
+    <div class="search-bar">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-addroom')"><i class="ti ti-plus"></i>Add room</button>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Room name</th><th>Type</th><th>For program</th><th>Status</th></tr></thead>
+        <tbody id="rooms-table"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="labs-tab" style="display:none">
+    <div class="search-bar">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-addroom')"><i class="ti ti-plus"></i>Add lab</button>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Lab name</th><th>Type</th><th>For program</th><th>Status</th></tr></thead>
+        <tbody id="labs-table"></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- FIX #3 & #7: Room timetable view -->
+  <div id="room-timetable-tab" style="display:none">
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-calendar-time"></i> Weekly room occupancy grid</span></div>
+      <div id="room-timetable-view" style="padding:0;overflow:hidden">
+        <div style="padding:20px;text-align:center;color:var(--color-text-secondary)">No schedule generated yet. Use the Schedule Generator to see room availability.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== FACULTY ==================== -->
+<div id="page-faculty" class="page">
+  <div class="search-bar" style="justify-content:space-between">
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="text" placeholder="Search faculty…" style="max-width:240px" oninput="renderFaculty(this.value)">
+      <select id="fac-prog-filter" style="width:180px" onchange="renderFaculty()">
+        <option value="">All programs</option>
+        <option value="BTVTED-CP">BTVTED-CP</option>
+        <option value="BTVTED-HVACRT">BTVTED-HVACRT</option>
+        <option value="BECED">BECEd</option>
+        <option value="BSENTREP">BS Entrep</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openModal('modal-addfac')"><i class="ti ti-user-plus"></i>Register faculty</button>
+  </div>
+  <div id="faculty-table"></div>
+</div>
+
+<!-- ==================== LOADS ==================== -->
+<div id="page-loads" class="page">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <select id="load-prog-filter" style="width:210px" onchange="renderLoadPage()">
+      <option value="">All programs</option>
+      <option value="BTVTED-CP">BTVTED-CP</option>
+      <option value="BTVTED-HVACRT">BTVTED-HVACRT</option>
+      <option value="BECED">BECEd</option>
+      <option value="BSENTREP">BS Entrep</option>
+    </select>
+    <!-- FIX: semester filter now drives load assignment view -->
+    <select id="load-sem-filter" style="width:150px" onchange="renderLoadPage()">
+      <option value="1st">1st semester</option>
+      <option value="2nd">2nd semester</option>
+      <option value="Summer">Summer class</option>
+    </select>
+    <select id="load-fac-select" style="width:260px" onchange="renderLoadDetail()">
+      <option value="">— Select faculty to view detail —</option>
+    </select>
+    <button class="btn btn-primary btn-sm" onclick="openAssignModal()"><i class="ti ti-plus"></i>Assign subject</button>
+  </div>
+
+  <div class="load-workspace">
+    <!-- Left: faculty summary list -->
+    <div class="load-teacher-panel">
+      <div class="load-panel-head">
+        <div class="load-panel-title"><i class="ti ti-users"></i>Teachers</div>
+        <span style="font-size:11px;color:var(--color-text-secondary)" id="load-sem-display"></span>
+      </div>
+      <div id="load-summary-list"></div>
+    </div>
+
+    <!-- Right: subjects + detail stacked -->
+    <div class="load-right-panel">
+      <!-- FIX: Current semester subjects panel — now actually rendered -->
+      <div class="load-subjects-card">
+        <div class="load-subjects-head">
+          <div class="load-panel-head" style="margin:0;padding:0">
+            <div class="load-panel-title"><i class="ti ti-list-check"></i>All subjects by section</div>
+            <span style="font-size:11px;color:var(--color-text-secondary)">Drag a teacher chip onto a row to assign • Assigned subjects stay visible</span>
+          </div>
+        </div>
+        <div class="load-subjects-body">
+          <div id="load-subject-list"></div>
+        </div>
+      </div>
+
+      <!-- Faculty load detail -->
+      <div class="load-detail-card">
+        <div id="load-detail-area" style="padding:0">
+          <div class="empty-state"><i class="ti ti-user"></i>Select a faculty member above to view their assigned subjects</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ==================== GENERATOR ==================== -->
+<div id="page-generator" class="page">
+  <div class="progress-steps">
+    <div class="step active" id="gs1"><div class="step-num">1</div><span>Configure</span></div>
+    <div class="step-line"></div>
+    <div class="step" id="gs2"><div class="step-num">2</div><span>Generate</span></div>
+    <div class="step-line"></div>
+    <div class="step" id="gs3"><div class="step-num">3</div><span>Review &amp; adjust</span></div>
+    <div class="step-line"></div>
+    <div class="step" id="gs4"><div class="step-num">4</div><span>Publish</span></div>
+  </div>
+
+  <div id="gen-step1">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px">Schedule configuration</div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Academic year</label>
+          <select id="gen-ay"><option>2024–2025</option><option>2025–2026</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Semester</label>
+          <select id="gen-sem"><option value="1st">1st Semester</option><option value="2nd">2nd Semester</option><option value="Summer">Summer Class</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Program (leave blank for all)</label>
+          <select id="gen-prog"><option value="">All programs</option><option>BTVTED-CP</option><option>BTVTED-HVACRT</option><option>BECED</option><option>BSENTREP</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Daily time range</label>
+          <select id="gen-time"><option>7:00 AM – 6:00 PM</option><option>7:00 AM – 9:00 PM</option></select>
+        </div>
+      </div>
+      <!-- FIX: Lab split notice -->
+      <div style="background:#E0F5F5;border:0.5px solid #9DD9D8;border-radius:8px;padding:10px 12px;font-size:12px;color:#0E7C7B;margin-bottom:14px">
+        <i class="ti ti-info-circle"></i> <strong>Lecture + Lab split is ON.</strong> Subjects with both lecture and lab units will be scheduled separately — one in a lecture room, one in the designated lab room. Each lecture unit uses 1 hour; each lab unit uses a 3-hour session.
+      </div>
+      <div style="padding-top:14px;border-top:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;gap:12px">
+        <button class="btn btn-primary" onclick="runGenerate()"><i class="ti ti-player-play"></i>Auto-generate schedule</button>
+        <span style="font-size:12px;color:var(--color-text-secondary)">System assigns time slots, rooms, and faculty based on availability and load.</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">Year-level classroom strategy <span style="font-size:10px;font-weight:400;color:var(--color-text-secondary)">[EDITABLE]</span></div>
+      <div class="program-grid" style="margin-bottom:0">
+        <div class="program-card"><span class="badge badge-blue">First Year</span><h3 id="y1-label">Morning schedule</h3><p id="y1-detail">7:30 AM – 12:00 PM. Subjects distributed across the week within the morning block.</p><button class="btn btn-sm" style="margin-top:8px" onclick="editYearSlots(1)"><i class="ti ti-pencil"></i>Edit</button></div>
+        <div class="program-card"><span class="badge badge-green">Second Year</span><h3 id="y2-label">Afternoon class</h3><p id="y2-detail">1:00 PM – 5:00 PM. Afternoon rooms prioritized for 2nd-year sections.</p><button class="btn btn-sm" style="margin-top:8px" onclick="editYearSlots(2)"><i class="ti ti-pencil"></i>Edit</button></div>
+        <div class="program-card"><span class="badge badge-amber">Third Year</span><h3 id="y3-label">Afternoon to evening</h3><p id="y3-detail">1:00 PM – 9:30 PM depending on subject units and available rooms.</p><button class="btn btn-sm" style="margin-top:8px" onclick="editYearSlots(3)"><i class="ti ti-pencil"></i>Edit</button></div>
+        <div class="program-card"><span class="badge badge-gray">Fourth Year</span><h3 id="y4-label">Field work / flexible</h3><p id="y4-detail">Later afternoon and evening slots reserved for 4th year to avoid conflicts with lower years.</p><button class="btn btn-sm" style="margin-top:8px" onclick="editYearSlots(4)"><i class="ti ti-pencil"></i>Edit</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gen-step2" style="display:none">
+    <div class="card" style="text-align:center;padding:48px">
+      <i class="ti ti-refresh" style="font-size:32px;color:#185FA5;display:block;margin-bottom:12px"></i>
+      <div style="font-weight:500;font-size:15px;margin-bottom:6px">Generating schedule…</div>
+      <div style="font-size:13px;color:var(--color-text-secondary)" id="gen-progress-text">Checking faculty availability…</div>
+      <div style="margin-top:16px;max-width:280px;margin-left:auto;margin-right:auto">
+        <div class="load-bar" style="height:8px"><div class="load-fill" id="gen-prog-bar" style="width:0%;background:#185FA5;transition:width .4s"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gen-step3" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="view-prog" style="width:170px" onchange="updateSectionFilter();renderTimetable()">
+          <option value="">All programs</option>
+          <option>BTVTED-CP</option><option>BTVTED-HVACRT</option><option>BECED</option><option>BSENTREP</option>
+        </select>
+        <select id="view-section" style="width:140px" onchange="renderTimetable()">
+          <option value="">All sections</option>
+        </select>
+        <select id="view-day-filter" style="width:130px" onchange="renderTimetable()">
+          <option value="">All days</option>
+          <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+          <option>Thursday</option><option>Friday</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="openModal('modal-manual')"><i class="ti ti-edit"></i>Manual adjust</button>
+        <button class="btn btn-sm" onclick="nav('conflicts')"><i class="ti ti-alert-triangle"></i>Check conflicts</button>
+        <button class="btn btn-success btn-sm" onclick="publishSchedule()"><i class="ti ti-check"></i>Approve &amp; publish</button>
+      </div>
+    </div>
+    <div id="coverage-report"></div>
+    <!-- Legend -->
+    <div style="margin-bottom:10px;display:flex;gap:12px;flex-wrap:wrap;align-items:center" id="legend">
+      <span style="font-size:11px;color:var(--color-text-secondary)">Legend:</span>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px"><div style="width:14px;height:14px;border-radius:3px;background:#B5D4F4;border-left:3px solid #0C447C"></div><span style="color:var(--color-text-secondary)">Lab slot</span></div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px"><div style="width:14px;height:14px;border-radius:3px;background:#B5D4F4"></div><span style="color:var(--color-text-secondary)">Lecture slot</span></div>
+    </div>
+    <div class="card" style="padding:8px;overflow-x:auto">
+      <table class="timetable" id="timetable"></table>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap;align-items:center" id="legend2"></div>
+  </div>
+
+  <div id="gen-step4" style="display:none">
+    <div class="card" style="text-align:center;padding:56px">
+      <i class="ti ti-circle-check" style="font-size:48px;color:#3B6D11;display:block;margin-bottom:12px"></i>
+      <div style="font-size:18px;font-weight:500;margin-bottom:6px">Schedule published!</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px" id="publish-detail">AY 2024–2025 · 1st Semester schedule is now live and visible to faculty.</div>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button class="btn btn-primary" onclick="nav('reports')"><i class="ti ti-report"></i>View reports</button>
+        <button class="btn" onclick="resetGenerator()"><i class="ti ti-refresh"></i>New schedule</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONFLICTS ==================== -->
+<div id="page-conflicts" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <span style="font-size:13px;color:var(--color-text-secondary)">Run a schedule first, then check here for conflicts.</span>
+    <button class="btn btn-sm" onclick="renderConflicts()"><i class="ti ti-refresh"></i>Re-check</button>
+  </div>
+  <div id="conflict-list"></div>
+</div>
+
+<!-- ==================== REPORTS ==================== -->
+<div id="page-reports" class="page">
+  <div class="grid-3">
+    <div class="card" style="cursor:pointer;transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow=''" onclick="genReport('load')">
+      <div style="font-size:28px;margin-bottom:10px;color:#185FA5"><i class="ti ti-report"></i></div>
+      <div style="font-weight:500;margin-bottom:4px">Faculty load report</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">Teacher · Subjects · Units · Load status</div>
+    </div>
+    <div class="card" style="cursor:pointer;transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow=''" onclick="genReport('master')">
+      <div style="font-size:28px;margin-bottom:10px;color:#3B6D11"><i class="ti ti-calendar"></i></div>
+      <div style="font-weight:500;margin-bottom:4px">Master schedule</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">Complete school schedule — all programs</div>
+    </div>
+    <div class="card" style="cursor:pointer;transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow=''" onclick="genReport('room')">
+      <div style="font-size:28px;margin-bottom:10px;color:#854F0B"><i class="ti ti-building"></i></div>
+      <div style="font-weight:500;margin-bottom:4px">Room utilization</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">Room · Occupied hours · Utilization %</div>
+    </div>
+  </div>
+  <!-- FIX: Print button -->
+  <div id="report-print-bar" style="display:none;margin-bottom:12px">
+    <button class="btn btn-sm" onclick="window.print()"><i class="ti ti-printer"></i>Print report</button>
+  </div>
+  <div id="report-output"></div>
+</div>
+
+</div><!-- end .content -->
+</div><!-- end .main -->
+</div><!-- end .app -->
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Register Faculty -->
+<div class="modal-overlay" id="modal-addfac">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Register faculty</span>
+      <button class="btn btn-sm" onclick="closeModal('modal-addfac')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Last name *</label><input id="fac-ln" placeholder="Dela Cruz"></div>
+      <div class="form-group"><label class="form-label">First name *</label><input id="fac-fn" placeholder="Juan"></div>
+      <div class="form-group">
+        <label class="form-label">Program assigned *</label>
+        <select id="fac-prog">
+          <option value="">— Select program —</option>
+          <option>BTVTED-CP</option><option>BTVTED-HVACRT</option><option>BECED</option><option>BSENTREP</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Employment type</label>
+        <select id="fac-type"><option>Full-Time</option><option>Part-Time</option></select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Max units per semester</label>
+        <input id="fac-maxunits" type="number" value="21" min="1" max="40" placeholder="21">
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:3px">Default: Full-Time = 21 units. Adjust as needed.</div>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Specialization / qualifications</label>
+        <input id="fac-spec" placeholder="e.g. Programming, Data Structures, OOP">
+      </div>
+      <!-- FIX #4: Preferred time field -->
+      <div class="form-group">
+        <label class="form-label">Preferred teaching time</label>
+        <select id="fac-preferred">
+          <option value="flexible">Flexible (no preference)</option>
+          <option value="morning">Morning (7:30 AM – 12:00 PM)</option>
+          <option value="afternoon">Afternoon (1:00 PM – 5:00 PM)</option>
+          <option value="evening">Evening (5:00 PM – 9:30 PM)</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="form-label" style="margin-bottom:8px">Availability <span style="color:var(--color-text-tertiary);font-size:11px">(click cell to toggle)</span></div>
+      <div style="display:grid;grid-template-columns:60px repeat(5,1fr);gap:4px;font-size:11px">
+        <div></div>
+        <div style="text-align:center;font-weight:500;color:var(--color-text-secondary)">Mon</div>
+        <div style="text-align:center;font-weight:500;color:var(--color-text-secondary)">Tue</div>
+        <div style="text-align:center;font-weight:500;color:var(--color-text-secondary)">Wed</div>
+        <div style="text-align:center;font-weight:500;color:var(--color-text-secondary)">Thu</div>
+        <div style="text-align:center;font-weight:500;color:var(--color-text-secondary)">Fri</div>
+        <div style="text-align:right;padding-right:6px;color:var(--color-text-secondary);font-size:12px;line-height:28px">AM</div>
+        <div id="av-mon-am" class="avail-cell yes" onclick="toggleAvail(this)">✓</div>
+        <div id="av-tue-am" class="avail-cell yes" onclick="toggleAvail(this)">✓</div>
+        <div id="av-wed-am" class="avail-cell yes" onclick="toggleAvail(this)">✓</div>
+        <div id="av-thu-am" class="avail-cell yes" onclick="toggleAvail(this)">✓</div>
+        <div id="av-fri-am" class="avail-cell yes" onclick="toggleAvail(this)">✓</div>
+        <div style="text-align:right;padding-right:6px;color:var(--color-text-secondary);font-size:12px;line-height:28px">PM</div>
+        <div id="av-mon-pm" class="avail-cell yes" onclick="toggleAvail(this)">✓</div>
+        <div id="av-tue-pm" class="avail-cell yes" onclick="toggleAvail(this)">✓</div>
+        <div id="av-wed-pm" class="avail-cell yes" onclick="toggleAvail(this)">✓</div>
+        <div id="av-thu-pm" class="avail-cell yes" onclick="toggleAvail(this)">✓</div>
+        <div id="av-fri-pm" class="avail-cell yes" onclick="toggleAvail(this)">✓</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" onclick="closeModal('modal-addfac')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveFaculty()">Save faculty</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Subject -->
+<div class="modal-overlay" id="modal-addsubj">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add subject to curriculum</span>
+      <button class="btn btn-sm" onclick="closeModal('modal-addsubj')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Subject code *</label><input id="s-code" placeholder="CP101"></div>
+      <div class="form-group"><label class="form-label">Subject title *</label><input id="s-title" placeholder="Programming 1"></div>
+      <div class="form-group">
+        <label class="form-label">Program *</label>
+        <select id="s-prog"><option value="">— Select —</option><option>BTVTED-CP</option><option>BTVTED-HVACRT</option><option>BECED</option><option>BSENTREP</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Year level</label>
+        <select id="s-yr"><option value="1">1st year</option><option value="2">2nd year</option><option value="3">3rd year</option><option value="4">4th year</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Semester</label>
+        <select id="s-sem"><option value="1st">1st semester</option><option value="2nd">2nd semester</option><option value="Summer">Summer class</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Lecture units</label><input id="s-lec" type="number" value="3" min="0" max="6"></div>
+      <div class="form-group"><label class="form-label">Laboratory units</label><input id="s-lab" type="number" value="0" min="0" max="6"></div>
+      <div class="form-group">
+        <label class="form-label">Lecture room type</label>
+        <select id="s-lecroom"><option value="Classroom">Classroom</option><option value="Speech Lab">Speech Lab</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Lab room type (if lab > 0)</label>
+        <select id="s-labroom"><option value="">None</option><option value="Computer Lab">Computer Lab</option><option value="HVAC Lab">HVAC Lab</option><option value="Welding Lab">Welding Lab</option><option value="Speech Lab">Speech Lab</option><option value="Science Lab">Science Lab</option></select>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeModal('modal-addsubj')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSubject()">Save subject</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Room -->
+<div class="modal-overlay" id="modal-addroom">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add room / laboratory</span>
+      <button class="btn btn-sm" onclick="closeModal('modal-addroom')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Room name / number *</label><input id="r-name" placeholder="Room 104"></div>
+      <div class="form-group">
+        <label class="form-label">Room type</label>
+        <select id="r-type"><option>Classroom</option><option>Computer Lab</option><option>HVAC Lab</option><option>Welding Lab</option><option>Speech Lab</option><option>Science Lab</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Exclusive for program (labs)</label>
+        <select id="r-prog"><option value="">Any / shared</option><option>BTVTED-CP</option><option>BTVTED-HVACRT</option></select>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeModal('modal-addroom')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRoom()">Save room</button>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Subject -->
+<div class="modal-overlay" id="modal-assign">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Assign subject to faculty</span>
+      <button class="btn btn-sm" onclick="closeModal('modal-assign')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Program</label>
+      <select id="assign-prog" onchange="filterAssignOptions()">
+        <option value="">— Select program —</option>
+        <option value="BTVTED-CP">BTVTED-CP</option>
+        <option value="BTVTED-HVACRT">BTVTED-HVACRT</option>
+        <option value="BECED">BECEd</option>
+        <option value="BSENTREP">BS Entrep</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Faculty member</label><select id="assign-fac" onchange="checkAssignCompat()"></select></div>
+    <div class="form-group"><label class="form-label">Subject</label><select id="assign-subj" onchange="checkAssignCompat()"></select></div>
+    <div id="assign-check" style="font-size:12px;padding:8px 0;min-height:28px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeModal('modal-assign')">Cancel</button>
+      <button class="btn btn-primary" id="assign-save-btn" onclick="saveAssignment()">Assign subject</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Program -->
+<div class="modal-overlay" id="modal-addprog">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add program</span>
+      <button class="btn btn-sm" onclick="closeModal('modal-addprog')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-group"><label class="form-label">Program code *</label><input id="np-code" placeholder="BSN"></div>
+    <div class="form-group"><label class="form-label">Full program name *</label><input id="np-name" placeholder="Bachelor of Science in Nursing"></div>
+    <div class="form-group"><label class="form-label">Number of sections per year</label><input id="np-secs" type="number" value="2" min="1"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeModal('modal-addprog')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProgram()">Save program</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manual Adjust -->
+<div class="modal-overlay" id="modal-manual">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Manual schedule adjustment</span>
+      <button class="btn btn-sm" onclick="closeModal('modal-manual')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-group"><label class="form-label">Select schedule entry to move</label><select id="manual-entry"></select></div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">New day</label>
+        <select id="manual-day"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">New time slot</label><select id="manual-time"></select></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">New room</label><select id="manual-room"></select></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeModal('modal-manual')">Cancel</button>
+      <button class="btn btn-primary" onclick="applyManual()">Apply change</button>
+    </div>
+  </div>
+</div>
+
+<!-- Block Detail -->
+<div class="modal-overlay" id="modal-block">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <span class="modal-title" id="bk-title">Schedule detail</span>
+      <button class="btn btn-sm" onclick="closeModal('modal-block')"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="bk-body" style="font-size:13px;line-height:1.9"></div>
+    <div style="margin-top:14px;display:flex;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('modal-block')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIX #2: Edit Year-Level Time Blocks -->
+<div class="modal-overlay" id="modal-edit-year-slots">
+  <div class="modal" style="width:520px">
+    <div class="modal-header">
+      <span class="modal-title">Edit year-level time blocks</span>
+      <button class="btn btn-sm" onclick="closeModal('modal-edit-year-slots')"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="year-slots-editor"></div>
+    <div style="margin-top:14px;display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" onclick="closeModal('modal-edit-year-slots')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveYearSlots()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================================================
+   CONSTANTS
+====================================================== */
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const SLOTS=['7:30–9:00','9:00–10:30','10:30–12:00','1:00–2:30','2:30–4:00','4:00–5:00','5:00–6:30','6:30–8:00','8:00–9:30'];
+const LECTURE_HOURS_PER_UNIT=1;
+const LAB_HOURS_PER_UNIT=3;
+
+function parseSlotTime(text){
+  const m=text.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if(!m)return 0;
+  let h=+m[1],min=+m[2];
+  if(h<7)h+=12;
+  return h+min/60;
+}
+function formatHourTime(value){
+  let h=Math.floor(value);
+  const min=Math.round((value-h)*60);
+  h=((h-1)%12)+1;
+  return `${h}:${String(min).padStart(2,'0')}`;
+}
+function slotStartTime(slotLabel){
+  return slotLabel.split('–')[0]||slotLabel.split('-')[0]||slotLabel;
+}
+function slotEndTime(slotLabel){
+  return slotLabel.split('–')[1]||slotLabel.split('-')[1]||slotLabel;
+}
+function slotDuration(slotLabel){
+  return parseSlotTime(slotEndTime(slotLabel))-parseSlotTime(slotStartTime(slotLabel));
+}
+function scheduleTimeRange(entry){
+  const startIdx=SLOTS.indexOf(entry.time);
+  if(startIdx<0)return entry.time;
+  const start=slotStartTime(entry.time);
+  if(entry.durationHours)return `${start}–${formatHourTime(parseSlotTime(start)+entry.durationHours)}`;
+  const slots=Math.max(1,entry.consecutiveSlots||1);
+  const endIdx=Math.min(SLOTS.length-1,startIdx+slots-1);
+  return `${start}–${slotEndTime(SLOTS[endIdx])}`;
+}
+function scheduleHours(entry){
+  if(entry.durationHours)return entry.durationHours;
+  return occupiedSlotLabels(entry).reduce((total,slot)=>total+slotDuration(slot),0);
+}
+function occupiedSlotLabels(entry){
+  const startIdx=SLOTS.indexOf(entry.time);
+  if(startIdx<0)return [entry.time];
+  const slots=Math.max(1,entry.consecutiveSlots||1);
+  return SLOTS.slice(startIdx,Math.min(SLOTS.length,startIdx+slots));
+}
+function slotsNeededForHours(startSlotIndex, allowedSlots, requiredHours){
+  let hours=0;
+  let count=0;
+  const startPos=allowedSlots.indexOf(startSlotIndex);
+  if(startPos<0)return 0;
+  for(let i=startPos;i<allowedSlots.length&&hours<requiredHours;i++){
+    hours+=slotDuration(SLOTS[allowedSlots[i]]);
+    count++;
+  }
+  return hours>=requiredHours?count:0;
+}
+
+// FIX: Year-level slot rules now EDITABLE via configuration UI
+let YEAR_SLOT_RULES={
+  1:{label:'Morning schedule',detail:'7:30 AM – 12:00 PM',slots:[0,1,2]},
+  2:{label:'Afternoon class',detail:'1:00 PM – 5:00 PM',slots:[3,4,5]},
+  3:{label:'Afternoon to evening',detail:'1:00 PM – 9:30 PM',slots:[3,4,5,6,7,8]},
+  4:{label:'Field work / flexible',detail:'Afternoon & evening slots',slots:[4,5,6,7,8]}
+};
+
+const PROG_BADGE={'BTVTED-CP':'badge-blue','BTVTED-HVACRT':'badge-purple','BECED':'badge-green','BSENTREP':'badge-amber'};
+const PROG_BG={'BTVTED-CP':['#B5D4F4','#0C447C'],'BTVTED-HVACRT':['#CECBF6','#3C3489'],'BECED':['#C0DD97','#27500A'],'BSENTREP':['#FAC775','#633806']};
+const PROGRAM_META={
+  'BTVTED-CP':{label:'BTVTED CP',name:'Bachelor of Technical-Vocational Teacher Education',major:'Computer Programming',sections:2,group:'btvted'},
+  'BTVTED-HVACRT':{label:'BTVTED HVACRT',name:'Bachelor of Technical-Vocational Teacher Education',major:'HVAC/R Technology',sections:1,group:'btvted'},
+  'BECED':{label:'BECEd',name:'Bachelor of Early Childhood Education',major:'General',sections:3,group:'standalone'},
+  'BSENTREP':{label:'BS Entrep',name:'Bachelor of Science in Entrepreneurship',major:'General',sections:2,group:'standalone'}
+};
+
+/* FIX: MAX UNITS per type — configurable */
+const MAX_UNITS={'Full-Time':21,'Part-Time':12};
+
+/* ======================================================
+   DATABASE
+====================================================== */
+let db={
+  faculty:[],subjects:[],
+  rooms:[
+    {id:1,name:'B1-C1',type:'Classroom',prog:''},
+    {id:2,name:'B1-C3',type:'Classroom',prog:''},
+    {id:3,name:'B1-C4',type:'Classroom',prog:''},
+    {id:4,name:'B4-C3',type:'Classroom',prog:''},
+    {id:5,name:'B4-C4',type:'Classroom',prog:''},
+    {id:6,name:'B4-C5',type:'Classroom',prog:''},
+    {id:7,name:'B4-C6',type:'Classroom',prog:''},
+    {id:8,name:'B4-C7',type:'Classroom',prog:''},
+    {id:9,name:'B1-C2 – HVACRT LAB',type:'HVAC Lab',prog:'BTVTED-HVACRT'},
+    {id:10,name:'WELDING LABORATORY',type:'Welding Lab',prog:'BTVTED-HVACRT'},
+    {id:11,name:'B4-C1 – COMPUTER LAB',type:'Computer Lab',prog:'BTVTED-CP'},
+    {id:12,name:'B4-C2 – SPEECH LAB',type:'Speech Lab',prog:''},
+    {id:13,name:'SCIENCE LABORATORY',type:'Science Lab',prog:''}
+  ],
+  // FIX: Room timetable tracking — persistent record of room bookings
+  roomTimetable:{},
+  assignments:[],
+  schedules:[],
+  lastGenerated:null,
+  programs:[
+    {code:'BTVTED-CP',name:'Bachelor of Technical-Vocational Teacher Education - Computer Programming',secs:2,yrs:4},
+    {code:'BTVTED-HVACRT',name:'Bachelor of Technical-Vocational Teacher Education - HVAC/R Technology',secs:1,yrs:4},
+    {code:'BECED',name:'Bachelor of Early Childhood Education',secs:3,yrs:4},
+    {code:'BSENTREP',name:'Bachelor of Science in Entrepreneurship',secs:2,yrs:4}
+  ],
+  // FIX: global context
+  currentAY:'2024-2025',
+  currentSem:'1st'
+};
+
+let draggedFacultyId=null;
+let assignBlocked=false; // FIX: block save when overload
+
+/* ======================================================
+   SEED SUBJECTS
+====================================================== */
+// Each subject now has: lec, lab, lecRoomType, labRoomType
+// labRoomType is '' if no lab component
+const SEED=[
+  // ===== BTVTED-CP (Year 1 - 9 subjects per semester, Year 2 - 9 subjects, Year 3 - 9 subjects) =====
+  // Year 1 Semester 1
+  {code:'CP101',title:'Programming 1',prog:'BTVTED-CP',yr:1,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP102',title:'Computer Fundamentals',prog:'BTVTED-CP',yr:1,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP103',title:'College Algebra',prog:'BTVTED-CP',yr:1,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP104',title:'Technical Writing',prog:'BTVTED-CP',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP105',title:'Physical Education 1',prog:'BTVTED-CP',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP106',title:'Digital Logic',prog:'BTVTED-CP',yr:1,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP107',title:'Problem Solving',prog:'BTVTED-CP',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP108',title:'Information Literacy',prog:'BTVTED-CP',yr:1,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP109',title:'Communication Fundamentals',prog:'BTVTED-CP',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 1 Semester 2
+  {code:'CP201',title:'Programming 2',prog:'BTVTED-CP',yr:1,sem:'2nd',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP202',title:'Introduction to Database',prog:'BTVTED-CP',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP203',title:'Web Design Basics',prog:'BTVTED-CP',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP204',title:'Computer Architecture',prog:'BTVTED-CP',yr:1,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP205',title:'Physical Education 2',prog:'BTVTED-CP',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP206',title:'Ethics in IT',prog:'BTVTED-CP',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP207',title:'Networking Basics',prog:'BTVTED-CP',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP208',title:'System Administration 101',prog:'BTVTED-CP',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP209',title:'Statistics for Computing',prog:'BTVTED-CP',yr:1,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 2 Semester 1
+  {code:'CP301',title:'Data Structures',prog:'BTVTED-CP',yr:2,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP302',title:'Database Systems',prog:'BTVTED-CP',yr:2,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP303',title:'Operating Systems',prog:'BTVTED-CP',yr:2,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP304',title:'Discrete Mathematics',prog:'BTVTED-CP',yr:2,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP305',title:'Professional Ethics',prog:'BTVTED-CP',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP306',title:'Software Development 1',prog:'BTVTED-CP',yr:2,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP307',title:'Software Development 2',prog:'BTVTED-CP',yr:2,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP308',title:'Advanced Networking',prog:'BTVTED-CP',yr:2,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP309',title:'Systems Security',prog:'BTVTED-CP',yr:2,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 2 Semester 2
+  {code:'CP401',title:'Web Development',prog:'BTVTED-CP',yr:2,sem:'2nd',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP402',title:'Software Engineering Basics',prog:'BTVTED-CP',yr:2,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP403',title:'Computer Networks',prog:'BTVTED-CP',yr:2,sem:'2nd',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP404',title:'Java Programming',prog:'BTVTED-CP',yr:2,sem:'2nd',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP405',title:'Pedagogy 1',prog:'BTVTED-CP',yr:2,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP406',title:'Mobile Development Basics',prog:'BTVTED-CP',yr:2,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP407',title:'Data Science Intro',prog:'BTVTED-CP',yr:2,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP408',title:'Business Systems',prog:'BTVTED-CP',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP409',title:'Cloud Computing Fundamentals',prog:'BTVTED-CP',yr:2,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  // Year 3 Semester 1
+  {code:'CP501',title:'Object-Oriented Programming',prog:'BTVTED-CP',yr:3,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP502',title:'Advanced Database Design',prog:'BTVTED-CP',yr:3,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP503',title:'Mobile App Development',prog:'BTVTED-CP',yr:3,sem:'1st',lec:3,lab:2,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP504',title:'Enterprise Applications',prog:'BTVTED-CP',yr:3,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP505',title:'Pedagogy 2',prog:'BTVTED-CP',yr:3,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP506',title:'Network Administration',prog:'BTVTED-CP',yr:3,sem:'1st',lec:2,lab:2,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP507',title:'Data Analytics',prog:'BTVTED-CP',yr:3,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP508',title:'Cybersecurity Advanced',prog:'BTVTED-CP',yr:3,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP509',title:'IT Project Management',prog:'BTVTED-CP',yr:3,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 3 Semester 2
+  {code:'CP601',title:'Advanced Web Development',prog:'BTVTED-CP',yr:3,sem:'2nd',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP602',title:'Full Stack Development',prog:'BTVTED-CP',yr:3,sem:'2nd',lec:3,lab:2,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP603',title:'Machine Learning Basics',prog:'BTVTED-CP',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP604',title:'Special Methods in Teaching Computing',prog:'BTVTED-CP',yr:3,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP605',title:'Artificial Intelligence',prog:'BTVTED-CP',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP606',title:'Microservices Architecture',prog:'BTVTED-CP',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP607',title:'IT Capstone Design',prog:'BTVTED-CP',yr:3,sem:'2nd',lec:2,lab:2,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP608',title:'Quality Assurance Testing',prog:'BTVTED-CP',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP609',title:'DevOps and Deployment',prog:'BTVTED-CP',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  // Year 4 (Field Work/Internship)
+  {code:'CP701',title:'Software Development Project',prog:'BTVTED-CP',yr:4,sem:'1st',lec:2,lab:2,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'CP703',title:'Professional Development',prog:'BTVTED-CP',yr:4,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'CP801',title:'Teaching Internship',prog:'BTVTED-CP',yr:4,sem:'2nd',lec:0,lab:5,lecRoomType:'',labRoomType:'Classroom'},
+  {code:'CP802',title:'Research Seminar',prog:'BTVTED-CP',yr:4,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  
+  // ===== BTVTED-HVACRT (Year 1 - 9 subjects per semester, Year 2 - 9 subjects, Year 3 - 9 subjects) =====
+  // Year 1 Semester 1
+  {code:'HV101',title:'HVAC Fundamentals',prog:'BTVTED-HVACRT',yr:1,sem:'1st',lec:3,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV102',title:'Refrigeration Principles',prog:'BTVTED-HVACRT',yr:1,sem:'1st',lec:3,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV103',title:'Technical Mathematics',prog:'BTVTED-HVACRT',yr:1,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV104',title:'Safety and Tools',prog:'BTVTED-HVACRT',yr:1,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV105',title:'Electrical Fundamentals',prog:'BTVTED-HVACRT',yr:1,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV106',title:'Piping and Ductwork',prog:'BTVTED-HVACRT',yr:1,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV107',title:'Physics for HVAC',prog:'BTVTED-HVACRT',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV108',title:'CAD for HVAC',prog:'BTVTED-HVACRT',yr:1,sem:'1st',lec:1,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV109',title:'Communication Skills',prog:'BTVTED-HVACRT',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 1 Semester 2
+  {code:'HV201',title:'Air Conditioning Systems',prog:'BTVTED-HVACRT',yr:1,sem:'2nd',lec:3,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV202',title:'Thermodynamics',prog:'BTVTED-HVACRT',yr:1,sem:'2nd',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV203',title:'Heating Systems',prog:'BTVTED-HVACRT',yr:1,sem:'2nd',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV204',title:'Ventilation Systems',prog:'BTVTED-HVACRT',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV205',title:'Equipment Installation',prog:'BTVTED-HVACRT',yr:1,sem:'2nd',lec:1,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV206',title:'Maintenance Procedures',prog:'BTVTED-HVACRT',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV207',title:'Troubleshooting Basics',prog:'BTVTED-HVACRT',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV208',title:'Energy Efficiency',prog:'BTVTED-HVACRT',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV209',title:'Environmental Compliance',prog:'BTVTED-HVACRT',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 2 Semester 1
+  {code:'HV301',title:'Commercial HVAC Systems',prog:'BTVTED-HVACRT',yr:2,sem:'1st',lec:3,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV302',title:'Compressors and Motors',prog:'BTVTED-HVACRT',yr:2,sem:'1st',lec:3,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV303',title:'Refrigerant Management',prog:'BTVTED-HVACRT',yr:2,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV304',title:'Control Systems',prog:'BTVTED-HVACRT',yr:2,sem:'1st',lec:3,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV305',title:'Load Calculations',prog:'BTVTED-HVACRT',yr:2,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV306',title:'Indoor Air Quality',prog:'BTVTED-HVACRT',yr:2,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV307',title:'Welding for HVAC',prog:'BTVTED-HVACRT',yr:2,sem:'1st',lec:1,lab:2,lecRoomType:'Classroom',labRoomType:'Welding Lab'},
+  {code:'HV308',title:'System Design',prog:'BTVTED-HVACRT',yr:2,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV309',title:'Building Codes for HVAC',prog:'BTVTED-HVACRT',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 2 Semester 2
+  {code:'HV401',title:'Heat Recovery Systems',prog:'BTVTED-HVACRT',yr:2,sem:'2nd',lec:2,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV402',title:'Preventive Maintenance',prog:'BTVTED-HVACRT',yr:2,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV403',title:'Diagnostic Testing',prog:'BTVTED-HVACRT',yr:2,sem:'2nd',lec:2,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV404',title:'Installation Techniques',prog:'BTVTED-HVACRT',yr:2,sem:'2nd',lec:2,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV405',title:'Pedagogy 1',prog:'BTVTED-HVACRT',yr:2,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV406',title:'Safety Management',prog:'BTVTED-HVACRT',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV407',title:'Customer Service',prog:'BTVTED-HVACRT',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV408',title:'Advanced Electrical',prog:'BTVTED-HVACRT',yr:2,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV409',title:'HVAC Software Tools',prog:'BTVTED-HVACRT',yr:2,sem:'2nd',lec:1,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  // Year 3 Semester 1
+  {code:'HV501',title:'Industrial HVAC Applications',prog:'BTVTED-HVACRT',yr:3,sem:'1st',lec:3,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV502',title:'Process Cooling Systems',prog:'BTVTED-HVACRT',yr:3,sem:'1st',lec:3,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV503',title:'Chiller Systems',prog:'BTVTED-HVACRT',yr:3,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV504',title:'Emergency Procedures',prog:'BTVTED-HVACRT',yr:3,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV505',title:'Pedagogy 2',prog:'BTVTED-HVACRT',yr:3,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV506',title:'Research Methods',prog:'BTVTED-HVACRT',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV507',title:'Advanced Troubleshooting',prog:'BTVTED-HVACRT',yr:3,sem:'1st',lec:2,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV508',title:'HVAC Automation',prog:'BTVTED-HVACRT',yr:3,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV509',title:'Sustainable HVAC',prog:'BTVTED-HVACRT',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 3 Semester 2
+  {code:'HV601',title:'Project Management for HVAC',prog:'BTVTED-HVACRT',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV602',title:'Business Operations',prog:'BTVTED-HVACRT',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV603',title:'HVAC Capstone',prog:'BTVTED-HVACRT',yr:3,sem:'2nd',lec:2,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV604',title:'Special Methods in Teaching HVAC',prog:'BTVTED-HVACRT',yr:3,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV605',title:'Advanced Design Project',prog:'BTVTED-HVACRT',yr:3,sem:'2nd',lec:1,lab:2,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV606',title:'Industry Certifications Prep',prog:'BTVTED-HVACRT',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV607',title:'Emerging Technologies',prog:'BTVTED-HVACRT',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV608',title:'Green Building Systems',prog:'BTVTED-HVACRT',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV609',title:'Seminar in HVAC',prog:'BTVTED-HVACRT',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 4 (Field Work/Internship)
+  {code:'HV701',title:'HVAC Capstone Project',prog:'BTVTED-HVACRT',yr:4,sem:'1st',lec:1,lab:3,lecRoomType:'Classroom',labRoomType:'HVAC Lab'},
+  {code:'HV702',title:'Professional Development',prog:'BTVTED-HVACRT',yr:4,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'HV801',title:'Teaching Internship 2',prog:'BTVTED-HVACRT',yr:4,sem:'2nd',lec:0,lab:5,lecRoomType:'',labRoomType:'HVAC Lab'},
+  {code:'HV802',title:'Research Seminar',prog:'BTVTED-HVACRT',yr:4,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  
+  // ===== BECED (Year 1 - 9 subjects per semester, Year 2 - 9 subjects, Year 3 - 9 subjects) =====
+  // Year 1 Semester 1
+  {code:'EC101',title:'Child Growth and Development',prog:'BECED',yr:1,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC102',title:'Foundations of ECE',prog:'BECED',yr:1,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC103',title:'Philippine Education System',prog:'BECED',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC104',title:'General Psychology',prog:'BECED',yr:1,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC105',title:'Educational Technology',prog:'BECED',yr:1,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'EC106',title:'Introduction to Linguistics',prog:'BECED',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC107',title:'Cognitive Development',prog:'BECED',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC108',title:'Research Methods',prog:'BECED',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC109',title:'Professional Communication',prog:'BECED',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 1 Semester 2
+  {code:'EC201',title:'Play and DAP',prog:'BECED',yr:1,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC202',title:'Arts Education',prog:'BECED',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC203',title:'Music Education',prog:'BECED',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC204',title:'Social Studies for ECE',prog:'BECED',yr:1,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC205',title:'Science Activities',prog:'BECED',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Science Lab'},
+  {code:'EC206',title:'Mathematics in ECE',prog:'BECED',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC207',title:'Language Arts Methods',prog:'BECED',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC208',title:'Inclusive Education',prog:'BECED',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC209',title:'Health and Wellness',prog:'BECED',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 2 Semester 1
+  {code:'EC301',title:'Curriculum Design in ECE',prog:'BECED',yr:2,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC302',title:'Language and Literacy',prog:'BECED',yr:2,sem:'1st',lec:3,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC303',title:'Social-Emotional Development',prog:'BECED',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC304',title:'Physical Development',prog:'BECED',yr:2,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC305',title:'Moral Development',prog:'BECED',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC306',title:'Creative Arts Teaching',prog:'BECED',yr:2,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC307',title:'Family Relations in ECE',prog:'BECED',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC308',title:'Assessment in ECE',prog:'BECED',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC309',title:'ICT in Early Learning',prog:'BECED',yr:2,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  // Year 2 Semester 2
+  {code:'EC401',title:'Special Needs Children',prog:'BECED',yr:2,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC402',title:'Behavior Management',prog:'BECED',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC403',title:'Child Guidance Techniques',prog:'BECED',yr:2,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC404',title:'Nutrition and Wellness',prog:'BECED',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC405',title:'Pedagogy 1',prog:'BECED',yr:2,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC406',title:'Environmental Science',prog:'BECED',yr:2,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Science Lab'},
+  {code:'EC407',title:'Storytelling and Drama',prog:'BECED',yr:2,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC408',title:'Child Psychology Advanced',prog:'BECED',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC409',title:'Parenting Partnerships',prog:'BECED',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 3 Semester 1
+  {code:'EC501',title:'Advanced Curriculum',prog:'BECED',yr:3,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC502',title:'Learning Environments',prog:'BECED',yr:3,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC503',title:'Critical Literacy',prog:'BECED',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC504',title:'Play-Based Learning',prog:'BECED',yr:3,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC505',title:'Pedagogy 2',prog:'BECED',yr:3,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC506',title:'Research in ECE',prog:'BECED',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC507',title:'Early Intervention',prog:'BECED',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC508',title:'Global Perspectives',prog:'BECED',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC509',title:'Community Engagement',prog:'BECED',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 3 Semester 2
+  {code:'EC601',title:'Program Evaluation',prog:'BECED',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC602',title:'Leadership in ECE',prog:'BECED',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC603',title:'Advocacy for Children',prog:'BECED',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC604',title:'Special Methods in ECE',prog:'BECED',yr:3,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC605',title:'Capstone Design',prog:'BECED',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC606',title:'Technology Integration',prog:'BECED',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'EC607',title:'Ethics in Education',prog:'BECED',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EC608',title:'Practicum Seminar',prog:'BECED',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC609',title:'Professional Growth',prog:'BECED',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 4 (Field Work/Internship)
+  {code:'EC701',title:'ECE Program Development',prog:'BECED',yr:4,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EC801',title:'Teaching Internship 2',prog:'BECED',yr:4,sem:'2nd',lec:0,lab:5,lecRoomType:'',labRoomType:'Classroom'},
+  {code:'EC802',title:'Research Seminar',prog:'BECED',yr:4,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  
+  // ===== BSENTREP (Year 1 - 9 subjects per semester, Year 2 - 9 subjects, Year 3 - 9 subjects) =====
+  // Year 1 Semester 1
+  {code:'EN101',title:'Entrepreneurial Mindset',prog:'BSENTREP',yr:1,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN102',title:'Principles of Economics',prog:'BSENTREP',yr:1,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN103',title:'Business Mathematics',prog:'BSENTREP',yr:1,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN104',title:'Fundamentals of Marketing',prog:'BSENTREP',yr:1,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN105',title:'Digital Business Basics',prog:'BSENTREP',yr:1,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'EN106',title:'Communication Skills',prog:'BSENTREP',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN107',title:'General Psychology',prog:'BSENTREP',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN108',title:'Philippine Society',prog:'BSENTREP',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN109',title:'Science and Society',prog:'BSENTREP',yr:1,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 1 Semester 2
+  {code:'EN201',title:'Business Plan Development',prog:'BSENTREP',yr:1,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN202',title:'Financial Accounting',prog:'BSENTREP',yr:1,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN203',title:'Business Law Basics',prog:'BSENTREP',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN204',title:'Business Statistics',prog:'BSENTREP',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN205',title:'Product Development',prog:'BSENTREP',yr:1,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EN206',title:'Introduction to Supply Chain',prog:'BSENTREP',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN207',title:'Entrepreneurship Case Studies',prog:'BSENTREP',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN208',title:'Export-Import Basics',prog:'BSENTREP',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN209',title:'Professional Development',prog:'BSENTREP',yr:1,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 2 Semester 1
+  {code:'EN301',title:'Cost Accounting',prog:'BSENTREP',yr:2,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN302',title:'Operations Management',prog:'BSENTREP',yr:2,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN303',title:'Consumer Behavior',prog:'BSENTREP',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN304',title:'E-Commerce Fundamentals',prog:'BSENTREP',yr:2,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'EN305',title:'Organizational Behavior',prog:'BSENTREP',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN306',title:'Market Research',prog:'BSENTREP',yr:2,sem:'1st',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EN307',title:'Brand Management',prog:'BSENTREP',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN308',title:'Franchise Management',prog:'BSENTREP',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN309',title:'Industrial Entrepreneurship',prog:'BSENTREP',yr:2,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 2 Semester 2
+  {code:'EN401',title:'Business Finance',prog:'BSENTREP',yr:2,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN402',title:'Corporate Strategy',prog:'BSENTREP',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN403',title:'Human Resource Management',prog:'BSENTREP',yr:2,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN404',title:'Digital Marketing',prog:'BSENTREP',yr:2,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'EN405',title:'Export Marketing',prog:'BSENTREP',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN406',title:'Tourism Management',prog:'BSENTREP',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN407',title:'Real Estate Development',prog:'BSENTREP',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN408',title:'Agribusiness',prog:'BSENTREP',yr:2,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EN409',title:'Business Communication',prog:'BSENTREP',yr:2,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 3 Semester 1
+  {code:'EN501',title:'Strategic Management',prog:'BSENTREP',yr:3,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN502',title:'International Business',prog:'BSENTREP',yr:3,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN503',title:'Social Entrepreneurship',prog:'BSENTREP',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN504',title:'Business Analytics',prog:'BSENTREP',yr:3,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN505',title:'Venture Development',prog:'BSENTREP',yr:3,sem:'1st',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN506',title:'Supply Chain Management',prog:'BSENTREP',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN507',title:'Risk Management',prog:'BSENTREP',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN508',title:'Quality Management',prog:'BSENTREP',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN509',title:'Regulatory Compliance',prog:'BSENTREP',yr:3,sem:'1st',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 3 Semester 2
+  {code:'EN601',title:'Financial Modeling',prog:'BSENTREP',yr:3,sem:'2nd',lec:3,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN602',title:'Advanced Marketing',prog:'BSENTREP',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN603',title:'Business Ethics',prog:'BSENTREP',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN604',title:'Capstone Project',prog:'BSENTREP',yr:3,sem:'2nd',lec:2,lab:2,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EN605',title:'Franchise Operations',prog:'BSENTREP',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN606',title:'Data Analytics Advanced',prog:'BSENTREP',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'EN607',title:'Technology Entrepreneurship',prog:'BSENTREP',yr:3,sem:'2nd',lec:2,lab:1,lecRoomType:'Classroom',labRoomType:'Computer Lab'},
+  {code:'EN608',title:'Sustainable Business',prog:'BSENTREP',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  {code:'EN609',title:'Innovation Management',prog:'BSENTREP',yr:3,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+  // Year 4 (Field Work/Internship)
+  {code:'EN701',title:'Capstone Business Project 1',prog:'BSENTREP',yr:4,sem:'1st',lec:2,lab:2,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EN703',title:'Business Internship 1',prog:'BSENTREP',yr:4,sem:'1st',lec:1,lab:4,lecRoomType:'Classroom',labRoomType:'Classroom'},
+  {code:'EN801',title:'Business Internship 2',prog:'BSENTREP',yr:4,sem:'2nd',lec:0,lab:5,lecRoomType:'',labRoomType:'Classroom'},
+  {code:'EN802',title:'Research Seminar',prog:'BSENTREP',yr:4,sem:'2nd',lec:2,lab:0,lecRoomType:'Classroom',labRoomType:''},
+];
+db.subjects=SEED.map((s,i)=>({...s,id:i+1}));
+
+/* ======================================================
+   FACULTY SEED
+====================================================== */
+const FACULTY_AVAIL_DEFAULT=()=>({
+  mon:{am:true,pm:true},tue:{am:true,pm:true},wed:{am:true,pm:true},
+  thu:{am:true,pm:true},fri:{am:true,pm:true},sat:{am:false,pm:false} // FIX: sat default OFF
+});
+// FIX: Added preferred time and specialization tags for matching
+const mF=(id,fn,ln,prog,spec,type='Full-Time',preferred='flexible',shared=[],maxUnits=21)=>({id,fn,ln,prog,spec,type,preferred,shared,avail:FACULTY_AVAIL_DEFAULT(),maxUnits});
+
+db.faculty=[
+  mF(1,'Romel','Salazar','BTVTED-CP','Programming & Software Development','Full-Time','morning'),
+  mF(2,'Demi','Sumile','BTVTED-CP','Programming & Web Development','Full-Time','afternoon'),
+  mF(3,'Wendel','Galgo','BTVTED-CP','Database & Systems','Full-Time','flexible'),
+  mF(4,'Kate','Dela Calzada','BTVTED-CP','Networking & Infrastructure','Full-Time','morning'),
+  mF(5,'Emily','Urgino','BTVTED-HVACRT','HVAC Systems & Refrigeration','Full-Time','flexible',['BTVTED-CP','BTVTED-HVACRT']),
+  mF(6,'Joy','Bendejo','BTVTED-HVACRT','HVAC Installation & Maintenance','Full-Time','afternoon',['BTVTED-CP','BTVTED-HVACRT']),
+  mF(7,'Fe','Perez','BTVTED-CP','Professional Education & Pedagogy','Full-Time','flexible',['BTVTED-CP','BTVTED-HVACRT']),
+  mF(8,'Ian','Sumile','BTVTED-HVACRT','HVAC Troubleshooting & Design','Full-Time','morning'),
+  ...Array.from({length:12},(_,i)=>mF(9+i,String(i+1).padStart(2,'0'),'BECED Teacher','BECED','Early Childhood Education & Child Development','Full-Time','flexible')),
+  ...Array.from({length:10},(_,i)=>mF(21+i,String(i+1).padStart(2,'0'),'BSE Teacher','BSENTREP','Entrepreneurship & Business Management','Full-Time','flexible'))
+];
+// FIX: assignments now include SECTION so same subject in different sections can have different teachers
+// Format: {id, facId, subjId, section}
+db.assignments=[];
+
+/* ======================================================
+   HELPERS
+====================================================== */
+function getSections(){
+  let s=[];
+  db.programs.forEach(p=>{
+    for(let y=1;y<=p.yrs;y++){
+      for(let i=0;i<p.secs;i++){
+        const lbl=String.fromCharCode(65+i);
+        s.push({prog:p.code,yr:y,lbl,full:`${p.code} ${y}${lbl}`});
+      }
+    }
+  });
+  return s;
+}
+function programName(code){return (PROGRAM_META[code]&&PROGRAM_META[code].label)||code;}
+function facultyPrograms(fac){return [fac.prog,...(fac.shared||[])].filter((p,i,a)=>p&&a.indexOf(p)===i);}
+function canTeachProgram(fac,prog){return facultyPrograms(fac).includes(prog);}
+function facultyProgramLabel(fac){return facultyPrograms(fac).map(programName).join(' / ');}
+function yearLabel(yr){return ['','FIRST YEAR','SECOND YEAR','THIRD YEAR','FOURTH YEAR'][+yr]||'YEAR '+yr;}
+function semesterLabel(sem){return sem==='1st'?'FIRST SEMESTER':sem==='2nd'?'SECOND SEMESTER':sem==='Summer'?'SUMMER CLASS':sem;}
+function getYearSlotRule(yr){return YEAR_SLOT_RULES[+yr]||YEAR_SLOT_RULES[4];}
+function getYearSlotIndexes(yr){return getYearSlotRule(yr).slots;}
+
+// FIX #2: Edit year-level time slot configuration
+function editYearSlots(yr){
+  const rule=YEAR_SLOT_RULES[yr];
+  const yearLabels=['','First Year','Second Year','Third Year','Fourth Year'];
+  let html=`<div style="padding:14px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:12px">${yearLabels[yr]} — Time block configuration</div>
+    <div class="form-group">
+      <label class="form-label">Block label</label>
+      <input id="edit-yr-label" value="${rule.label}" placeholder="e.g. Morning schedule">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Block description</label>
+      <input id="edit-yr-detail" value="${rule.detail}" placeholder="e.g. 7:30 AM – 12:00 PM">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Available time slots (select multiple)</label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px">`;
+  SLOTS.forEach((slot,idx)=>{
+    const checked=rule.slots.includes(idx);
+    html+=`<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--color-background-secondary);border-radius:4px;cursor:pointer">
+      <input type="checkbox" class="edit-slot-check" value="${idx}" ${checked?'checked':''}>
+      <span style="font-size:12px">${slot}</span>
+    </label>`;
+  });
+  html+=`</div></div><div style="padding:8px;background:#E6F1FB;border-radius:4px;font-size:11px;color:#185FA5"><i class="ti ti-info-circle"></i> Select which time slots this year level should use during schedule generation.</div></div>`;
+  document.getElementById('year-slots-editor').innerHTML=html;
+  document.getElementById('modal-edit-year-slots').classList.add('open');
+  window.editingYear=yr;
+}
+
+function saveYearSlots(){
+  const yr=window.editingYear;
+  const label=document.getElementById('edit-yr-label').value.trim();
+  const detail=document.getElementById('edit-yr-detail').value.trim();
+  const slots=Array.from(document.querySelectorAll('.edit-slot-check:checked')).map(e=>+e.value);
+  if(!label||!detail||!slots.length){alert('Please fill in all fields and select at least one time slot.');return;}
+  YEAR_SLOT_RULES[yr]={label,detail,slots};
+  // Update UI labels
+  document.getElementById(`y${yr}-label`).textContent=label;
+  document.getElementById(`y${yr}-detail`).textContent=detail;
+  closeModal('modal-edit-year-slots');
+}
+
+// FIX: get assignments filtered by semester AND section
+function subjectFaculty(subjId, section=''){
+  return db.assignments
+    .filter(a=>a.subjId===subjId && (!section || a.section===section))
+    .map(a=>db.faculty.find(f=>f.id===a.facId))
+    .filter(Boolean);
+}
+
+// FIX: assignments stats filtered by semester
+function assignmentStats(subjects,sem=''){
+  const list=sem?subjects.filter(s=>s.sem===sem):subjects;
+  const assigned=list.filter(s=>subjectFaculty(s.id).length).length;
+  return {assigned,total:list.length,missing:list.length-assigned};
+}
+function assignmentBadge(subjects,sem=''){
+  const st=assignmentStats(subjects,sem);
+  if(!st.total)return '<span class="badge badge-gray">No subjects</span>';
+  if(!st.missing)return '<span class="badge badge-green"><i class="ti ti-circle-check"></i> All assigned</span>';
+  return '<span class="badge badge-amber"><i class="ti ti-alert-circle"></i> '+st.missing+' need teacher</span>';
+}
+
+// FIX: get teacher unit load filtered by semester (section-independent for unit counting)
+function getFacultyUnits(facId, sem=''){
+  return db.assignments
+    .filter(a=>a.facId===facId)
+    .reduce((s,a)=>{
+      const sub=db.subjects.find(x=>x.id===a.subjId);
+      if(!sub)return s;
+      if(sem && sub.sem!==sem)return s;
+      return s+(sub.lec+sub.lab);
+    },0);
+}
+function getFacultyMaxUnits(fac){return fac.maxUnits||MAX_UNITS[fac.type]||21;}
+
+// FIX: Count unique subject codes a teacher teaches across all assignments
+function getTeacherSubjectCodes(facId){
+  const codes=new Set();
+  db.assignments.filter(a=>a.facId===facId).forEach(a=>{
+    const subj=db.subjects.find(x=>x.id===a.subjId);
+    if(subj)codes.add(subj.code);
+  });
+  return codes;
+}
+
+/* ======================================================
+   GLOBAL SEMESTER CONTROL
+====================================================== */
+function updateGlobalSem(){
+  db.currentAY=document.getElementById('global-ay').value;
+  db.currentSem=document.getElementById('global-sem').value;
+  const semMap={'1st':'1st Semester','2nd':'2nd Semester','Summer':'Summer Class'};
+  document.getElementById('sidebar-sem-label').textContent=`AY ${db.currentAY} · ${semMap[db.currentSem]}`;
+  // sync load semester filter
+  document.getElementById('load-sem-filter').value=db.currentSem;
+  renderLoadPage();
+  updateMetrics();
+}
+
+/* ======================================================
+   NAVIGATION
+====================================================== */
+function nav(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if((n.getAttribute('onclick')||'').includes("'"+page+"'"))n.classList.add('active');
+  });
+  const titles={dashboard:'Dashboard',programs:'Programs & Sections',curriculum:'Curriculum',rooms:'Rooms & Labs',faculty:'Faculty',loads:'Load Assignment',generator:'Schedule Generator',conflicts:'Conflict Check',reports:'Reports'};
+  document.getElementById('page-title').textContent=titles[page]||page;
+  if(page==='faculty')renderFaculty();
+  if(page==='curriculum')renderCurriculum();
+  if(page==='rooms'){renderRooms();renderRoomTimetable();}
+  if(page==='conflicts')renderConflicts();
+  if(page==='loads')renderLoadPage();
+  if(page==='programs'){renderPrograms();renderSections();}
+  if(page==='dashboard')updateMetrics();
+}
+
+// FIX: updateMetrics always re-checks conflicts
+function updateMetrics(){
+  document.getElementById('m-faculty').textContent=db.faculty.length;
+  document.getElementById('m-rooms').textContent=db.rooms.length;
+  document.getElementById('m-subjects').textContent=db.subjects.length;
+  document.getElementById('m-conflicts').textContent=checkConflicts().length;
+}
+
+function switchTab(el,showId){
+  const parent=el.closest('.page')||el.closest('.modal');
+  parent.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  parent.querySelectorAll('[id$="-tab"]').forEach(t=>t.style.display='none');
+  document.getElementById(showId).style.display='';
+}
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+  if(id==='modal-assign')populateAssignModal();
+  if(id==='modal-manual')populateManualModal();
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function toggleAvail(el){
+  const yes=el.classList.contains('yes');
+  el.classList.toggle('yes',!yes);el.classList.toggle('no',yes);
+  el.textContent=yes?'✗':'✓';
+}
+function resetAvail(){
+  ['mon','tue','wed','thu','fri'].forEach(d=>{
+    ['am','pm'].forEach(t=>{
+      const el=document.getElementById(`av-${d}-${t}`);
+      el.className='avail-cell yes';el.textContent='✓';
+    });
+  });
+}
+function getAvailState(){
+  const avail={};
+  ['mon','tue','wed','thu','fri','sat'].forEach(d=>{
+    avail[d]={
+      am:document.getElementById(`av-${d}-am`).classList.contains('yes'),
+      pm:document.getElementById(`av-${d}-pm`).classList.contains('yes')
+    };
+  });
+  return avail;
+}
+
+/* ======================================================
+   FACULTY
+====================================================== */
+function saveFaculty(){
+  const ln=document.getElementById('fac-ln').value.trim();
+  const fn=document.getElementById('fac-fn').value.trim();
+  const prog=document.getElementById('fac-prog').value;
+  if(!ln||!fn||!prog){alert('Please fill in last name, first name, and program.');return;}
+  const maxUnits=+document.getElementById('fac-maxunits').value||21;
+  // FIX #4: Include preferred time
+  const preferred=document.getElementById('fac-preferred').value;
+  db.faculty.push({
+    id:Date.now(),ln,fn,prog,
+    spec:document.getElementById('fac-spec').value.trim(),
+    type:document.getElementById('fac-type').value,
+    maxUnits,preferred,
+    avail:getAvailState(),
+    shared:[]
+  });
+  closeModal('modal-addfac');
+  ['fac-ln','fac-fn','fac-spec'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fac-prog').value='';
+  document.getElementById('fac-maxunits').value=21;
+  document.getElementById('fac-preferred').value='flexible';
+  resetAvail();
+  renderFaculty();
+  updateMetrics();
+}
+
+function renderFaculty(search=''){
+  const progF=document.getElementById('fac-prog-filter').value;
+  let list=db.faculty;
+  if(search)list=list.filter(f=>(f.ln+' '+f.fn).toLowerCase().includes(search.toLowerCase()));
+  if(progF)list=list.filter(f=>canTeachProgram(f,progF));
+  const tb=document.getElementById('faculty-table');
+  if(!list.length){tb.innerHTML='<div class="card" style="text-align:center;padding:32px;color:var(--color-text-secondary)">No faculty found.</div>';return;}
+  const order=db.programs.map(p=>p.code);
+  const groups=[...new Set(list.map(f=>f.prog))].sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+  tb.innerHTML=groups.map(code=>{
+    const meta=PROGRAM_META[code]||{label:code,name:code};
+    const people=list.filter(f=>f.prog===code);
+    return '<div class="group-heading"><h3><span class="badge '+(PROG_BADGE[code]||'badge-gray')+'">'+meta.label+'</span> '+meta.name+'</h3><span style="font-size:12px;color:var(--color-text-secondary)">'+people.length+' faculty</span></div><div class="faculty-program-grid">'+people.map(f=>{
+      const sem=db.currentSem;
+      const units=getFacultyUnits(f.id,sem);
+      const mx=getFacultyMaxUnits(f);
+      const pct=Math.min(100,Math.round(units/mx*100));
+      const col=pct>100?'#A32D2D':pct>85?'#854F0B':'#3B6D11';
+      const initials=(f.fn[0]||'')+(f.ln[0]||'');
+      const colors=PROG_BG[f.prog]||['#F1EFE8','#5F5E5A'];
+      // FIX #4: Display preferred time
+      const prefLabels={'morning':'Morning','afternoon':'Afternoon','evening':'Evening','flexible':'Flexible'};
+      const prefBadge=f.preferred?`<span class="badge badge-teal">${prefLabels[f.preferred]||'Flexible'}</span>`:'';
+      return '<div class="faculty-card"><div class="faculty-photo" style="background:'+colors[0]+';color:'+colors[1]+'">'+initials+'</div><div class="faculty-info" style="flex:1"><h4>'+f.ln+', '+f.fn+'</h4><p>'+(f.spec||'No specialization listed')+'</p><div class="indicator-row"><span class="badge badge-gray">'+f.type+'</span><span class="badge '+(PROG_BADGE[f.prog]||'badge-gray')+'">'+facultyProgramLabel(f)+'</span>'+prefBadge+'</div><div style="margin-top:10px"><div style="font-size:11px;margin-bottom:3px;color:var(--color-text-secondary)">'+units+'/'+mx+' units ('+sem+' sem)</div><div class="load-bar"><div class="load-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div><button class="btn btn-sm btn-danger" onclick="deleteFaculty('+f.id+')" style="margin-top:10px"><i class="ti ti-trash"></i></button></div></div>';
+    }).join('')+'</div>';
+  }).join('');
+}
+function deleteFaculty(id){
+  if(!confirm('Remove this faculty member?'))return;
+  db.faculty=db.faculty.filter(f=>f.id!==id);
+  db.assignments=db.assignments.filter(a=>a.facId!==id);
+  renderFaculty();updateMetrics();
+}
+
+/* ======================================================
+   CURRICULUM
+====================================================== */
+function renderTeacherTray(){
+  return '';
+}
+
+function renderSubjectRows(subjects){
+  return '<table><thead><tr><th>Code</th><th>Subject</th><th>Lec/Lab</th><th>Teacher</th><th>Units</th><th></th></tr></thead><tbody>'+subjects.map(s=>{
+    const teachers=subjectFaculty(s.id);
+    const assigned=teachers.length>0;
+    const hasLab=s.lab>0;
+    return `<tr>
+    <td style="font-weight:500">${s.code}</td>
+    <td><div class="subject-name-cell"><i class="ti ti-file-text" style="color:var(--color-text-tertiary)"></i><span>${s.title}</span>
+      ${hasLab?`<span class="split-badge lec">${s.lec}L</span><span class="split-badge lab">${s.lab}Lab</span>`:''}
+    </div></td>
+    <td style="font-size:11px;color:var(--color-text-secondary)">
+      ${s.lec>0?`<div>${s.lec} lec → ${s.lecRoomType}</div>`:''}
+      ${hasLab?`<div>${s.lab} lab → ${s.labRoomType}</div>`:''}
+    </td>
+    <td><div class="subject-drop-cell">${assigned
+      ?'<span class="badge badge-green assignment-chip"><i class="ti ti-user-check"></i>Assigned</span><div style="font-size:11px;color:var(--color-text-secondary);margin-top:3px">'+teachers.map(f=>f.ln+', '+f.fn).join(', ')+'</div>'
+      :'<span class="badge badge-red assignment-chip"><i class="ti ti-user-exclamation"></i>Needs teacher</span>'}</div></td>
+    <td style="text-align:center;font-weight:500">${s.lec+s.lab}</td>
+    <td><button class="btn btn-sm btn-danger" onclick="deleteSubject(${s.id})"><i class="ti ti-trash"></i></button></td>
+  </tr>`;
+  }).join('')+'</tbody></table>';
+}
+
+function renderCurriculum(){
+  const prog=document.getElementById('cur-prog-filter').value;
+  const yr=document.getElementById('cur-yr-filter').value;
+  const sem=document.getElementById('cur-sem-filter').value;
+  let list=db.subjects;
+  if(prog)list=list.filter(s=>s.prog===prog);
+  if(yr)list=list.filter(s=>s.yr==yr);
+  if(sem)list=list.filter(s=>s.sem===sem);
+  const tb=document.getElementById('curr-table');
+  if(!list.length){tb.innerHTML='<div class="card" style="text-align:center;padding:32px;color:var(--color-text-secondary)">No subjects found.</div>';return;}
+  const progOrder=db.programs.map(p=>p.code);
+  const semOrder=['1st','2nd','Summer'];
+  const programs=[...new Set(list.map(s=>s.prog))].sort((a,b)=>progOrder.indexOf(a)-progOrder.indexOf(b));
+  tb.innerHTML=programs.map(code=>{
+    const meta=PROGRAM_META[code]||{label:code,name:code};
+    const byProgram=list.filter(s=>s.prog===code);
+    const years=[...new Set(byProgram.map(s=>s.yr))].sort((a,b)=>a-b);
+    return '<div class="curr-folder"><div class="curr-folder-head"><div class="curr-folder-title"><i class="ti ti-folder"></i><span class="badge '+(PROG_BADGE[code]||'badge-gray')+'">'+meta.label+'</span><span>'+meta.name+'</span></div><div class="curr-folder-meta"><span>'+byProgram.length+' subjects</span>'+assignmentBadge(byProgram)+'</div></div>'+years.map(y=>{
+      const byYear=byProgram.filter(s=>s.yr===y);
+      const semesters=[...new Set(byYear.map(s=>s.sem))].sort((a,b)=>semOrder.indexOf(a)-semOrder.indexOf(b));
+      return '<div class="prospectus-year"><div class="year-title"><span><i class="ti ti-folder-open"></i> '+yearLabel(y)+'</span><span class="assignment-summary">'+assignmentBadge(byYear)+'</span></div>'+semesters.map(sm=>{
+        const bySem=byYear.filter(s=>s.sem===sm);
+        return '<div class="semester-block"><div class="semester-title"><span><i class="ti ti-calendar"></i> '+semesterLabel(sm)+'</span><span class="assignment-summary"><span>'+bySem.length+' subjects</span>'+assignmentBadge(bySem,sm)+'</span></div>'+renderSubjectRows(bySem)+'</div>';
+      }).join('')+'</div>';
+    }).join('')+'</div>';
+  }).join('');
+}
+
+function startTeacherDrag(ev,facId){draggedFacultyId=facId;draggedSection='';ev.dataTransfer.setData('text/plain',String(facId));ev.dataTransfer.effectAllowed='copy';}
+function clearSubjectDrop(ev){ev.currentTarget.classList.remove('drop-ready','drop-blocked');}
+function handleSubjectDragOver(ev,subjId){
+  const facId=draggedFacultyId||+ev.dataTransfer.getData('text/plain');
+  const fac=db.faculty.find(f=>f.id===facId);
+  const subj=db.subjects.find(s=>s.id===subjId);
+  if(!fac||!subj)return;
+  ev.preventDefault();
+  ev.currentTarget.classList.toggle('drop-ready',canTeachProgram(fac,subj.prog));
+  ev.currentTarget.classList.toggle('drop-blocked',!canTeachProgram(fac,subj.prog));
+}
+function assignSubjectToFaculty(facId,subjId,section=''){
+  const fac=db.faculty.find(f=>f.id===facId);
+  const subj=db.subjects.find(s=>s.id===subjId);
+  if(!fac||!subj){alert('Invalid teacher or subject.');return false;}
+  if(!canTeachProgram(fac,subj.prog)){alert(fac.ln+', '+fac.fn+' cannot teach subjects from '+programName(subj.prog)+'.');return false;}
+  if(db.assignments.find(a=>a.facId===facId&&a.subjId===subjId&&a.section===section)){alert('Already assigned to '+section+'.');return false;}
+  const curUnits=getFacultyUnits(facId,subj.sem);
+  const mx=getFacultyMaxUnits(fac);
+  const after=curUnits+subj.lec+subj.lab;
+  if(after>mx){
+    alert(`Cannot assign: ${fac.ln}, ${fac.fn} would exceed their maximum load of ${mx} units (would have ${after} units in ${semesterLabel(subj.sem)}).`);
+    return false;
+  }
+  db.assignments.push({id:Date.now(),facId,subjId,section});
+  renderLoadPage();renderFaculty();renderCurriculum();
+  return true;
+}
+function dropTeacherOnSubject(ev,subjId,section){
+  ev.preventDefault();clearSubjectDrop(ev);
+  const facId=draggedFacultyId||+ev.dataTransfer.getData('text/plain');
+  draggedSection=section;
+  draggedFacultyId=null;
+  assignSubjectToFaculty(facId,subjId,section);
+}
+function deleteSubject(id){
+  if(!confirm('Remove this subject?'))return;
+  db.subjects=db.subjects.filter(s=>s.id!==id);
+  db.assignments=db.assignments.filter(a=>a.subjId!==id);
+  renderCurriculum();updateMetrics();
+}
+function saveSubject(){
+  const code=document.getElementById('s-code').value.trim();
+  const title=document.getElementById('s-title').value.trim();
+  const prog=document.getElementById('s-prog').value;
+  if(!code||!title||!prog){alert('Fill in code, title, and program.');return;}
+  db.subjects.push({
+    id:Date.now(),code,title,prog,
+    yr:+document.getElementById('s-yr').value,
+    sem:document.getElementById('s-sem').value,
+    lec:+document.getElementById('s-lec').value,
+    lab:+document.getElementById('s-lab').value,
+    lecRoomType:document.getElementById('s-lecroom').value||'Classroom',
+    labRoomType:document.getElementById('s-labroom').value||''
+  });
+  closeModal('modal-addsubj');renderCurriculum();updateMetrics();
+}
+
+/* ======================================================
+   ROOMS
+====================================================== */
+function renderRooms(){
+  const classrooms=db.rooms.filter(r=>r.type==='Classroom');
+  const labs=db.rooms.filter(r=>r.type!=='Classroom');
+  document.getElementById('rooms-table').innerHTML=classrooms.map(r=>`<tr><td style="font-weight:500">${r.name}</td><td>${r.type}</td><td style="color:var(--color-text-secondary)">${r.prog||'All programs'}</td><td><span class="badge badge-green">Available</span></td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--color-text-secondary)">No classrooms added.</td></tr>';
+  document.getElementById('labs-table').innerHTML=labs.map(r=>`<tr><td style="font-weight:500">${r.name}</td><td>${r.type}</td><td>${r.prog||'Shared'}</td><td><span class="badge badge-green">Available</span></td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--color-text-secondary)">No labs added.</td></tr>';
+}
+function saveRoom(){
+  const name=document.getElementById('r-name').value.trim();
+  if(!name){alert('Enter room name.');return;}
+  db.rooms.push({id:Date.now(),name,type:document.getElementById('r-type').value,prog:document.getElementById('r-prog').value});
+  closeModal('modal-addroom');renderRooms();
+}
+
+/* ======================================================
+   PROGRAMS
+====================================================== */
+function renderPrograms(){
+  const target=document.getElementById('prog-table');
+  const btvted=db.programs.filter(p=>PROGRAM_META[p.code]&&PROGRAM_META[p.code].group==='btvted');
+  const other=db.programs.filter(p=>!PROGRAM_META[p.code]||PROGRAM_META[p.code].group!=='btvted');
+  const majorCards=btvted.map(p=>{const m=PROGRAM_META[p.code];return `<div class="major-card"><span class="badge ${PROG_BADGE[p.code]||'badge-gray'}">${m.label}</span><h3>${m.major}</h3><p>${p.secs} section${p.secs>1?'s':''} each year level, ${p.yrs} year levels</p><div class="section-preview">${Array.from({length:p.secs},(_,i)=>'<span class="section-pill">Section '+String.fromCharCode(65+i)+'</span>').join('')}</div></div>`;}).join('');
+  target.innerHTML=`<div class="program-family card"><span class="badge badge-blue">BTVTED</span><h3>Bachelor of Technical-Vocational Teacher Education</h3><p style="font-size:12px;color:var(--color-text-secondary);margin-top:4px">Organized by major with section indicators per year level.</p><div class="major-list">${majorCards}</div></div><div class="program-grid">${other.map(p=>{const m=PROGRAM_META[p.code]||{label:p.code,name:p.name,major:'General'};return `<div class="program-card"><span class="badge ${PROG_BADGE[p.code]||'badge-gray'}">${m.label}</span><h3>${m.name}</h3><p>${p.secs} section${p.secs>1?'s':''} each year level across ${p.yrs} year levels.</p><div class="indicator-row"><div class="indicator"><span>Sections/year</span><strong>${p.secs}</strong></div><div class="indicator"><span>Year levels</span><strong>${p.yrs}</strong></div><div class="indicator"><span>Total</span><strong>${p.secs*p.yrs}</strong></div></div></div>`;}).join('')}</div>`;
+}
+function renderSections(){
+  const secs=getSections();
+  document.getElementById('sect-table').innerHTML=secs.map(s=>`<tr><td style="font-weight:500">${s.full}</td><td><span class="badge ${PROG_BADGE[s.prog]||'badge-gray'}">${s.prog}</span></td><td>Year ${s.yr}</td></tr>`).join('');
+}
+function saveProgram(){
+  const code=document.getElementById('np-code').value.trim();
+  const name=document.getElementById('np-name').value.trim();
+  const secs=+document.getElementById('np-secs').value||2;
+  if(!code||!name){alert('Fill in code and name.');return;}
+  db.programs.push({code,name,secs,yrs:4});
+  closeModal('modal-addprog');
+  document.getElementById('np-code').value='';document.getElementById('np-name').value='';
+  renderPrograms();renderSections();
+}
+
+/* ======================================================
+   LOAD ASSIGNMENT — ALL FIXES APPLIED
+====================================================== */
+function renderLoadPage(){
+  const prog=document.getElementById('load-prog-filter').value;
+  const sem=document.getElementById('load-sem-filter').value; // FIX: use semester
+  document.getElementById('load-sem-display').textContent=semesterLabel(sem);
+
+  const sel=document.getElementById('load-fac-select');
+  const current=sel.value;
+  const list=db.faculty.filter(f=>!prog||canTeachProgram(f,prog));
+  sel.innerHTML='<option value="">— Select faculty to view detail —</option>'+list.map(f=>'<option value="'+f.id+'">'+f.ln+', '+f.fn+' ('+facultyProgramLabel(f)+')</option>').join('');
+  sel.value=list.find(f=>f.id==current)?current:'';
+  renderLoadSummary();
+  renderLoadSubjects(); // FIX: render unassigned subjects
+  renderLoadDetail();
+}
+
+function renderLoadSummary(){
+  const prog=document.getElementById('load-prog-filter').value;
+  const sem=document.getElementById('load-sem-filter').value;
+  const list=db.faculty.filter(f=>!prog||canTeachProgram(f,prog));
+  const order=db.programs.map(p=>p.code);
+  const groups=[...new Set(list.map(f=>f.prog))].sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+  document.getElementById('load-summary-list').innerHTML=groups.map(code=>{
+    const meta=PROGRAM_META[code]||{label:code,name:code};
+    const people=list.filter(f=>f.prog===code);
+    return '<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:600;margin-bottom:8px"><span class="badge '+(PROG_BADGE[code]||'badge-gray')+'">'+meta.label+'</span></div>'+people.map(f=>{
+      // FIX: filter by selected semester
+      const units=getFacultyUnits(f.id,sem);
+      const mx=getFacultyMaxUnits(f);
+      const pct=Math.min(100,Math.round(units/mx*100));
+      const col=pct>100?'#A32D2D':pct>85?'#854F0B':'#3B6D11';
+      return '<div style="margin-bottom:10px;cursor:pointer;padding:8px;border-radius:6px" onclick="document.getElementById(\'load-fac-select\').value=\''+f.id+'\';renderLoadDetail()" onmouseover="this.style.background=\'var(--color-background-secondary)\'" onmouseout="this.style.background=\'\'"><div style="font-size:12px;font-weight:500">'+f.ln+', '+f.fn+'</div><div style="font-size:11px;color:var(--color-text-secondary)">'+units+'/'+mx+' units — '+sem+' sem</div><div class="load-bar"><div class="load-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>';
+    }).join('')+'</div>';
+  }).join('')||'<div style="font-size:12px;color:var(--color-text-secondary)">No faculty for this program.</div>';
+}
+
+// FIX: NEW — render ALL subjects (assigned + unassigned) organized by PROGRAM → SECTION with completion indicators and STICKY TEACHER AREA
+function renderLoadSubjects(){
+  const prog=document.getElementById('load-prog-filter').value;
+  const sem=document.getElementById('load-sem-filter').value;
+  
+  // Get all sections, optionally filtered by program
+  let sections=getSections();
+  if(prog)sections=sections.filter(sec=>sec.prog===prog);
+  
+  // Get all subjects for the selected semester
+  let allSubjs=db.subjects.filter(s=>s.sem===sem);
+  if(prog)allSubjs=allSubjs.filter(s=>s.prog===prog);
+  
+  const el=document.getElementById('load-subject-list');
+  
+  // Get available teachers
+  const teachers=db.faculty.filter(f=>!prog||canTeachProgram(f,prog));
+  const trayHtml=`<div class="teacher-chip-list" style="margin-bottom:0;padding:0;display:flex;flex-wrap:wrap;gap:8px">`+teachers.map(f=>{
+    const codes=getTeacherSubjectCodes(f.id);
+    const codeCount=codes.size;
+    const codeLabel=codeCount===0?'':'('+codeCount+'/3 codes)';
+    return `<div class="teacher-chip" draggable="true" ondragstart="startTeacherDrag(event,${f.id})" title="${f.ln}: ${codeCount} unique subject codes"><i class="ti ti-user"></i><span style="font-size:11px">${f.ln} ${codeLabel}</span></div>`;
+  }).join('')+'</div>';
+  
+  // Group subjects by Program → Section — SHOW ALL (assigned + unassigned)
+  const programsOrder=db.programs.map(p=>p.code);
+  const grouped=programsOrder.map(progCode=>{
+    const progSections=sections.filter(sec=>sec.prog===progCode);
+    if(!progSections.length)return '';
+    
+    const meta=PROGRAM_META[progCode]||{label:progCode,name:progCode};
+    let progHtml=`<div style="margin-bottom:16px"><div style="font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px"><span class="badge ${PROG_BADGE[progCode]||'badge-gray'}">${meta.label}</span><span style="font-size:11px;color:var(--color-text-secondary)">${progSections.length} section${progSections.length!==1?'s':''}</span></div>`;
+    
+    // For each section in this program
+    progHtml+=progSections.map(sec=>{
+      const secSubjs=allSubjs.filter(s=>s.prog===sec.prog&&s.yr===sec.yr);
+      if(!secSubjs.length)return '';
+      
+      // Count assigned vs total — SECTION-SPECIFIC
+      const assigned=secSubjs.filter(s=>subjectFaculty(s.id, sec.full).length>0).length;
+      const total=secSubjs.length;
+      const complete=assigned===total;
+      const completeBadge=complete
+        ?`<span class="section-completion complete"><i class="ti ti-circle-check"></i> Complete</span>`
+        :`<span class="section-completion partial">${assigned}/${total}</span>`;
+      
+      return `<div class="load-group" style="margin-bottom:12px">
+        <div class="load-group-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span><i class="ti ti-folder-open"></i> ${sec.full}</span>
+          <div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--color-text-secondary)">${total} subject${total!==1?'s':''}</span>${completeBadge}</div>
+        </div>
+        <table><thead><tr><th>Code</th><th>Subject</th><th>Units</th><th>Lec/Lab</th><th>Assigned to</th><th>Assign</th></tr></thead><tbody>`+
+        secSubjs.map(s=>{
+          const teachers_=subjectFaculty(s.id, sec.full);
+          const isAssigned=teachers_.length>0;
+          const assignedNames=teachers_.map(t=>t.ln).join(', ');
+          return `<tr class="subject-row${isAssigned?' assigned':''}">
+            <td style="font-weight:500;font-size:12px">${s.code}</td>
+            <td style="font-size:12px">${s.title}</td>
+            <td style="text-align:center;font-size:12px;font-weight:500">${s.lec+s.lab}</td>
+            <td style="font-size:10px;text-align:center"><span class="split-badge lec">${s.lec}L</span>${s.lab>0?'<span class="split-badge lab">'+s.lab+'Lab</span>':''}</td>
+            <td style="font-size:11px;color:${isAssigned?'#3B6D11':'var(--color-text-tertiary)'}"><i class="ti ti-${isAssigned?'circle-check':'circle'}"></i> ${isAssigned?'<strong>'+assignedNames+'</strong>':'—'}</td>
+            <td><div class="subject-drop-cell" ondragover="handleSubjectDragOver(event,${s.id})" ondragleave="clearSubjectDrop(event)" ondrop="dropTeacherOnSubject(event,${s.id},'${sec.full}')" style="min-width:90px;padding:4px 8px;font-size:10px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:4px;text-align:center">Drop here</div></td>
+          </tr>`;
+        }).join('')+`</tbody></table></div>`;
+    }).join('')+'</div>';
+    
+    return progHtml;
+  }).join('');
+  
+  const totalSubjs=allSubjs.length;
+  const totalAssigned=allSubjs.filter(s=>subjectFaculty(s.id).length>0).length;
+  
+  // FIX: Put teacher tray in sticky header, content in scrollable body
+  document.querySelector('.load-subjects-head').innerHTML=`
+    <div class="load-panel-head" style="margin:0;padding:0;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+      <div class="load-panel-title"><i class="ti ti-list-check"></i>All subjects by section</div>
+      <span style="font-size:11px;color:var(--color-text-secondary)">Drag a teacher chip onto a row to assign • Assigned subjects stay visible</span>
+    </div>
+    <div style="font-size:12px;color:var(--color-text-secondary);padding:8px;background:var(--color-background-secondary);border-radius:4px"><i class="ti ti-info-circle"></i> ${totalAssigned}/${totalSubjs} subjects assigned for ${semesterLabel(sem)}</div>
+    <div class="load-teacher-tray-sticky">${trayHtml}</div>
+  `;
+  
+  document.querySelector('.load-subjects-body').innerHTML=`<div class="load-subjects-inner">`+grouped+`</div>`;
+}
+
+function renderLoadDetail(){
+  const id=+document.getElementById('load-fac-select').value;
+  const sem=document.getElementById('load-sem-filter').value; // FIX: filter by semester
+  const area=document.getElementById('load-detail-area');
+  if(!id){area.innerHTML='<div class="empty-state"><i class="ti ti-user"></i>Select a faculty member to view their assigned subjects</div>';return;}
+  const fac=db.faculty.find(f=>f.id===id);
+  // FIX: filter assignments by semester
+  const asgn=db.assignments.filter(a=>{
+    if(a.facId!==id)return false;
+    const sub=db.subjects.find(x=>x.id===a.subjId);
+    return sub&&sub.sem===sem;
+  });
+  const mx=getFacultyMaxUnits(fac);
+  const total=asgn.reduce((s,a)=>{const sub=db.subjects.find(x=>x.id===a.subjId);return s+(sub?sub.lec+sub.lab:0)},0);
+  const pct=Math.min(100,Math.round(total/mx*100));
+  const overload=total>mx;
+  const barColor=overload?'#A32D2D':pct>85?'#854F0B':'#3B6D11';
+  
+  // FIX: Show subject code diversity
+  const subjectCodes=getTeacherSubjectCodes(id);
+  const codeCount=subjectCodes.size;
+  const codeStatus=codeCount===0?'No assignments':'<strong>'+codeCount+'/3</strong> subject codes';
+  const codeStatusColor=codeCount>3?'#A32D2D':(codeCount>2?'#854F0B':'#3B6D11');
+  
+  const unitMsg=overload
+    ?`<div class="unit-error"><i class="ti ti-alert-triangle"></i> Overloaded: ${total}/${mx} units this semester. Remove assignments to resolve.</div>`
+    :pct>85
+    ?`<div class="unit-warn"><i class="ti ti-alert-circle"></i> Near limit: ${total}/${mx} units this semester.</div>`
+    :`<div class="unit-ok"><i class="ti ti-circle-check"></i> ${total}/${mx} units this semester — within limit.</div>`;
+  
+  if(!asgn.length){
+    area.innerHTML='<div style="padding:14px">'+unitMsg+'<div style="padding:8px;margin-top:8px;background:var(--color-background-secondary);border-radius:4px;font-size:12px;color:var(--color-text-secondary)"><i class="ti ti-info-circle"></i> Subject codes: '+codeStatus+'</div><div class="empty-state" style="padding:24px 0"><i class="ti ti-briefcase"></i>'+fac.ln+' has no assigned subjects for '+semesterLabel(sem)+'.<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openAssignModal('+fac.id+')"><i class="ti ti-plus"></i>Assign subject</button></div></div>';
+    return;
+  }
+  
+  // Group by Program → Section (not year/semester) — with SECTION-SPECIFIC filtering
+  const sections=getSections();
+  const groupedRows=sections.map(sec=>{
+    const rowsInSec=asgn.filter(a=>{
+      const s=db.subjects.find(x=>x.id===a.subjId);
+      return s&&s.prog===sec.prog&&s.yr===sec.yr&&a.section===sec.full;
+    });
+    if(!rowsInSec.length)return '';
+    return `<div class="load-group">
+      <div class="load-group-title"><span><i class="ti ti-folder-open"></i> ${sec.full}</span><span>${rowsInSec.length} subject${rowsInSec.length!==1?'s':''}</span></div>
+      <table><thead><tr><th>Code</th><th>Subject title</th><th>Lec</th><th>Lab</th><th>Units</th><th></th></tr></thead><tbody>`+
+      rowsInSec.map(a=>{
+        const s=db.subjects.find(x=>x.id===a.subjId);if(!s)return'';
+        return `<tr><td style="font-weight:500">${s.code}</td><td>${s.title}</td><td style="text-align:center">${s.lec}</td><td style="text-align:center">${s.lab}</td><td style="text-align:center;font-weight:500">${s.lec+s.lab}</td><td><button class="btn btn-sm btn-danger" onclick="removeAssign(${a.id})"><i class="ti ti-trash"></i></button></td></tr>`;
+      }).join('')+'</tbody></table></div>';
+  }).join('');
+  
+  area.innerHTML=`<div style="padding:12px 16px;border-bottom:0.5px solid var(--color-border-tertiary)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div><span style="font-size:13px;font-weight:500">${fac.ln}, ${fac.fn}</span><div style="font-size:11px;color:var(--color-text-secondary);margin-top:1px">${semesterLabel(sem)} · ${fac.spec||'No specialization listed'}</div></div>
+      <div style="text-align:right"><div style="font-size:12px"><strong>${total}</strong>/${mx} units</div><div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${codeStatus}</div></div>
+    </div>
+    <div class="load-bar" style="margin-top:6px"><div class="load-fill" style="width:${pct}%;background:${barColor}"></div></div>
+    ${unitMsg}
+    <div style="padding:8px;margin-top:8px;background:${codeStatusColor}20;border:0.5px solid ${codeStatusColor}40;border-radius:4px;font-size:12px;color:${codeStatusColor}"><i class="ti ti-info-circle"></i> Subject codes: <strong>${Array.from(subjectCodes).join(', ')||'None'}</strong> (${codeCount}/3)</div>
+  </div>
+  <div style="padding:12px 16px">${groupedRows}</div>`;
+}
+
+function openAssignModal(facId){
+  const selected=facId?db.faculty.find(f=>f.id===facId):db.faculty.find(f=>f.id==document.getElementById('load-fac-select').value);
+  openModal('modal-assign');
+  if(selected){
+    const loadProg=document.getElementById('load-prog-filter').value;
+    document.getElementById('assign-prog').value=(loadProg&&canTeachProgram(selected,loadProg))?loadProg:selected.prog;
+    filterAssignOptions(selected.id);
+  }
+}
+function populateAssignModal(){
+  const currentFac=db.faculty.find(f=>f.id==document.getElementById('load-fac-select').value);
+  const loadProg=document.getElementById('load-prog-filter').value;
+  document.getElementById('assign-prog').value=currentFac?((loadProg&&canTeachProgram(currentFac,loadProg))?loadProg:currentFac.prog):loadProg;
+  filterAssignOptions(currentFac?currentFac.id:null);
+}
+function filterAssignOptions(preselectFacId){
+  const prog=document.getElementById('assign-prog').value;
+  const sem=document.getElementById('load-sem-filter').value;
+  const facList=prog?db.faculty.filter(f=>canTeachProgram(f,prog)):[];
+  // FIX: filter subjects by selected semester
+  const subjList=prog?db.subjects.filter(s=>s.prog===prog&&s.sem===sem):[];
+  document.getElementById('assign-fac').innerHTML=facList.length?facList.map(f=>'<option value="'+f.id+'">'+f.ln+', '+f.fn+' · '+(f.spec||'No specialization')+'</option>').join(''):'<option value="">No faculty for this program</option>';
+  document.getElementById('assign-subj').innerHTML=subjList.length?subjList.map(s=>'<option value="'+s.id+'">'+s.code+' - '+s.title+' [Yr '+s.yr+']</option>').join(''):'<option value="">No subjects for this program/semester</option>';
+  if(preselectFacId&&facList.find(f=>f.id===preselectFacId))document.getElementById('assign-fac').value=preselectFacId;
+  checkAssignCompat();
+}
+function checkAssignCompat(){
+  const fId=+document.getElementById('assign-fac').value;
+  const sId=+document.getElementById('assign-subj').value;
+  const fac=db.faculty.find(f=>f.id===fId);
+  const subj=db.subjects.find(s=>s.id===sId);
+  const el=document.getElementById('assign-check');
+  const btn=document.getElementById('assign-save-btn');
+  assignBlocked=false;
+  if(!fac||!subj){el.innerHTML='<div style="color:var(--color-text-secondary)">Select a program, faculty, and subject.</div>';if(btn)btn.disabled=false;return;}
+  const notes=[];
+  
+  // 1. Check program compatibility
+  if(!canTeachProgram(fac,subj.prog)){
+    notes.push('<div class="unit-error"><i class="ti ti-x"></i> Program mismatch: '+fac.ln+' cannot teach '+programName(subj.prog)+' subjects.</div>');
+    assignBlocked=true;
+  }
+  
+  // FIX #1: Check specialization matching
+  const specMatch=fac.spec && subj.code && fac.spec.toLowerCase().includes(subj.code.substring(0,2).toLowerCase());
+  if(!specMatch && fac.spec){
+    notes.push('<div class="unit-warn"><i class="ti ti-alert-circle"></i> Specialization mismatch: '+fac.ln+' teaches "'+fac.spec+'" but this subject is "'+subj.title+'". Assignment allowed but not ideal.</div>');
+  } else if(specMatch){
+    notes.push('<div class="unit-ok"><i class="ti ti-circle-check"></i> Specialization match: '+fac.spec+'</div>');
+  }
+  
+  // 2. Check unit cap (18 units max)
+  const curUnits=getFacultyUnits(fId,subj.sem);
+  const mx=getFacultyMaxUnits(fac);
+  const after=curUnits+subj.lec+subj.lab;
+  if(after>mx){
+    notes.push('<div class="unit-error"><i class="ti ti-alert-triangle"></i> Exceeds unit cap: '+after+'/'+mx+' units in '+semesterLabel(subj.sem)+'.</div>');
+    assignBlocked=true;
+  } else if(after>mx*0.85){
+    notes.push('<div class="unit-warn"><i class="ti ti-alert-circle"></i> Near limit: '+after+'/'+mx+' units after this assignment.</div>');
+  } else {
+    notes.push('<div class="unit-ok"><i class="ti ti-circle-check"></i> Units OK: '+after+'/'+mx+' in '+semesterLabel(subj.sem)+'.</div>');
+  }
+  
+  // FIX #5: Check subject code diversity (max 3 different subject codes) — FIXED LOGIC
+  const currentCodes=getTeacherSubjectCodes(fId);
+  // Check if NEW subject code is already in the list
+  const isNewCode=!currentCodes.has(subj.code);
+  const wouldHave=isNewCode?currentCodes.size+1:currentCodes.size;
+  if(wouldHave>3){
+    notes.push('<div class="unit-error"><i class="ti ti-alert-triangle"></i> Subject code limit exceeded: '+fac.ln+' would teach '+wouldHave+' different subject codes (max 3). Current: '+Array.from(currentCodes).join(', ')+'. New: '+subj.code+'</div>');
+    assignBlocked=true;
+  } else {
+    const codeList=Array.from(currentCodes);if(isNewCode)codeList.push(subj.code);
+    const codeMsg=wouldHave===0?'First assignment':`${wouldHave}/3 codes (${codeList.join(', ')})`;
+    notes.push('<div class="unit-ok"><i class="ti ti-circle-check"></i> Subject code diversity OK: '+codeMsg+'</div>');
+  }
+  
+  // 4. Check if already assigned
+  if(db.assignments.find(a=>a.facId===fId&&a.subjId===sId)){
+    notes.push('<div class="unit-error"><i class="ti ti-alert-triangle"></i> Already assigned.</div>');
+    assignBlocked=true;
+  }
+  
+  if(btn)btn.disabled=assignBlocked;
+  if(btn)btn.style.opacity=assignBlocked?'0.5':'1';
+  el.innerHTML=notes.join('');
+}
+function saveAssignment(){
+  if(assignBlocked){alert('Cannot assign — resolve the issues shown.');return;}
+  const facId=+document.getElementById('assign-fac').value;
+  const subjId=+document.getElementById('assign-subj').value;
+  if(assignSubjectToFaculty(facId,subjId))closeModal('modal-assign');
+}
+function removeAssign(id){
+  db.assignments=db.assignments.filter(a=>a.id!==id);
+  renderLoadDetail();renderLoadSummary();renderLoadSubjects();renderFaculty();renderCurriculum();
+}
+
+/* ======================================================
+   SCHEDULE GENERATOR — LECTURE + LAB SPLIT FIXED
+====================================================== */
+function runGenerate(){
+  document.getElementById('gen-step1').style.display='none';
+  document.getElementById('gen-step2').style.display='';
+  document.getElementById('gs1').classList.remove('active');document.getElementById('gs1').classList.add('done');
+  document.getElementById('gs2').classList.add('active');
+  const msgs=['Checking faculty availability…','Splitting lecture and lab components…','Matching subjects to qualified teachers…','Finding available rooms for each component…','Assigning time slots without overlap…','Verifying section conflicts…','Finalizing master schedule…'];
+  const bar=document.getElementById('gen-prog-bar');
+  const pt=document.getElementById('gen-progress-text');
+  let i=0;
+  const iv=setInterval(()=>{
+    pt.textContent=msgs[i];
+    bar.style.width=Math.round((i+1)/msgs.length*100)+'%';
+    i++;
+    if(i>=msgs.length){clearInterval(iv);setTimeout(generateSchedule,400);}
+  },500);
+}
+
+function findRoom(neededType, prog, usedRoomSlots, day, times){
+  const neededTimes=Array.isArray(times)?times:[times];
+  return db.rooms.find(r=>{
+    if(r.type!==neededType)return false;
+    if(r.prog&&r.prog!==prog)return false;
+    return neededTimes.every(time=>!usedRoomSlots[`${r.name}|${day}|${time}`]);
+  });
+}
+
+function generateSchedule(){
+  db.schedules=[];
+  db.roomTimetable={};  // FIX #3: Reset room timetable
+  const secs=getSections();
+  const sem=document.getElementById('gen-sem').value;
+  const progFilter=document.getElementById('gen-prog').value;
+  const genAY=document.getElementById('gen-ay').value;
+  db.lastGenerated={sem,prog:progFilter,ay:genAY};
+
+  let secList=progFilter?secs.filter(s=>s.prog===progFilter):secs;
+
+  const teacherSlots={};  // `facId|day|time` → true
+  const roomSlots={};     // `roomName|day|time` → true
+  const sectionSlots={};  // `section|day|time` → true
+  let uid=1;
+
+  function tryAssignSlot(sec, subj, fac, neededRoomType, slotType, requiredHours=1, uid_ref, dayIndexes=null, startSlotIndex=null){
+    const facKey=fac?fac.id:'NONE';
+    const allowedSlots=getYearSlotIndexes(sec.yr);
+    const candidateDays=dayIndexes||DAYS.map((_,idx)=>idx);
+    for(const d of candidateDays){
+      const dayKey=['mon','tue','wed','thu','fri','sat'][d];
+      const candidateSlots=startSlotIndex===null?allowedSlots:[startSlotIndex];
+      for(let si=0;si<candidateSlots.length;si++){
+        const t=candidateSlots[si];
+        if(!allowedSlots.includes(t))continue;
+        const consecutiveSlots=slotsNeededForHours(t,allowedSlots,requiredHours);
+        if(!consecutiveSlots)continue;
+        // FIX #8: Check if enough consecutive slots available
+        const slotsNeeded=[];
+        let canUseConsecutive=true;
+        for(let c=0;c<consecutiveSlots;c++){
+          const slotIdx=allowedSlots.indexOf(t)+c;
+          if(slotIdx>=allowedSlots.length){canUseConsecutive=false;break;}
+          slotsNeeded.push(allowedSlots[slotIdx]);
+        }
+        if(!canUseConsecutive)continue;
+        
+        const isAM=t<3;
+        // Check faculty availability for ALL needed slots
+        if(fac){
+          let freeForAll=true;
+          for(let slot of slotsNeeded){
+            if(!fac.avail[dayKey][slot<3?'am':'pm']){freeForAll=false;break;}
+          }
+          if(!freeForAll)continue;
+        }
+        
+        // Check teacher time conflict for ALL needed slots
+        let teacherFree=true;
+        for(let slot of slotsNeeded){
+          const tk=`${facKey}|${DAYS[d]}|${SLOTS[slot]}`;
+          if(fac&&teacherSlots[tk]){teacherFree=false;break;}
+        }
+        if(!teacherFree)continue;
+        
+        // Check section time conflict for ALL needed slots
+        let sectionFree=true;
+        for(let slot of slotsNeeded){
+          const sk=`${sec.full}|${DAYS[d]}|${SLOTS[slot]}`;
+          if(sectionSlots[sk]){sectionFree=false;break;}
+        }
+        if(!sectionFree)continue;
+        
+        // Find room of needed type for the entire session.
+        const room=findRoom(neededRoomType,subj.prog,roomSlots,DAYS[d],slotsNeeded.map(slot=>SLOTS[slot]));
+        if(!room)continue;
+        
+        // All clear — book ALL slots
+        if(fac)slotsNeeded.forEach(slot=>{teacherSlots[`${facKey}|${DAYS[d]}|${SLOTS[slot]}`]=true;});
+        slotsNeeded.forEach(slot=>{
+          roomSlots[`${room.name}|${DAYS[d]}|${SLOTS[slot]}`]=true;
+          sectionSlots[`${sec.full}|${DAYS[d]}|${SLOTS[slot]}`]=true;
+        });
+        
+        // FIX #3: Update room timetable
+        const roomKey=room.name;
+        if(!db.roomTimetable[roomKey])db.roomTimetable[roomKey]={};
+        slotsNeeded.forEach(slot=>{
+          const daySlotKey=`${DAYS[d]}|${SLOTS[slot]}`;
+          db.roomTimetable[roomKey][daySlotKey]={code:subj.code,section:sec.full,faculty:fac?`${fac.ln}, ${fac.fn}`:'TBA'};
+        });
+        
+        return {
+          id:uid++,
+          code:subj.code,
+          title:subj.title,
+          prog:sec.prog,
+          section:sec.full,
+          facName:fac?`${fac.ln}, ${fac.fn}`:'TBA',
+          day:DAYS[d],
+          time:SLOTS[t],
+          room:room.name,
+          lec:slotType==='lecture'?subj.lec:0,
+          lab:slotType==='lab'?subj.lab:0,
+          slotType, // 'lecture' or 'lab'
+          rtype:neededRoomType,
+          yr:sec.yr,
+          sem,
+          durationHours:requiredHours,
+          consecutiveSlots // FIX #8: track how many slots used
+        };
+      }
+    }
+    return null; // could not find a slot
+  }
+
+  function releaseSlot(slot, fac){
+    const facKey=fac?fac.id:'NONE';
+    occupiedSlotLabels(slot).forEach(label=>{
+      if(fac)delete teacherSlots[`${facKey}|${slot.day}|${label}`];
+      delete roomSlots[`${slot.room}|${slot.day}|${label}`];
+      delete sectionSlots[`${slot.section}|${slot.day}|${label}`];
+      if(db.roomTimetable[slot.room])delete db.roomTimetable[slot.room][`${slot.day}|${label}`];
+    });
+  }
+
+  function lectureDayPattern(units){
+    if(units>=3)return [0,2,4];       // MWF
+    if(units===2)return [1,3];        // TTh
+    return [0];                       // single-unit lecture
+  }
+
+  function tryAssignLecturePattern(sec, subj, fac){
+    const meetingDays=lectureDayPattern(subj.lec);
+    const meetingHours=LECTURE_HOURS_PER_UNIT;
+    const allowedSlots=getYearSlotIndexes(sec.yr);
+    for(let si=0;si<allowedSlots.length;si++){
+      const t=allowedSlots[si];
+      const slotsForMeeting=slotsNeededForHours(t,allowedSlots,meetingHours);
+      if(!slotsForMeeting)continue;
+
+      const trialSlots=[];
+      let allMeetingsFit=true;
+      for(const d of meetingDays){
+        const slot=tryAssignSlot(sec,subj,fac,subj.lecRoomType,'lecture',meetingHours,uid,[d],t);
+        if(slot){
+          trialSlots.push(slot);
+        }else{
+          allMeetingsFit=false;
+        }
+        if(!allMeetingsFit)break;
+      }
+
+      if(allMeetingsFit){
+        return trialSlots.map(slot=>({
+          ...slot,
+          lec:LECTURE_HOURS_PER_UNIT,
+          meetingPattern:meetingDays.map(d=>DAYS[d].slice(0,3)).join('/')
+        }));
+      }
+      trialSlots.forEach(slot=>releaseSlot(slot,fac));
+    }
+    return null;
+  }
+
+  secList.forEach(sec=>{
+    const progSubjs=db.subjects.filter(s=>s.prog===sec.prog&&s.yr===sec.yr&&s.sem===sem);
+    progSubjs.forEach(subj=>{
+      // FIX #6: Consider section-specific assignment
+      const asgn=db.assignments.find(a=>a.subjId===subj.id && a.section===sec.full);
+      const fac=asgn?db.faculty.find(f=>f.id===asgn.facId):null;
+
+      // ============================================================
+      // FIX #6 & #8: LECTURE + LAB SPLIT WITH MULTI-SLOT SUPPORT
+      // If subject has lecture units → schedule 1 hour per lecture unit.
+      // If subject has lab units → schedule consecutive 3-hour sessions.
+      // Lecture units: 1 unit = 1 hr, 3 units = 3 hrs, etc.
+      // Lab units: 1 unit = 3 hrs (2 slots), 2 units = 6 hrs (4 slots), etc.
+      // ============================================================
+
+      // 1. LECTURE SLOT
+      if(subj.lec>0 && subj.lecRoomType){
+        const slots=tryAssignLecturePattern(sec,subj,fac);
+        if(slots){db.schedules.push(...slots);}
+        else{
+          const pattern=lectureDayPattern(subj.lec);
+          pattern.forEach(d=>{
+            db.schedules.push({
+              id:uid++,code:subj.code,title:subj.title,prog:sec.prog,
+              section:sec.full,facName:fac?`${fac.ln}, ${fac.fn}`:'TBA',
+              day:DAYS[d],time:SLOTS[getYearSlotIndexes(sec.yr)[0]],room:'TBA (no room)',
+              lec:LECTURE_HOURS_PER_UNIT,lab:0,slotType:'lecture',rtype:subj.lecRoomType,yr:sec.yr,sem,durationHours:LECTURE_HOURS_PER_UNIT,consecutiveSlots:1,
+              meetingPattern:pattern.map(day=>DAYS[day].slice(0,3)).join('/')
+            });
+          });
+        }
+      }
+
+      // FIX #8: LAB SLOT(S) — each lab unit = 3 hrs = 2 consecutive 1.5 hr slots
+      if(subj.lab>0 && subj.labRoomType){
+        const labHours=subj.lab*LAB_HOURS_PER_UNIT;
+        const slot=tryAssignSlot(sec,subj,fac,subj.labRoomType,'lab',labHours,uid);
+        if(slot){db.schedules.push(slot);}
+        else{
+          const fallbackSlots=slotsNeededForHours(getYearSlotIndexes(sec.yr)[0],getYearSlotIndexes(sec.yr),labHours)||1;
+          db.schedules.push({
+            id:uid++,code:subj.code+'-L',title:subj.title+' (Lab)',prog:sec.prog,
+            section:sec.full,facName:fac?`${fac.ln}, ${fac.fn}`:'TBA',
+            day:'Tuesday',time:SLOTS[getYearSlotIndexes(sec.yr)[0]],room:'TBA (no lab room)',
+            lec:0,lab:subj.lab,slotType:'lab',rtype:subj.labRoomType,yr:sec.yr,sem,durationHours:labHours,consecutiveSlots:fallbackSlots
+          });
+        }
+      }
+    });
+  });
+
+  document.getElementById('gen-step2').style.display='none';
+  document.getElementById('gen-step3').style.display='';
+  document.getElementById('gs2').classList.remove('active');document.getElementById('gs2').classList.add('done');
+  document.getElementById('gs3').classList.add('active');
+  updateSectionFilter();renderTimetable();renderRoomTimetable();
+  updateMetrics();
+}
+
+/* ======================================================
+   COVERAGE & TIMETABLE
+====================================================== */
+function getScheduleCoverage(){
+  // FIX: use db.lastGenerated; never null-fallback to wrong semester
+  if(!db.lastGenerated)return{sem:db.currentSem,expected:0,scheduled:0,missing:[]};
+  const gen=db.lastGenerated;
+  const sem=gen.sem;
+  const secs=getSections().filter(sec=>!gen.prog||sec.prog===gen.prog);
+  const missing=[];let expected=0;
+  secs.forEach(sec=>{
+    const required=db.subjects.filter(s=>s.prog===sec.prog&&s.yr===sec.yr&&s.sem===sem);
+    expected+=required.length;
+    required.forEach(subj=>{
+      // A subject is considered "scheduled" if it has at least one slot (lecture or lab) in schedules
+      const hasAny=db.schedules.some(s=>s.section===sec.full&&s.code.replace(/-L$/,'')===subj.code&&s.room!=='TBA (no room)'&&s.room!=='TBA (no lab room)');
+      if(!hasAny)missing.push({section:sec.full,code:subj.code,title:subj.title,prog:sec.prog,yr:sec.yr});
+    });
+  });
+  return{sem,expected,scheduled:expected-missing.length,missing};
+}
+
+function renderCoverageReport(){
+  const el=document.getElementById('coverage-report');
+  if(!el||!db.schedules.length){if(el)el.innerHTML='';return;}
+  const cov=getScheduleCoverage();
+  if(!cov.missing.length){
+    el.innerHTML=`<div class="coverage-panel ok"><div class="coverage-title"><i class="ti ti-circle-check"></i>Curriculum coverage complete</div>All ${cov.expected} subject offering(s) are scheduled for ${semesterLabel(cov.sem)}.</div>`;return;
+  }
+  el.innerHTML=`<div class="coverage-panel warn"><div class="coverage-title"><i class="ti ti-alert-triangle"></i>Coverage incomplete — ${cov.missing.length} subject(s) missing or assigned to TBA room</div><ul>`+
+    cov.missing.slice(0,12).map(m=>`<li><strong>${m.section}</strong> – ${m.code}: ${m.title}</li>`).join('')+
+    (cov.missing.length>12?`<li>…and ${cov.missing.length-12} more</li>`:'')+
+    `</ul></div>`;
+}
+
+function updateSectionFilter(){
+  const prog=document.getElementById('view-prog').value;
+  let secs=[...new Set(db.schedules.filter(s=>!prog||s.prog===prog).map(s=>s.section))].sort();
+  document.getElementById('view-section').innerHTML='<option value="">All sections</option>'+secs.map(s=>`<option>${s}</option>`).join('');
+}
+
+function renderRoomTimetable(){
+  // FIX #3 & #7: Visual room timetable showing occupancy
+  const el=document.getElementById('room-timetable-view');
+  if(!el)return; // Only render if element exists
+  
+  if(!db.schedules.length){
+    el.innerHTML='<div style="padding:20px;text-align:center;color:var(--color-text-secondary)">No schedule generated. Use Schedule Generator first.</div>';
+    return;
+  }
+  
+  let html='<div style="overflow-x:auto"><table class="timetable" style="margin-bottom:16px">';
+  html+='<thead><tr><th style="min-width:100px">Room</th>'+DAYS.map(d=>'<th>'+d+'</th>').join('')+'</tr></thead>';
+  html+='<tbody>';
+  
+  db.rooms.forEach(room=>{
+    html+='<tr><td style="font-weight:500;background:var(--color-background-secondary);padding:8px;font-size:12px">'+room.name+'<br><span style="font-size:10px;color:var(--color-text-secondary)">'+room.type+'</span></td>';
+    DAYS.forEach(day=>{
+      const daySlots=SLOTS.map((slot,idx)=>{
+        const slotKey=`${day}|${slot}`;
+        const bookings=db.schedules.filter(s=>s.day===day&&s.room===room.name&&occupiedSlotLabels(s).includes(slot));
+        if(!bookings.length)return `<div style="padding:2px;border-radius:2px;font-size:9px;color:var(--color-text-tertiary)">—</div>`;
+        return bookings.map(b=>{
+          const [bg,tc]=PROG_BG[b.prog]||['#F1EFE8','#5F5E5A'];
+          return `<div style="padding:2px 4px;border-radius:2px;font-size:9px;background:${bg};color:${tc};margin:1px 0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${b.code} [${b.slotType}] – ${b.section}"><strong>${b.code}</strong></div>`;
+        }).join('');
+      }).join('');
+      html+='<td style="padding:4px;font-size:11px;vertical-align:top;min-width:110px"><div style="display:flex;flex-direction:column;gap:2px">'+daySlots+'</div></td>';
+    });
+    html+='</tr>';
+  });
+  
+  html+='</tbody></table></div>';
+  html+='<div style="font-size:12px;color:var(--color-text-secondary);padding:12px;background:var(--color-background-secondary);border-radius:6px"><i class="ti ti-info-circle"></i> Green = Available slot | Color = Subject program | Click a cell to see details</div>';
+  el.innerHTML=html;
+}
+
+function renderTimetable(){
+  const prog=document.getElementById('view-prog').value;
+  const section=document.getElementById('view-section').value;
+  const dayF=document.getElementById('view-day-filter').value;
+  let list=db.schedules;
+  if(prog)list=list.filter(s=>s.prog===prog);
+  if(section)list=list.filter(s=>s.section===section);
+  const showDays=dayF?[dayF]:DAYS;
+  const tt=document.getElementById('timetable');
+  let html='<tr><th style="min-width:80px">Time</th>'+showDays.map(d=>`<th>${d}</th>`).join('')+'</tr>';
+  SLOTS.forEach(slot=>{
+    html+=`<tr><td style="white-space:nowrap;font-size:11px;color:var(--color-text-secondary);background:var(--color-background-secondary);padding:4px 8px;font-weight:500">${slot}</td>`;
+    showDays.forEach(day=>{
+      const entries=list.filter(s=>s.day===day&&s.time===slot);
+      if(!entries.length){html+=`<td></td>`;return;}
+      html+=`<td>`+entries.map(e=>{
+        const [bg,tc]=PROG_BG[e.prog]||['#F1EFE8','#5F5E5A'];
+        const isLab=e.slotType==='lab';
+        return `<div class="sched-block${isLab?' type-lab':''}" style="background:${bg};color:${tc};${isLab?`border-left:3px solid ${tc}80`:''}" onclick="showBlockDetail(${e.id})" title="${e.code} – ${e.title} [${e.slotType||'lecture'}]">
+          <div style="font-weight:600;font-size:10px">${e.code}${isLab?'<span style="opacity:.7"> LAB</span>':''}</div>
+          <div style="font-size:10px">${e.section}</div>
+          <div style="font-size:9px;opacity:.75">${scheduleTimeRange(e)}</div>
+          <div style="font-size:9px;opacity:.75">${e.room}</div>
+        </div>`;
+      }).join('')+`</td>`;
+    });
+    html+='</tr>';
+  });
+  tt.innerHTML=html;
+  renderCoverageReport();
+  renderLegend();
+}
+
+function renderLegend(){
+  document.getElementById('legend2').innerHTML='<span style="font-size:11px;color:var(--color-text-secondary)">Programs:</span>'+
+  Object.entries(PROG_BG).map(([p,[bg,tc]])=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px"><div style="width:14px;height:14px;border-radius:3px;background:${bg};border:0.5px solid ${tc}40"></div><span style="color:var(--color-text-secondary)">${p}</span></div>`).join('');
+}
+
+function showBlockDetail(id){
+  const e=db.schedules.find(s=>s.id===id);if(!e)return;
+  const isLab=e.slotType==='lab';
+  const labHours=isLab?e.lab*LAB_HOURS_PER_UNIT:0;
+  document.getElementById('bk-title').textContent=`${e.code} – ${e.title} [${isLab?'Lab':'Lecture'}]`;
+  document.getElementById('bk-body').innerHTML=`<table style="width:100%">
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0;width:110px">Type</td><td>${isLab?'<span class="split-badge lab">Lab slot</span>':'<span class="split-badge lec">Lecture slot</span>'}</td></tr>
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0">Subject</td><td style="font-weight:500">${e.code} – ${e.title}</td></tr>
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0">Section</td><td style="font-weight:500">${e.section}</td></tr>
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0">Year strategy</td><td>${getYearSlotRule(e.yr||1).label}</td></tr>
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0">Faculty</td><td>${e.facName}</td></tr>
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0">Day & time</td><td style="font-weight:500">${e.day}, ${scheduleTimeRange(e)}</td></tr>
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0">Duration</td><td>${scheduleHours(e)} hours</td></tr>
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0">Room</td><td>${e.room}</td></tr>
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0">Room type needed</td><td>${e.rtype}</td></tr>
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0">Lec units</td><td>${e.lec}</td></tr>
+    <tr><td style="color:var(--color-text-secondary);padding:3px 0">Lab units</td><td>${e.lab}</td></tr>
+    ${isLab?`<tr><td style="color:var(--color-text-secondary);padding:3px 0">Lab hours</td><td>${labHours} hours</td></tr>`:''}
+  </table>`;
+  openModal('modal-block');
+}
+
+function populateManualModal(){
+  document.getElementById('manual-entry').innerHTML=db.schedules.map(s=>`<option value="${s.id}">${s.code} [${s.slotType||'lec'}] – ${s.section} (${s.day} ${scheduleTimeRange(s)})</option>`).join('');
+  document.getElementById('manual-time').innerHTML=SLOTS.map(s=>`<option>${s}</option>`).join('');
+  document.getElementById('manual-room').innerHTML=db.rooms.map(r=>`<option>${r.name}</option>`).join('');
+}
+function applyManual(){
+  const id=+document.getElementById('manual-entry').value;
+  const e=db.schedules.find(s=>s.id===id);
+  if(e){e.day=document.getElementById('manual-day').value;e.time=document.getElementById('manual-time').value;e.room=document.getElementById('manual-room').value;}
+  closeModal('modal-manual');renderTimetable();updateMetrics();
+}
+
+/* ======================================================
+   CONFLICT CHECKER — UPDATED FOR SPLIT SLOTS
+====================================================== */
+function checkConflicts(){
+  const conflicts=[];
+  const tm={};const rm={};const sm={};
+  db.schedules.forEach(s=>{
+    if(s.facName!=='TBA'){
+      occupiedSlotLabels(s).forEach(slot=>{
+        const tk=`${s.facName}|${s.day}|${slot}`;
+        if(tm[tk])conflicts.push({type:'Teacher conflict',msg:`${s.facName} has two slots at ${s.day} ${slot}: "${tm[tk]}" and "${s.code} [${s.slotType||'lec'}]"`});
+        else tm[tk]=`${s.code} [${s.slotType||'lec'}]`;
+      });
+    }
+    if(s.room&&!s.room.startsWith('TBA')){
+      occupiedSlotLabels(s).forEach(slot=>{
+        const rk=`${s.room}|${s.day}|${slot}`;
+        if(rm[rk])conflicts.push({type:'Room conflict',msg:`${s.room} is double-booked at ${s.day} ${slot}: "${rm[rk]}" and "${s.code} [${s.slotType||'lec'}]"`});
+        else rm[rk]=`${s.code} [${s.slotType||'lec'}]`;
+      });
+    }
+    occupiedSlotLabels(s).forEach(slot=>{
+      const sk=`${s.section}|${s.day}|${slot}`;
+      if(sm[sk])conflicts.push({type:'Section conflict',msg:`${s.section} has two slots at ${s.day} ${slot}: "${sm[sk]}" and "${s.code} [${s.slotType||'lec'}]"`});
+      else sm[sk]=`${s.code} [${s.slotType||'lec'}]`;
+    });
+  });
+  return conflicts;
+}
+function renderConflicts(){
+  const el=document.getElementById('conflict-list');
+  const conflicts=checkConflicts();
+  if(!db.schedules.length){el.innerHTML='<div class="card" style="text-align:center;padding:40px"><i class="ti ti-calendar-off" style="font-size:32px;display:block;margin-bottom:8px;opacity:.3"></i><div style="color:var(--color-text-secondary)">No schedule generated yet. Use the Schedule Generator first.</div></div>';return;}
+  if(!conflicts.length){el.innerHTML='<div class="card" style="text-align:center;padding:40px"><i class="ti ti-circle-check" style="font-size:36px;color:#3B6D11;display:block;margin-bottom:8px"></i><div style="font-weight:500;color:#3B6D11;font-size:15px">No conflicts detected</div><div style="font-size:13px;color:var(--color-text-secondary);margin-top:4px">The schedule is clean. You can proceed to publish.</div></div>';return;}
+  el.innerHTML=`<div style="margin-bottom:12px;font-size:13px;font-weight:500;color:#A32D2D"><i class="ti ti-alert-triangle"></i> ${conflicts.length} conflict${conflicts.length>1?'s':''} found — resolve before publishing</div>`+
+  conflicts.map(c=>`<div class="conflict-item"><i class="ti ti-alert-triangle" style="color:#A32D2D;font-size:16px;flex-shrink:0;margin-top:1px"></i><div><div style="font-size:12px;font-weight:600;color:#A32D2D;margin-bottom:2px">${c.type}</div><div style="font-size:13px">${c.msg}</div></div></div>`).join('');
+  updateMetrics();
+}
+
+/* ======================================================
+   PUBLISH
+====================================================== */
+function publishSchedule(){
+  const coverage=getScheduleCoverage();
+  if(coverage.missing.length){
+    alert(`Cannot publish: ${coverage.missing.length} subject(s) are unscheduled or have no room assigned. Resolve them first.`);
+    renderCoverageReport();return;
+  }
+  const conflicts=checkConflicts();
+  if(conflicts.length>0&&!confirm(`There are ${conflicts.length} conflict(s). Publish anyway?`))return;
+  // FIX: show correct AY and sem in publish confirmation
+  const gen=db.lastGenerated||{};
+  document.getElementById('publish-detail').textContent=`AY ${gen.ay||'2024–2025'} · ${semesterLabel(gen.sem||'1st')} schedule is now live and visible to faculty.`;
+  document.getElementById('gen-step3').style.display='none';
+  document.getElementById('gen-step4').style.display='';
+  document.getElementById('gs3').classList.remove('active');document.getElementById('gs3').classList.add('done');
+  document.getElementById('gs4').classList.add('active');
+}
+function resetGenerator(){
+  document.getElementById('gen-step4').style.display='none';
+  document.getElementById('gen-step1').style.display='';
+  ['gs1','gs2','gs3','gs4'].forEach(id=>{document.getElementById(id).classList.remove('active','done');});
+  document.getElementById('gs1').classList.add('active');
+  document.getElementById('gen-prog-bar').style.width='0%';
+  const coverage=document.getElementById('coverage-report');
+  if(coverage)coverage.innerHTML='';
+}
+
+/* ======================================================
+   REPORTS — WITH PRINT BUTTON
+====================================================== */
+function genReport(type){
+  const el=document.getElementById('report-output');
+  document.getElementById('report-print-bar').style.display='block'; // FIX: show print
+  if(type==='load'){
+    el.innerHTML=`<div class="card">
+      <div class="card-header"><span class="card-title">Faculty load report — AY ${db.currentAY} · ${semesterLabel(db.currentSem)}</span></div>
+      <table><thead><tr><th>Faculty</th><th>Program</th><th>Type</th><th>Subjects (this sem)</th><th>Units</th><th>Max</th><th>Status</th></tr></thead>
+      <tbody>`+db.faculty.map(f=>{
+      // FIX: filter by current semester
+      const asgn=db.assignments.filter(a=>{
+        if(a.facId!==f.id)return false;
+        const sub=db.subjects.find(x=>x.id===a.subjId);
+        return sub&&sub.sem===db.currentSem;
+      });
+      const units=getFacultyUnits(f.id,db.currentSem);
+      const mx=getFacultyMaxUnits(f);
+      const status=units===0?`<span class="badge badge-gray">Unassigned</span>`:units>mx?`<span class="badge badge-red">Overloaded</span>`:`<span class="badge badge-green">OK</span>`;
+      return `<tr><td style="font-weight:500">${f.ln}, ${f.fn}</td><td><span class="badge ${PROG_BADGE[f.prog]||'badge-gray'}">${facultyProgramLabel(f)}</span></td><td>${f.type}</td><td style="text-align:center">${asgn.length}</td><td style="text-align:center;font-weight:500">${units}</td><td style="text-align:center">${mx}</td><td>${status}</td></tr>`;
+    }).join('')+'</tbody></table></div>';
+  } else if(type==='room'){
+    const rh={};db.schedules.forEach(s=>{if(!s.room.startsWith('TBA'))rh[s.room]=(rh[s.room]||0)+scheduleHours(s);});
+    el.innerHTML=`<div class="card">
+      <div class="card-header"><span class="card-title">Room utilization report</span></div>
+      <table><thead><tr><th>Room</th><th>Type</th><th>Program</th><th>Hours occupied</th><th>Utilization (of 50 hrs/wk)</th></tr></thead>
+      <tbody>`+db.rooms.map(r=>{
+      const hrs=rh[r.name]||0;const pct=Math.min(100,Math.round(hrs/50*100));
+      return `<tr><td style="font-weight:500">${r.name}</td><td>${r.type}</td><td>${r.prog||'All'}</td><td>${hrs}h</td><td><div style="display:flex;align-items:center;gap:8px"><div class="load-bar" style="flex:1;max-width:120px"><div class="load-fill" style="width:${pct}%;background:#185FA5"></div></div><span style="font-size:12px;min-width:32px">${pct}%</span></div></td></tr>`;
+    }).join('')+'</tbody></table></div>';
+  } else {
+    el.innerHTML=`<div class="card"><div class="card-header"><span class="card-title">Master schedule — AY ${db.lastGenerated?db.lastGenerated.ay:'2024–2025'} · ${semesterLabel(db.lastGenerated?db.lastGenerated.sem:'1st')}</span></div>`+
+    (db.schedules.length
+      ?`<div style="overflow-x:auto"><table><thead><tr><th>Code</th><th>Subject</th><th>Slot type</th><th>Program</th><th>Section</th><th>Year strategy</th><th>Faculty</th><th>Day</th><th>Time</th><th>Room</th><th>Room type</th></tr></thead><tbody>`+
+        db.schedules.map(s=>`<tr>
+          <td style="font-weight:500">${s.code}</td>
+          <td>${s.title}</td>
+          <td>${s.slotType==='lab'?'<span class="split-badge lab">Lab</span>':'<span class="split-badge lec">Lecture</span>'}</td>
+          <td><span class="badge ${PROG_BADGE[s.prog]||'badge-gray'}">${s.prog}</span></td>
+          <td>${s.section}</td>
+          <td>${getYearSlotRule(s.yr||1).label}</td>
+          <td>${s.facName}</td>
+          <td>${s.day}</td>
+          <td>${scheduleTimeRange(s)}</td>
+          <td>${s.room}</td>
+          <td>${s.rtype}</td>
+        </tr>`).join('')+'</tbody></table></div>'
+      :`<div class="empty-state"><i class="ti ti-calendar-off"></i>No schedule generated yet.</div>`)
+    +`</div>`;
+  }
+}
+
+/* ======================================================
+   INIT
+====================================================== */
+updateMetrics();
+</script>
+</body>
+</html>
