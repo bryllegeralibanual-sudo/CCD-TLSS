@@ -19,6 +19,10 @@ import ccdBg from '../assets/images/ccd-bg.png'
 // A11y: focus rings, aria-labels, cursor-pointer, contrast 4.5:1
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Single gold token — every "gold" accent in the page reads from this one
+// value instead of two near-identical hexes drifting apart over time.
+const GOLD = '#D9B44A'
+
 const ROLE_QUICK_ACCESS = [
   { role: 'admin',        label: 'Administrator', icon: ShieldCheck,   email: 'admin@ccd.edu.ph',           password: 'admin123'     },
   { role: 'program_head', label: 'Program Head',  icon: Users,         email: 'head.btvted@ccd.edu.ph',    password: 'head123'      },
@@ -42,11 +46,13 @@ const TRUST_BADGES = [
   { icon: ShieldCheck,label: 'Data Protection'       },
 ]
 
-// Live clock — ticks every second
+// Live clock — ticks once a minute. Nothing on this page needs second-level
+// precision, and a faster interval was re-rendering the whole form every
+// second just to update a timestamp.
 function useLiveClock() {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
+    const id = setInterval(() => setNow(new Date()), 60000)
     return () => clearInterval(id)
   }, [])
   return now
@@ -80,67 +86,18 @@ function useReveal(threshold = 0.1) {
   return [ref, visible]
 }
 
-// Animated stat counter
-function AnimatedCounter({ target, suffix = '' }) {
-  const [count, setCount] = useState(0)
-  const [ref, visible] = useReveal(0.05)
-  useEffect(() => {
-    if (!visible) return
-    const numTarget = parseInt(target)
-    const steps = 36
-    let current = 0
-    const inc = numTarget / steps
-    const id = setInterval(() => {
-      current += inc
-      if (current >= numTarget) { setCount(numTarget); clearInterval(id) }
-      else setCount(Math.floor(current))
-    }, 1100 / steps)
-    return () => clearInterval(id)
-  }, [visible, target])
-  return <span ref={ref} className="tabular-nums">{count}{suffix}</span>
-}
-
-// ── Mobile Header Banner (shown only on mobile/small tablet) ───────────────────
-function MobileBanner({ dark }) {
+// Isolated so the live clock's once-a-minute tick re-renders only this one
+// line — not the email/password inputs, focus state, or anything else above.
+function LiveStatusLine() {
   const now = useLiveClock()
+  const dateLabel = now.toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })
+  const timeLabel = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })
   return (
-    <div className="relative overflow-hidden rounded-2xl mb-5 p-5"
-      style={{
-        backgroundImage: `linear-gradient(90deg, rgba(3, 56, 38, 0.95) 0%, rgba(5, 83, 53, 0.82) 48%, rgba(5, 83, 53, 0.56) 100%), url(${ccdBg})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}>
-      {/* bg dots */}
-      <div className="absolute inset-0 pointer-events-none opacity-10"
-        style={{ backgroundImage: 'radial-gradient(circle,#fff 1px,transparent 1.4px)', backgroundSize: '14px 14px' }} />
-      <div className="relative z-10 flex items-center gap-3 mb-3">
-        <div className="w-12 h-12 rounded-full overflow-hidden shrink-0"
-          style={{ boxShadow: '0 0 0 2px rgba(217,180,74,0.65)' }}>
-          <img src={ccdLogo} className="w-full h-full object-cover" alt="CCD Logo" />
-        </div>
-        <div>
-          <p className="text-white font-extrabold uppercase tracking-tight text-sm leading-tight">City College of Davao</p>
-          <p className="mt-0.5" style={{ color: '#E6C25C', fontSize: 15, fontFamily: "'Great Vibes', cursive", fontWeight: 700 }}>Dedicated to Excellence, Committed to Service</p>
-        </div>
-      </div>
-      <h1 className="text-white font-extrabold uppercase tracking-tight leading-tight" style={{ fontSize: '1.35rem', fontFamily: "'EB Garamond',Georgia,serif" }}>
-        Teacher Load &amp; <span style={{ color: '#5EE8A0' }}>Scheduling System</span>
-      </h1>
-      <div className="w-8 h-0.5 rounded-full mt-2 mb-2" style={{ backgroundColor: '#D9B44A' }} />
-      {/* Mini stats row */}
-      <div className="flex gap-2 mt-3 flex-wrap">
-        {[['120+','Faculty'],['350+','Classes'],['96%','Available']].map(([val,lbl]) => (
-          <div key={lbl} className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5"
-            style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)' }}>
-            <span className="text-white font-extrabold text-xs">{val}</span>
-            <span className="text-xs" style={{ color: 'rgba(220,252,231,0.75)', fontSize: 10 }}>{lbl}</span>
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center gap-1.5 mt-3 text-xs" style={{ color: 'rgba(220,252,231,0.65)', fontSize: 10 }}>
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        System Online • AY 2026–2027 • 1st Semester
-      </div>
+    <div className="flex items-center gap-2 mt-3 text-xs" style={{ color: 'rgba(220,252,231,0.7)' }}>
+      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+      System Online
+      <span className="opacity-60">•</span>
+      <span className="tabular-nums">{dateLabel} • {timeLabel}</span>
     </div>
   )
 }
@@ -149,7 +106,6 @@ function MobileBanner({ dark }) {
 export default function Login() {
   const { account, login, error } = useAuth()
   const location   = useLocation()
-  const now        = useLiveClock()
   const vw         = useViewport()
 
   const [email,        setEmail]        = useState('')
@@ -195,15 +151,21 @@ export default function Login() {
   }
 
   const active     = ROLE_QUICK_ACCESS.find(r => r.role === selectedRole)
-  const dateLabel  = now.toLocaleDateString('en-PH',  { month: 'long', day: 'numeric', year: 'numeric' })
-  const timeLabel  = now.toLocaleTimeString('en-PH',  { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
   // ──────────────────────────────────────────────────────────────────────────
   return (
     <div className={`min-h-screen w-full flex items-start justify-center transition-colors duration-500 ${
       isMobile ? 'p-3' : isTablet ? 'p-4' : 'p-5 items-center'
-    } ${dark ? 'bg-[#0A1410]' : 'bg-[#F3F4EF]'}`}>
+    } ${dark ? 'bg-[#0A1410]' : 'bg-[#F3F4EF]'}`}
+      style={{
+        backgroundImage: dark
+          ? `linear-gradient(rgba(4, 20, 14, 0.86), rgba(4, 20, 14, 0.92)), url(${ccdBg})`
+          : `linear-gradient(rgba(243, 244, 239, 0.76), rgba(243, 244, 239, 0.86)), url(${ccdBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+      }}>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:wght@700;800&family=Great+Vibes&display=swap');
@@ -272,12 +234,13 @@ export default function Login() {
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               }}>
-              {/* bg layers */}
+              {/* bg layers — kept quiet on purpose: the photo + gradient already carry
+                  the atmosphere, so ambient effects are a light touch, not a second focal point */}
               <div className="absolute top-0 left-0 w-2/3 h-1/2 opacity-[0.10] pointer-events-none" style={{ backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1.4px)', backgroundSize:'16px 16px' }} />
-              <div className="aurora-1 absolute -top-16 -left-10 w-72 h-72 rounded-full bg-emerald-300/30 blur-3xl pointer-events-none" />
-              <div className="aurora-2 absolute bottom-0 right-0 w-80 h-80 rounded-full bg-emerald-800/50 blur-3xl pointer-events-none" />
-              {[{l:'10%',b:'8%',s:4,dur:'9s',del:'0s'},{l:'24%',b:'4%',s:3,dur:'11s',del:'1.2s'},{l:'46%',b:'14%',s:5,dur:'8s',del:'2.4s'},{l:'66%',b:'6%',s:3,dur:'10s',del:'0.6s'},{l:'82%',b:'18%',s:4,dur:'12s',del:'3s'}].map((p,i) => (
-                <span key={i} className="particle absolute rounded-full bg-emerald-200/80 pointer-events-none"
+              <div className="aurora-1 absolute -top-16 -left-10 w-72 h-72 rounded-full bg-emerald-300/15 blur-3xl pointer-events-none" />
+              <div className="aurora-2 absolute bottom-0 right-0 w-80 h-80 rounded-full bg-emerald-800/35 blur-3xl pointer-events-none" />
+              {[{l:'14%',b:'10%',s:4,dur:'9s',del:'0s'},{l:'48%',b:'16%',s:4,dur:'11s',del:'1.6s'},{l:'78%',b:'12%',s:3,dur:'10s',del:'0.8s'}].map((p,i) => (
+                <span key={i} className="particle absolute rounded-full bg-emerald-200/55 pointer-events-none"
                   style={{ left:p.l, bottom:p.b, width:p.s, height:p.s, animationDuration:p.dur, animationDelay:p.del }} />
               ))}
 
@@ -291,16 +254,26 @@ export default function Login() {
                       <img src={ccdLogo} className="w-full h-full object-cover" alt="CCD Logo" />
                     </div>
                     <div>
-                      <h2 style={{ fontFamily:"'EB Garamond',Georgia,serif" }} className="text-white font-extrabold uppercase tracking-tight text-3xl leading-tight whitespace-nowrap">City College of Davao</h2>
-                      <p className="mt-1.5 text-lg sm:text-xl leading-none" style={{ color:'#E6C25C', fontFamily: "'Great Vibes', cursive", fontWeight: 700 }}>Dedicated to Excellence, Committed to Service</p>
+                      <h2
+                        style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'clamp(1.35rem, 2.1vw, 1.875rem)', textShadow:'0 1px 4px rgba(0,0,0,0.35)' }}
+                        className="text-white font-extrabold uppercase tracking-tight leading-tight whitespace-nowrap"
+                      >
+                        City College of Davao
+                      </h2>
+                      <p
+                        className="mt-1.5 text-lg sm:text-xl leading-none"
+                        style={{ color: GOLD, fontFamily: "'Great Vibes', cursive", fontWeight: 700, textShadow:'0 1px 3px rgba(0,0,0,0.4)' }}
+                      >
+                        Dedicated to Excellence, Committed to Service
+                      </p>
                     </div>
                   </div>
                   {/* Headline */}
                   <div className="reveal reveal-d1 mt-6">
-                    <h1 style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'2.55rem' }} className="text-white font-extrabold uppercase tracking-tight leading-[1.05]">Teacher Load &amp;</h1>
-                    <h1 style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'2.55rem', color:'#5EE8A0' }} className="font-extrabold uppercase tracking-tight leading-[1.05]">Scheduling System</h1>
-                    <div className="w-12 h-1 rounded-full mt-3 mb-3" style={{ backgroundColor:'#D9B44A' }} />
-                    <p className="text-white/90 font-medium text-sm leading-relaxed">Optimizing Faculty Workloads.<br/>Enhancing Academic Excellence.</p>
+                    <h1 style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'2.55rem', textShadow:'0 1px 4px rgba(0,0,0,0.35)' }} className="text-white font-extrabold uppercase tracking-tight leading-[1.05]">Teacher Load &amp;</h1>
+                    <h1 style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'2.55rem', color:'#5EE8A0', textShadow:'0 1px 4px rgba(0,0,0,0.35)' }} className="font-extrabold uppercase tracking-tight leading-[1.05]">Scheduling System</h1>
+                    <div className="w-12 h-1 rounded-full mt-3 mb-3" style={{ backgroundColor: GOLD }} />
+                    <p className="text-white/90 font-medium text-sm leading-relaxed">Every load capped. Every conflict caught<br/>before enrollment opens.</p>
                   </div>
                   {/* Features — modern cards */}
                   <div className="reveal reveal-d2 grid grid-cols-2 gap-3 mt-5">
@@ -317,7 +290,7 @@ export default function Login() {
                             className="w-9 h-9 rounded-xl flex items-center justify-center mb-2.5"
                             style={{ backgroundColor: gold ? 'rgba(217,180,74,0.2)' : 'rgba(94,232,160,0.18)' }}
                           >
-                            <f.icon size={16} style={{ color: gold ? '#E6C25C' : '#5EE8A0' }} />
+                            <f.icon size={16} style={{ color: gold ? GOLD : '#5EE8A0' }} />
                           </span>
                           <p className="text-white font-bold text-sm leading-tight mb-1">{f.label}</p>
                           <p className="text-white/60 text-xs leading-snug">{f.desc}</p>
@@ -330,11 +303,15 @@ export default function Login() {
 
               {/* BOTTOM */}
               <div className="relative z-10 px-8 pb-6 mt-4">
+                {/* Signature moment: the one card on this page tied to something real —
+                    an actual academic term — gets a quiet gold-tinted border instead of
+                    the neutral white/15 used everywhere else, so it reads as the page's
+                    one deliberate accent rather than just another panel. */}
                 <div className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 border hover:bg-white/[0.15] transition-colors duration-200"
-                  style={{ backgroundColor:'rgba(255,255,255,0.1)', borderColor:'rgba(255,255,255,0.15)' }}>
+                  style={{ backgroundColor:'rgba(255,255,255,0.1)', borderColor:'rgba(217,180,74,0.28)' }}>
                   <div className="flex items-center gap-3">
-                    <span className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor:'rgba(255,255,255,0.15)' }}>
-                      <CalendarDays size={18} className="text-white" />
+                    <span className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor:'rgba(217,180,74,0.18)' }}>
+                      <CalendarDays size={18} style={{ color: GOLD }} />
                     </span>
                     <div>
                       <p className="uppercase tracking-wide text-xs" style={{ color:'rgba(220,252,231,0.7)' }}>Current Academic Term</p>
@@ -348,12 +325,7 @@ export default function Login() {
                     ONGOING
                   </span>
                 </div>
-                <div className="flex items-center gap-2 mt-3 text-xs" style={{ color:'rgba(220,252,231,0.7)' }}>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  System Online
-                  <span className="opacity-60">•</span>
-                  <span className="tabular-nums">{dateLabel} • {timeLabel}</span>
-                </div>
+                <LiveStatusLine />
               </div>
             </div>
 
@@ -367,7 +339,7 @@ export default function Login() {
               }}>
               <div className="absolute inset-0 pointer-events-none opacity-10"
                 style={{ backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1.4px)', backgroundSize:'14px 14px' }} />
-              <div className="aurora-1 absolute -top-16 -left-10 w-64 h-64 rounded-full bg-emerald-300/25 blur-3xl pointer-events-none" />
+              <div className="aurora-1 absolute -top-16 -left-10 w-64 h-64 rounded-full bg-emerald-300/15 blur-3xl pointer-events-none" />
 
               {isTablet ? (
                 /* Tablet: two-column banner with semester card */
@@ -379,14 +351,14 @@ export default function Login() {
                         <img src={ccdLogo} className="w-full h-full object-cover" alt="CCD Logo" />
                       </div>
                       <div>
-                        <p style={{ fontFamily:"'EB Garamond',Georgia,serif" }} className="text-white font-extrabold uppercase tracking-tight text-lg leading-tight">City College of Davao</p>
-                        <p className="mt-0.5" style={{ color:'#E6C25C', fontSize:15, fontFamily: "'Great Vibes', cursive", fontWeight: 700 }}>Dedicated to Excellence, Committed to Service</p>
+                        <p style={{ fontFamily:"'EB Garamond',Georgia,serif", textShadow:'0 1px 4px rgba(0,0,0,0.35)' }} className="text-white font-extrabold uppercase tracking-tight text-lg leading-tight">City College of Davao</p>
+                        <p className="mt-0.5" style={{ color: GOLD, fontSize:16, fontFamily: "'Great Vibes', cursive", fontWeight: 700, textShadow:'0 1px 3px rgba(0,0,0,0.4)' }}>Dedicated to Excellence, Committed to Service</p>
                       </div>
                     </div>
-                    <h1 style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'1.85rem' }} className="text-white font-extrabold uppercase tracking-tight leading-tight">
+                    <h1 style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'1.85rem', textShadow:'0 1px 4px rgba(0,0,0,0.35)' }} className="text-white font-extrabold uppercase tracking-tight leading-tight">
                       Teacher Load &amp; <span style={{ color:'#5EE8A0' }}>Scheduling System</span>
                     </h1>
-                    <div className="w-10 h-0.5 rounded-full mt-2.5 mb-2.5" style={{ backgroundColor:'#D9B44A' }} />
+                    <div className="w-10 h-0.5 rounded-full mt-2.5 mb-2.5" style={{ backgroundColor: GOLD }} />
                     {/* Features — compact cards */}
                     <div className="grid grid-cols-2 gap-2">
                       {FEATURES.slice(0, 4).map((f, idx) => {
@@ -401,7 +373,7 @@ export default function Login() {
                               className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
                               style={{ backgroundColor: gold ? 'rgba(217,180,74,0.2)' : 'rgba(94,232,160,0.18)' }}
                             >
-                              <f.icon size={12} style={{ color: gold ? '#E6C25C' : '#5EE8A0' }} />
+                              <f.icon size={12} style={{ color: gold ? GOLD : '#5EE8A0' }} />
                             </span>
                             <span className="text-white/85 text-xs leading-tight">{f.label}</span>
                           </div>
@@ -424,14 +396,14 @@ export default function Login() {
                       <img src={ccdLogo} className="w-full h-full object-cover" alt="CCD Logo" />
                     </div>
                     <div>
-                      <p style={{ fontFamily:"'EB Garamond',Georgia,serif" }} className="text-white font-extrabold uppercase tracking-tight text-base leading-tight">City College of Davao</p>
-                      <p style={{ color:'#E6C25C', fontSize:13, fontFamily: "'Great Vibes', cursive", fontWeight: 700 }}>Dedicated to Excellence, Committed to Service</p>
+                      <p style={{ fontFamily:"'EB Garamond',Georgia,serif", textShadow:'0 1px 4px rgba(0,0,0,0.35)' }} className="text-white font-extrabold uppercase tracking-tight text-base leading-tight">City College of Davao</p>
+                      <p style={{ color: GOLD, fontSize:15, fontFamily: "'Great Vibes', cursive", fontWeight: 700, textShadow:'0 1px 3px rgba(0,0,0,0.4)' }}>Dedicated to Excellence, Committed to Service</p>
                     </div>
                   </div>
-                  <h1 style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'1.3rem' }} className="text-white font-extrabold uppercase tracking-tight leading-snug">
+                  <h1 style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'1.3rem', textShadow:'0 1px 4px rgba(0,0,0,0.35)' }} className="text-white font-extrabold uppercase tracking-tight leading-snug">
                     Teacher Load &amp; <span style={{ color:'#5EE8A0' }}>Scheduling System</span>
                   </h1>
-                  <div className="w-8 h-0.5 rounded-full my-2" style={{ backgroundColor:'#D9B44A' }} />
+                  <div className="w-8 h-0.5 rounded-full my-2" style={{ backgroundColor: GOLD }} />
                   <div className="flex gap-2 flex-wrap">
                     {[['120+','Faculty'],['350+','Classes'],['96%','Available']].map(([val,lbl]) => (
                       <div key={lbl} className="flex items-center gap-1 rounded-lg px-2 py-1"
@@ -456,7 +428,14 @@ export default function Login() {
             isTablet  ? 'px-7 pb-7 pt-16'     :
                         'p-8 xl:p-10'
           } ${dark ? 'bg-[#0F1C16]/90 text-[#E8EDE9]' : 'bg-[#F7F8F5] text-[#10241A]'}`}
-            style={{ minHeight: isDesktop ? 700 : 'auto' }}
+            style={{
+              minHeight: isDesktop ? 700 : 'auto',
+              backgroundImage: dark
+                ? `linear-gradient(rgba(15, 28, 22, 0.88), rgba(15, 28, 22, 0.94)), url(${ccdBg})`
+                : `linear-gradient(rgba(247, 248, 245, 0.86), rgba(247, 248, 245, 0.92)), url(${ccdBg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center right',
+            }}
           >
             {/* Light/Dark toggle */}
             <div className="absolute top-4 right-4 sm:top-5 sm:right-5 flex items-center rounded-full p-1 gap-1 z-10"
