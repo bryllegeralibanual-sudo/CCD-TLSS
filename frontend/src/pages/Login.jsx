@@ -3,12 +3,13 @@ import { Navigate, useLocation } from 'react-router-dom'
 import {
   Mail, Lock, Eye, EyeOff, Sun, Moon, ShieldCheck, Users, FileText, GraduationCap,
   CalendarCheck2, CalendarDays, CheckCircle2, User, BarChart3, LogIn, UserCheck,
-  UserRound, Headset, ChevronRight, ChevronLeft, Loader2,
+  UserRound, Headset, ChevronRight, Loader2,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { roleHome } from '../auth/ProtectedRoute'
 import btvtedCrest from '../assets/images/btvted-crest.png'
 import ccdLogo from '../assets/images/ccd-logo.png'
+import ccdBg from '../assets/images/ccd-bg.png'
 
 // ─── UI UX Pro Max Skill Applied ──────────────────────────────────────────────
 // Responsive: mobile-first, 375 / 768 / 1024 / 1280+ breakpoints
@@ -25,12 +26,14 @@ const ROLE_QUICK_ACCESS = [
   { role: 'teacher',      label: 'Faculty',       icon: GraduationCap, email: 'romel.salazar@ccd.edu.ph',  password: 'teacher123'   },
 ]
 
+// Modern feature cards — icon, title, short supporting description.
+// Accent color alternates green / gold across the grid for visual rhythm.
 const FEATURES = [
-  { icon: User,           label: 'Smart Workload Distribution' },
-  { icon: CalendarCheck2, label: 'Automated Scheduling'        },
-  { icon: CheckCircle2,   label: 'Conflict Detection'          },
-  { icon: GraduationCap,  label: 'Academic Planning'           },
-  { icon: BarChart3,      label: 'Reports & Analytics'         },
+  { icon: User,           label: 'Smart Workload Distribution', desc: 'Balanced teaching loads for faculty.' },
+  { icon: CalendarCheck2, label: 'Automated Scheduling',         desc: 'Intelligent scheduling with minimal conflict.' },
+  { icon: CheckCircle2,   label: 'Conflict Detection',           desc: 'Identify and resolve scheduling conflicts.' },
+  { icon: GraduationCap,  label: 'Academic Planning',            desc: 'Streamlined curriculum and term planning.' },
+  { icon: BarChart3,      label: 'Reports & Analytics',          desc: 'Real-time insights for better decisions.' },
 ]
 
 const TRUST_BADGES = [
@@ -97,179 +100,16 @@ function AnimatedCounter({ target, suffix = '' }) {
   return <span ref={ref} className="tabular-nums">{count}{suffix}</span>
 }
 
-// ── Mini Calendar ─────────────────────────────────────────────────────────────
-function MiniCalendar() {
-  const now        = new Date()
-  const year       = now.getFullYear()
-  const month      = now.getMonth()
-  const todayDate  = now.getDate()
-  const monthName  = now.toLocaleString('en-PH', { month: 'long' }).toUpperCase()
-  const firstDay   = new Date(year, month, 1).getDay()
-  const totalDays  = new Date(year, month + 1, 0).getDate()
-  const days       = ['SUN','MON','TUE','WED','THU','FRI','SAT']
-  const cells      = [...Array(firstDay).fill(null), ...Array.from({length: totalDays}, (_,i) => i+1)]
-
-  return (
-    <div className="rounded-2xl overflow-hidden" style={{
-      width: 196, background: 'rgba(255,255,255,0.97)',
-      boxShadow: '0 16px 40px rgba(0,0,0,0.22)',
-      backdropFilter: 'blur(8px)',
-    }}>
-      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: '1px solid #e5e7eb' }}>
-        <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors duration-150 cursor-pointer" aria-label="Previous month">
-          <ChevronLeft size={13} />
-        </button>
-        <span className="text-xs font-bold text-gray-700 tracking-wider">{monthName} {year}</span>
-        <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors duration-150 cursor-pointer" aria-label="Next month">
-          <ChevronRight size={13} />
-        </button>
-      </div>
-      <div className="grid grid-cols-7 px-2 pt-1.5 pb-0.5">
-        {days.map(d => <div key={d} className="text-center text-gray-400 font-semibold" style={{ fontSize: 7.5 }}>{d}</div>)}
-      </div>
-      <div className="grid grid-cols-7 px-2 pb-2.5 gap-y-0.5">
-        {cells.map((d, i) => (
-          <div key={i} className="flex items-center justify-center rounded-full" style={{
-            height: 22, fontSize: 10,
-            fontWeight: d === todayDate ? 700 : 400,
-            color:  d === todayDate ? '#fff' : d ? '#374151' : 'transparent',
-            background: d === todayDate ? '#16a34a' : 'transparent',
-          }}>{d || ''}</div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Semester Overview Card ─────────────────────────────────────────────────────
-function SemesterCard({ compact = false }) {
-  const stats = [
-    { icon: Users,         value: '120', suffix: '+', label: 'Faculty Members'     },
-    { icon: CalendarDays,  value: '350', suffix: '+', label: 'Classes Scheduled'   },
-    { icon: BarChart3,     value: '96',  suffix: '%', label: 'Faculty Availability'},
-    { icon: GraduationCap, value: '12',  suffix: '',  label: 'Academic Programs'   },
-  ]
-  return (
-    <div className="rounded-2xl p-4" style={{
-      background: 'rgba(255,255,255,0.97)',
-      boxShadow: '0 20px 60px rgba(0,0,0,0.22)',
-      backdropFilter: 'blur(12px)',
-      minWidth: compact ? 200 : 240,
-    }}>
-      <div className="flex items-center gap-1.5 mb-3">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">This Semester Overview</p>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {stats.map(s => (
-          <div key={s.label} className="flex items-center gap-2 rounded-xl px-2.5 py-2 hover:scale-[1.03] transition-transform duration-200 cursor-default"
-            style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-            <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-emerald-100">
-              <s.icon size={12} className="text-emerald-700" />
-            </span>
-            <div>
-              <p className="text-sm font-extrabold text-gray-800 leading-none">
-                <AnimatedCounter target={s.value} suffix={s.suffix} />
-              </p>
-              <p className="text-gray-500 leading-tight mt-0.5" style={{ fontSize: 9 }}>{s.label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Laptop Mockup ──────────────────────────────────────────────────────────────
-function LaptopMockup({ width = 164 }) {
-  const colors = ['#bbf7d0','#a5f3fc','#fde68a','#fca5a5','#c4b5fd']
-  const rows = [[1,0,2,0,3],[0,4,0,1,0],[2,0,0,3,4],[0,1,2,0,0]]
-  const [activeCell, setActiveCell] = useState(null)
-  return (
-    <div className="rounded-xl overflow-hidden" style={{
-      width, boxShadow: '0 10px 32px rgba(0,0,0,0.45)', border: '2px solid #334155', flexShrink: 0,
-    }}>
-      <div className="flex items-center gap-1 px-2 py-1.5" style={{ background: '#0f172a' }}>
-        <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
-        <div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
-        <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-        <span className="ml-1 text-slate-400 font-mono" style={{ fontSize: 6 }}>schedule.tlss</span>
-      </div>
-      <div className="p-2" style={{ background: '#f8fafc' }}>
-        <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(5,1fr)' }}>
-          {['M','T','W','T','F'].map((d,i) => (
-            <div key={i} className="text-center font-bold text-gray-400" style={{ fontSize: 7 }}>{d}</div>
-          ))}
-          {rows.flatMap((row, ri) => row.map((c, ci) => {
-            const key = `${ri}-${ci}`
-            return (
-              <div key={key} onMouseEnter={() => c && setActiveCell(key)} onMouseLeave={() => setActiveCell(null)}
-                className="rounded transition-all duration-200"
-                style={{
-                  height: 14, background: c ? colors[c-1] : '#e2e8f0', opacity: c ? 1 : 0.4,
-                  transform: activeCell === key ? 'scaleY(1.18)' : 'scaleY(1)',
-                }}
-              />
-            )
-          }))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Trend Graphic ──────────────────────────────────────────────────────────────
-function TrendGraphic({ width = 116, height = 80 }) {
-  const [ref, visible] = useReveal(0.05)
-  const bars = [28,38,32,48,44,58,52,68]
-  return (
-    <div ref={ref} className="relative flex items-end gap-1 shrink-0" style={{ height, width }}>
-      {bars.map((h, i) => (
-        <div key={i} className="rounded-t flex-1 transition-all"
-          style={{
-            height: visible ? h : 4, background: 'rgba(255,255,255,0.22)',
-            transitionDuration: `${400 + i * 55}ms`, transitionDelay: visible ? `${i * 35}ms` : '0ms',
-          }} />
-      ))}
-      <svg className="absolute" style={{ inset: 0, width: '100%', height: '100%', overflow: 'visible' }}
-        viewBox={`0 0 ${width} ${height}`} fill="none">
-        <path d={`M4 ${height-10} Q${width*0.24} ${height-25} ${width*0.45} ${height-40} Q${width*0.67} ${height-58} ${width-4} ${height-72}`}
-          stroke="#EAB308" strokeWidth="2.5" strokeLinecap="round" fill="none"
-          strokeDasharray="200" strokeDashoffset={visible ? 0 : 200}
-          style={{ transition: 'stroke-dashoffset 1.2s ease 0.3s' }} />
-        <polygon points={`${width-4},${height-78} ${width+2},${height-68} ${width-12},${height-70}`}
-          fill="#EAB308" style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.3s ease 1.4s' }} />
-      </svg>
-    </div>
-  )
-}
-
-// ── Building SVG ───────────────────────────────────────────────────────────────
-function BuildingSVG({ height = 130 }) {
-  return (
-    <svg viewBox="0 0 240 140" width="100%" height={height} xmlns="http://www.w3.org/2000/svg"
-      style={{ filter: 'drop-shadow(0 4px 20px rgba(94,232,160,0.28))' }} preserveAspectRatio="xMidYMid meet">
-      <rect x="30" y="35" width="140" height="105" rx="3" fill="rgba(255,255,255,0.16)" stroke="rgba(94,232,160,0.2)" strokeWidth="1" />
-      <rect x="45" y="22" width="110" height="18" rx="2" fill="rgba(255,255,255,0.12)" />
-      {[42,62,82,102].flatMap(y => [55,80,105,130,155].map(x => (
-        <rect key={`${x}-${y}`} x={x} y={y} width="16" height="16" rx="1" fill="rgba(94,232,160,0.35)" />
-      )))}
-      <rect x="102" y="108" width="36" height="32" rx="1" fill="rgba(255,255,255,0.12)" stroke="rgba(217,180,74,0.4)" strokeWidth="1" />
-      <polygon points="30,35 120,8 210,35" fill="none" stroke="rgba(217,180,74,0.3)" strokeWidth="1" />
-      <text x="120" y="32" textAnchor="middle" fill="rgba(217,180,74,0.9)" fontSize="10" fontWeight="bold" fontFamily="sans-serif" letterSpacing="1">CCD</text>
-      <line x1="10" y1="140" x2="230" y2="140" stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
-      <line x1="205" y1="20" x2="205" y2="38" stroke="rgba(217,180,74,0.6)" strokeWidth="2" />
-      <circle cx="205" cy="18" r="3" fill="rgba(217,180,74,0.8)" />
-    </svg>
-  )
-}
-
 // ── Mobile Header Banner (shown only on mobile/small tablet) ───────────────────
 function MobileBanner({ dark }) {
   const now = useLiveClock()
   return (
     <div className="relative overflow-hidden rounded-2xl mb-5 p-5"
-      style={{ background: 'linear-gradient(135deg, #083D2E 0%, #0A4A35 55%, #0C523B 100%)' }}>
+      style={{
+        backgroundImage: `linear-gradient(90deg, rgba(3, 56, 38, 0.95) 0%, rgba(5, 83, 53, 0.82) 48%, rgba(5, 83, 53, 0.56) 100%), url(${ccdBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}>
       {/* bg dots */}
       <div className="absolute inset-0 pointer-events-none opacity-10"
         style={{ backgroundImage: 'radial-gradient(circle,#fff 1px,transparent 1.4px)', backgroundSize: '14px 14px' }} />
@@ -280,7 +120,7 @@ function MobileBanner({ dark }) {
         </div>
         <div>
           <p className="text-white font-extrabold uppercase tracking-tight text-sm leading-tight">City College of Davao</p>
-          <p className="text-xs font-semibold mt-0.5 uppercase tracking-wide" style={{ color: '#E6C25C', fontSize: 10 }}>Excellence • Integrity • Service</p>
+          <p className="mt-0.5" style={{ color: '#E6C25C', fontSize: 15, fontFamily: "'Great Vibes', cursive", fontWeight: 700 }}>Dedicated to Excellence, Committed to Service</p>
         </div>
       </div>
       <h1 className="text-white font-extrabold uppercase tracking-tight leading-tight" style={{ fontSize: '1.35rem', fontFamily: "'EB Garamond',Georgia,serif" }}>
@@ -366,14 +206,12 @@ export default function Login() {
     } ${dark ? 'bg-[#0A1410]' : 'bg-[#F3F4EF]'}`}>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:wght@700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:wght@700;800&family=Great+Vibes&display=swap');
 
         @media (prefers-reduced-motion: no-preference) {
           .aurora-1   { animation: aurora1 17s ease-in-out infinite; }
           .aurora-2   { animation: aurora2 21s ease-in-out infinite; }
           .particle   { animation: particleRise linear infinite; }
-          .float-cal  { animation: floatCal 4s ease-in-out infinite; }
-          .float-card { animation: floatCard 5s ease-in-out infinite; }
           .reveal     { animation: revealUp .55s cubic-bezier(.16,1,.3,1) both; }
           .reveal-d1  { animation-delay: .07s; }
           .reveal-d2  { animation-delay: .14s; }
@@ -384,8 +222,6 @@ export default function Login() {
         @keyframes aurora1      { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(26px,-18px) scale(1.1);} }
         @keyframes aurora2      { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-22px,20px) scale(1.06);} }
         @keyframes particleRise { 0%{transform:translateY(0);opacity:0;} 12%{opacity:.65;} 88%{opacity:.3;} 100%{transform:translateY(-150px);opacity:0;} }
-        @keyframes floatCal     { 0%,100%{transform:rotate(3deg) translateY(0);} 50%{transform:rotate(3deg) translateY(-7px);} }
-        @keyframes floatCard    { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
         @keyframes revealUp     { from{opacity:0;transform:translateY(14px);} to{opacity:1;transform:translateY(0);} }
         @keyframes successPop   { 0%{transform:scale(0.8);opacity:0;} 60%{transform:scale(1.1);} 100%{transform:scale(1);opacity:1;} }
 
@@ -401,7 +237,7 @@ export default function Login() {
         .role-btn:active { transform: translateY(0) scale(0.98); }
 
         .feature-item { transition: transform 200ms ease; }
-        .feature-item:hover { transform: translateX(3px); }
+        .feature-item:hover { transform: translateY(-3px); }
 
         .success-pop { animation: successPop 0.45s cubic-bezier(.16,1,.3,1) both; }
 
@@ -431,9 +267,12 @@ export default function Login() {
           {isDesktop ? (
             /* ─── DESKTOP: full left panel ─────────────────────────────── */
             <div className="relative flex md:w-[57%] min-h-[700px] flex-col overflow-hidden"
-              style={{ background: 'linear-gradient(135deg,#083D2E 0%,#0A4A35 50%,#0C523B 100%)' }}>
+              style={{
+                backgroundImage: `linear-gradient(90deg, rgba(3, 56, 38, 0.96) 0%, rgba(5, 83, 53, 0.85) 48%, rgba(5, 83, 53, 0.58) 100%), url(${ccdBg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}>
               {/* bg layers */}
-              <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage:"url('/campus-photo.jpg')", backgroundSize:'cover', backgroundPosition:'center', opacity:0.18, mixBlendMode:'luminosity' }} />
               <div className="absolute top-0 left-0 w-2/3 h-1/2 opacity-[0.10] pointer-events-none" style={{ backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1.4px)', backgroundSize:'16px 16px' }} />
               <div className="aurora-1 absolute -top-16 -left-10 w-72 h-72 rounded-full bg-emerald-300/30 blur-3xl pointer-events-none" />
               <div className="aurora-2 absolute bottom-0 right-0 w-80 h-80 rounded-full bg-emerald-800/50 blur-3xl pointer-events-none" />
@@ -445,10 +284,6 @@ export default function Login() {
               {/* TOP */}
               <div className="relative z-10 p-8 pb-0">
                 <div className="relative">
-                  {/* Floating calendar */}
-                  <div className="float-cal absolute" style={{ top:-16, right:-12, zIndex:10 }}>
-                    <MiniCalendar />
-                  </div>
                   {/* Logo */}
                   <div className="reveal flex items-center gap-3">
                     <div className="w-[72px] h-[72px] shrink-0 rounded-full overflow-hidden hover:scale-105 transition-transform duration-300"
@@ -456,8 +291,8 @@ export default function Login() {
                       <img src={ccdLogo} className="w-full h-full object-cover" alt="CCD Logo" />
                     </div>
                     <div>
-                      <h2 style={{ fontFamily:"'EB Garamond',Georgia,serif" }} className="text-white font-extrabold uppercase tracking-tight text-xl leading-tight">City College<br/>of Davao</h2>
-                      <p className="uppercase tracking-[0.12em] mt-1 text-xs font-semibold" style={{ color:'#E6C25C' }}>Excellence • Integrity • Service</p>
+                      <h2 style={{ fontFamily:"'EB Garamond',Georgia,serif" }} className="text-white font-extrabold uppercase tracking-tight text-3xl leading-tight whitespace-nowrap">City College of Davao</h2>
+                      <p className="mt-1.5 text-lg sm:text-xl leading-none" style={{ color:'#E6C25C', fontFamily: "'Great Vibes', cursive", fontWeight: 700 }}>Dedicated to Excellence, Committed to Service</p>
                     </div>
                   </div>
                   {/* Headline */}
@@ -467,31 +302,29 @@ export default function Login() {
                     <div className="w-12 h-1 rounded-full mt-3 mb-3" style={{ backgroundColor:'#D9B44A' }} />
                     <p className="text-white/90 font-medium text-sm leading-relaxed">Optimizing Faculty Workloads.<br/>Enhancing Academic Excellence.</p>
                   </div>
-                  {/* Features */}
-                  <ul className="reveal reveal-d2 mt-5 space-y-2 max-w-[230px]">
-                    {FEATURES.map(f => (
-                      <li key={f.label} className="feature-item flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor:'rgba(255,255,255,0.15)' }}>
-                          <f.icon size={13} className="text-white" />
-                        </span>
-                        <span className="text-white/90 text-sm">{f.label}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              {/* MIDDLE */}
-              <div className="relative z-10 flex-1 flex flex-col px-8 pb-0 mt-3" style={{ minHeight: 280 }}>
-                <div className="float-card self-center mt-4" style={{ zIndex:15 }}>
-                  <SemesterCard />
-                </div>
-                <div className="relative flex-1 flex items-end gap-3">
-                  <LaptopMockup width={160} />
-                  <div className="flex-1 self-end" style={{ height: 125 }}>
-                    <BuildingSVG height={125} />
+                  {/* Features — modern cards */}
+                  <div className="reveal reveal-d2 grid grid-cols-2 gap-3 mt-5">
+                    {FEATURES.map((f, idx) => {
+                      const gold = idx % 2 === 1
+                      const isLast = idx === FEATURES.length - 1
+                      return (
+                        <div
+                          key={f.label}
+                          className={`feature-item rounded-2xl border p-3.5 ${isLast ? 'col-span-2' : ''}`}
+                          style={{ backgroundColor: 'rgba(255,255,255,0.07)', borderColor: 'rgba(255,255,255,0.14)' }}
+                        >
+                          <span
+                            className="w-9 h-9 rounded-xl flex items-center justify-center mb-2.5"
+                            style={{ backgroundColor: gold ? 'rgba(217,180,74,0.2)' : 'rgba(94,232,160,0.18)' }}
+                          >
+                            <f.icon size={16} style={{ color: gold ? '#E6C25C' : '#5EE8A0' }} />
+                          </span>
+                          <p className="text-white font-bold text-sm leading-tight mb-1">{f.label}</p>
+                          <p className="text-white/60 text-xs leading-snug">{f.desc}</p>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <TrendGraphic width={112} height={76} />
                 </div>
               </div>
 
@@ -527,7 +360,11 @@ export default function Login() {
           ) : (
             /* ─── MOBILE & TABLET: compact top banner ───────────────────── */
             <div className={`relative overflow-hidden ${isTablet ? 'rounded-t-3xl' : 'rounded-t-2xl'}`}
-              style={{ background: 'linear-gradient(135deg,#083D2E 0%,#0A4A35 55%,#0C523B 100%)' }}>
+              style={{
+                backgroundImage: `linear-gradient(90deg, rgba(3, 56, 38, 0.95) 0%, rgba(5, 83, 53, 0.83) 52%, rgba(5, 83, 53, 0.58) 100%), url(${ccdBg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}>
               <div className="absolute inset-0 pointer-events-none opacity-10"
                 style={{ backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1.4px)', backgroundSize:'14px 14px' }} />
               <div className="aurora-1 absolute -top-16 -left-10 w-64 h-64 rounded-full bg-emerald-300/25 blur-3xl pointer-events-none" />
@@ -543,32 +380,40 @@ export default function Login() {
                       </div>
                       <div>
                         <p style={{ fontFamily:"'EB Garamond',Georgia,serif" }} className="text-white font-extrabold uppercase tracking-tight text-lg leading-tight">City College of Davao</p>
-                        <p className="text-xs font-semibold mt-0.5 uppercase tracking-wide" style={{ color:'#E6C25C', fontSize:10 }}>Excellence • Integrity • Service</p>
+                        <p className="mt-0.5" style={{ color:'#E6C25C', fontSize:15, fontFamily: "'Great Vibes', cursive", fontWeight: 700 }}>Dedicated to Excellence, Committed to Service</p>
                       </div>
                     </div>
                     <h1 style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'1.85rem' }} className="text-white font-extrabold uppercase tracking-tight leading-tight">
                       Teacher Load &amp; <span style={{ color:'#5EE8A0' }}>Scheduling System</span>
                     </h1>
                     <div className="w-10 h-0.5 rounded-full mt-2.5 mb-2.5" style={{ backgroundColor:'#D9B44A' }} />
-                    <ul className="space-y-1.5">
-                      {FEATURES.slice(0,4).map(f => (
-                        <li key={f.label} className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor:'rgba(255,255,255,0.15)' }}>
-                            <f.icon size={11} className="text-white" />
-                          </span>
-                          <span className="text-white/85 text-xs">{f.label}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {/* Features — compact cards */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {FEATURES.slice(0, 4).map((f, idx) => {
+                        const gold = idx % 2 === 1
+                        return (
+                          <div
+                            key={f.label}
+                            className="rounded-xl border px-2.5 py-2 flex items-center gap-2"
+                            style={{ backgroundColor: 'rgba(255,255,255,0.07)', borderColor: 'rgba(255,255,255,0.14)' }}
+                          >
+                            <span
+                              className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: gold ? 'rgba(217,180,74,0.2)' : 'rgba(94,232,160,0.18)' }}
+                            >
+                              <f.icon size={12} style={{ color: gold ? '#E6C25C' : '#5EE8A0' }} />
+                            </span>
+                            <span className="text-white/85 text-xs leading-tight">{f.label}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
                     <div className="flex items-center gap-1.5 mt-4 text-xs" style={{ color:'rgba(220,252,231,0.65)', fontSize:10 }}>
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       System Online • AY 2026–2027 • 1st Semester
                     </div>
                   </div>
-                  {/* Mini semester card on tablet */}
-                  <div className="shrink-0">
-                    <SemesterCard compact />
-                  </div>
+
                 </div>
               ) : (
                 /* Mobile: single-column compact banner */
@@ -580,7 +425,7 @@ export default function Login() {
                     </div>
                     <div>
                       <p style={{ fontFamily:"'EB Garamond',Georgia,serif" }} className="text-white font-extrabold uppercase tracking-tight text-base leading-tight">City College of Davao</p>
-                      <p className="font-semibold uppercase tracking-wide" style={{ color:'#E6C25C', fontSize:9 }}>Excellence • Integrity • Service</p>
+                      <p style={{ color:'#E6C25C', fontSize:13, fontFamily: "'Great Vibes', cursive", fontWeight: 700 }}>Dedicated to Excellence, Committed to Service</p>
                     </div>
                   </div>
                   <h1 style={{ fontFamily:"'EB Garamond',Georgia,serif", fontSize:'1.3rem' }} className="text-white font-extrabold uppercase tracking-tight leading-snug">
@@ -607,10 +452,10 @@ export default function Login() {
 
           {/* ═══════════════ RIGHT / BOTTOM FORM PANEL ═══════════════════════ */}
           <div ref={formRef} className={`relative flex-1 backdrop-blur-xl flex flex-col justify-center ${
-            isMobile  ? 'p-5'     :
-            isTablet  ? 'p-7'     :
+            isMobile  ? 'px-5 pb-5 pt-16'     :
+            isTablet  ? 'px-7 pb-7 pt-16'     :
                         'p-8 xl:p-10'
-          } ${dark ? 'bg-[#0F1C16]/90 text-[#E8EDE9]' : 'bg-white/85 text-[#10241A]'}`}
+          } ${dark ? 'bg-[#0F1C16]/90 text-[#E8EDE9]' : 'bg-[#F7F8F5] text-[#10241A]'}`}
             style={{ minHeight: isDesktop ? 700 : 'auto' }}
           >
             {/* Light/Dark toggle */}
@@ -629,21 +474,27 @@ export default function Login() {
               ))}
             </div>
 
-            {/* Form container — max-width constrained on large screens */}
-            <div className={`w-full mx-auto ${isDesktop ? 'max-w-[380px]' : isTablet ? 'max-w-[420px]' : 'max-w-full'} ${formVisible ? 'reveal' : 'opacity-0'}`}>
+            {/* Form card */}
+            <div className={`w-full mx-auto rounded-3xl border px-5 py-6 sm:px-8 sm:py-8 ${
+              isDesktop ? 'max-w-[440px]' : isTablet ? 'max-w-[460px]' : 'max-w-full'
+            } ${
+              dark
+                ? 'border-emerald-900 bg-[#101F18]/95 shadow-[0_24px_70px_rgba(0,0,0,0.32)]'
+                : 'border-gray-100 bg-white shadow-[0_24px_70px_rgba(16,36,26,0.12)]'
+            } ${formVisible ? 'reveal' : 'opacity-0'}`}>
 
               {/* Avatar */}
-              <div className={`rounded-full flex items-center justify-center mb-4 ${
+              <div className={`mx-auto rounded-full flex items-center justify-center mb-4 ${
                 isMobile ? 'w-10 h-10' : 'w-12 h-12'
               } ${dark ? 'bg-emerald-500/15' : 'bg-emerald-50'}`}>
                 <UserRound size={isMobile ? 18 : 22} className="text-emerald-600" />
               </div>
 
               <h2 style={{ fontFamily:"'EB Garamond',Georgia,serif" }}
-                className={`font-extrabold mb-1.5 ${formVisible ? 'reveal reveal-d1' : 'opacity-0'} ${isMobile ? 'text-xl' : 'text-2xl'}`}>
+                className={`text-center font-extrabold mb-1.5 ${formVisible ? 'reveal reveal-d1' : 'opacity-0'} ${isMobile ? 'text-xl' : 'text-2xl'}`}>
                 Welcome <span className="text-emerald-600">Back!</span> <span aria-hidden>👋</span>
               </h2>
-              <p className={`mb-5 ${dark ? 'text-emerald-200/70' : 'text-gray-500'} ${formVisible ? 'reveal reveal-d1' : 'opacity-0'} ${isMobile ? 'text-xs' : 'text-sm'}`}>
+              <p className={`mb-5 text-center ${dark ? 'text-emerald-200/70' : 'text-gray-500'} ${formVisible ? 'reveal reveal-d1' : 'opacity-0'} ${isMobile ? 'text-xs' : 'text-sm'}`}>
                 Sign in to your Teacher Load &amp; Scheduling System dashboard.
               </p>
 
