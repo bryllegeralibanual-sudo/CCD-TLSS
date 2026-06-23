@@ -54,14 +54,13 @@ export function DataProvider({ children }) {
   const [finalizedTerms, setFinalizedTerms] = useState([])
   const [faculty, setFaculty] = useState(FACULTY_SEED)
   const [subjects, setSubjects] = useState(SUBJECTS)
+  const { token } = useAuth()
+  const [assignments, setAssignments] = useState([])
+  const [finalizedTerms, setFinalizedTerms] = useState([])
+  const [faculty, setFaculty] = useState(FACULTY_SEED)
+  const [subjects, setSubjects] = useState(SUBJECTS)
   const [term, setTerm] = useState(() => load(TERM_KEY, { ay: '2025-2026', sem: '1st' }))
-  const [faculty, setFaculty] = useState(() => load(FACULTY_KEY, FACULTY_SEED))
-  const [subjects, setSubjects] = useState(() => load(SUBJECTS_KEY, SUBJECTS))
-  const [rooms, setRooms] = useState(() => load(ROOMS_KEY, DEFAULT_ROOMS))
-  const [users, setUsers] = useState(() => load(USERS_KEY, []))
-  const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
 
-<<<<<<< HEAD
   useEffect(() => {
     localStorage.setItem(TERM_KEY, JSON.stringify(term))
   }, [term])
@@ -86,16 +85,6 @@ export function DataProvider({ children }) {
         console.error('Failed to load data metadata', error)
       })
   }, [token])
-=======
-  useEffect(() => localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(assignments)), [assignments])
-  useEffect(() => localStorage.setItem(FINALIZED_KEY, JSON.stringify(finalizedTerms)), [finalizedTerms])
-  useEffect(() => localStorage.setItem(TERM_KEY, JSON.stringify(term)), [term])
-  useEffect(() => localStorage.setItem(FACULTY_KEY, JSON.stringify(faculty)), [faculty])
-  useEffect(() => localStorage.setItem(SUBJECTS_KEY, JSON.stringify(subjects)), [subjects])
-  useEffect(() => localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms)), [rooms])
-  useEffect(() => localStorage.setItem(USERS_KEY, JSON.stringify(users)), [users])
-  useEffect(() => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)), [settings])
->>>>>>> 535f3bc5accbb2ce7cc7bf198939e50261ac4a2f
 
   const facultyById = useMemo(() => Object.fromEntries(faculty.map((f) => [f.id, f])), [faculty])
   const subjectsById = useMemo(() => Object.fromEntries(subjects.map((s) => [s.id, s])), [subjects])
@@ -267,6 +256,7 @@ export function DataProvider({ children }) {
     setFaculty,
     upsertFaculty,
 >>>>>>> 535f3bc5accbb2ce7cc7bf198939e50261ac4a2f
+    subjects,
     subjects,
     subjectsById,
     setSubjects,
