@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Briefcase, CalendarDays, ClipboardCheck,
   ShieldCheck, GraduationCap, LogOut, ChevronRight, X,
+  BookOpen, Users, Building2,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { useData } from '../data/DataContext'
@@ -11,16 +12,29 @@ import ccdBg from '../assets/images/ccd-bg.png'
 const GOLD = '#D9B44A'
 const NAV = {
   admin:        [
-    { to: '/admin/dashboard', label: 'Dashboard',       icon: LayoutDashboard },
-    { to: '/admin/loads',     label: 'Load Assignment', icon: Briefcase       },
-    { to: '/scheduler',       label: 'Scheduler',       icon: CalendarDays    },
+    { section: 'Overview', items: [
+      { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    ] },
+    { section: 'Faculty', items: [
+      { to: '/admin/faculty', label: 'Faculty', icon: Users },
+      { to: '/admin/loads', label: 'Load Assignment', icon: Briefcase },
+    ] },
+    { section: 'Resources', items: [
+      { to: '/admin/curriculum', label: 'Curriculum Prospectus', icon: BookOpen },
+      { to: '/admin/rooms', label: 'Rooms & Labs', icon: Building2 },
+    ] },
+    { section: 'Scheduling', items: [
+      { to: '/scheduler', label: 'Schedule Generator', icon: CalendarDays },
+    ] },
   ],
-  program_head: [{ to: '/head/approvals', label: 'Approvals',      icon: ClipboardCheck, badge: true }],
+  program_head: [{ section: 'Program Head', items: [{ to: '/head/approvals', label: 'Approvals', icon: ClipboardCheck, badge: true }] }],
   registrar:    [
-    { to: '/registrar',       label: 'Finalize Loads',  icon: ShieldCheck  },
-    { to: '/scheduler',       label: 'Scheduler',       icon: CalendarDays },
+    { section: 'Registrar', items: [
+      { to: '/registrar', label: 'Finalize Loads', icon: ShieldCheck },
+      { to: '/scheduler', label: 'Scheduler', icon: CalendarDays },
+    ] },
   ],
-  teacher:      [{ to: '/teacher', label: 'My Load', icon: GraduationCap }],
+  teacher:      [{ section: 'Faculty', items: [{ to: '/teacher', label: 'My Load', icon: GraduationCap }] }],
 }
 const ROLE_LABELS = { admin:'Administrator', program_head:'Program Head', registrar:'Registrar', teacher:'Faculty' }
 const initials = (n='') => n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase()
@@ -29,7 +43,7 @@ export default function Sidebar({ open, onClose }) {
   const { account, logout } = useAuth()
   const { term, pendingForProgramHead } = useData()
   const pendingCount = account?.role === 'program_head' ? pendingForProgramHead(account).length : 0
-  const items = NAV[account?.role] || []
+  const groups = NAV[account?.role] || []
 
   return (
     <>
@@ -68,19 +82,23 @@ export default function Sidebar({ open, onClose }) {
 
         {/* NAV */}
         <nav className="relative z-10 flex-1 p-3 space-y-0.5 overflow-y-auto">
-          <p className="text-[9px] uppercase tracking-widest font-bold px-3 py-2" style={{color:'rgba(220,252,231,0.4)'}}>Navigation</p>
-          {items.map(({to,label,icon:Icon,badge},i)=>(
-            <NavLink key={to} to={to} onClick={onClose}
-              className={({isActive})=>`sb-item flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-200 group ${isActive?'text-white':'text-white/65 hover:text-white hover:bg-white/8'}`}
-              style={({isActive})=>isActive?{backgroundColor:'rgba(217,180,74,0.14)',borderLeft:`3px solid ${GOLD}`,paddingLeft:'0.625rem'}:{animationDelay:`${i*0.05}s`}}>
-              <span className="flex items-center gap-2.5">
-                <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{backgroundColor:'rgba(255,255,255,0.07)'}}><Icon size={15}/></span>
-                <span className="text-sm font-medium">{label}</span>
-              </span>
-              {badge&&pendingCount>0
-                ?<span className="min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] font-bold px-1.5" style={{backgroundColor:GOLD,color:'#033826'}}>{pendingCount}</span>
-                :<ChevronRight size={12} className="opacity-0 group-hover:opacity-40 transition-opacity"/>}
-            </NavLink>
+          {groups.map((group, groupIndex) => (
+            <div key={group.section}>
+              <p className="text-[9px] uppercase tracking-widest font-bold px-3 py-2" style={{color:'rgba(220,252,231,0.4)'}}>{group.section}</p>
+              {group.items.map(({to,label,icon:Icon,badge},i)=>(
+                <NavLink key={to} to={to} onClick={onClose}
+                  className={({isActive})=>`sb-item flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-200 group ${isActive?'text-white':'text-white/65 hover:text-white hover:bg-white/8'}`}
+                  style={({isActive})=>isActive?{backgroundColor:'rgba(217,180,74,0.14)',borderLeft:`3px solid ${GOLD}`,paddingLeft:'0.625rem'}:{animationDelay:`${(groupIndex + i)*0.05}s`}}>
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{backgroundColor:'rgba(255,255,255,0.07)'}}><Icon size={15}/></span>
+                    <span className="text-sm font-medium truncate">{label}</span>
+                  </span>
+                  {badge&&pendingCount>0
+                    ?<span className="min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] font-bold px-1.5" style={{backgroundColor:GOLD,color:'#033826'}}>{pendingCount}</span>
+                    :<ChevronRight size={12} className="opacity-0 group-hover:opacity-40 transition-opacity shrink-0"/>}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 

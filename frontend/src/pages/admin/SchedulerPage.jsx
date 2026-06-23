@@ -30,22 +30,6 @@ const YEAR_SLOT_RULES = {
   4: { label: 'Flexible', detail: '2:30 PM-9:30 PM', slots: [4, 5, 6, 7, 8] },
 }
 
-const ROOMS = [
-  { id: 1, name: 'B1-C1', type: 'Classroom', prog: '' },
-  { id: 2, name: 'B1-C3', type: 'Classroom', prog: '' },
-  { id: 3, name: 'B1-C4', type: 'Classroom', prog: '' },
-  { id: 4, name: 'B4-C3', type: 'Classroom', prog: '' },
-  { id: 5, name: 'B4-C4', type: 'Classroom', prog: '' },
-  { id: 6, name: 'B4-C5', type: 'Classroom', prog: '' },
-  { id: 7, name: 'B4-C6', type: 'Classroom', prog: '' },
-  { id: 8, name: 'B4-C7', type: 'Classroom', prog: '' },
-  { id: 9, name: 'B1-C2 HVACRT LAB', type: 'HVAC Lab', prog: 'BTVTED-HVACRT' },
-  { id: 10, name: 'WELDING LABORATORY', type: 'Welding Lab', prog: 'BTVTED-HVACRT' },
-  { id: 11, name: 'B4-C1 COMPUTER LAB', type: 'Computer Lab', prog: 'BTVTED-CP' },
-  { id: 12, name: 'B4-C2 SPEECH LAB', type: 'Speech Lab', prog: '' },
-  { id: 13, name: 'SCIENCE LABORATORY', type: 'Science Lab', prog: '' },
-]
-
 function slotDuration(slotIndex) {
   const slot = SLOTS[slotIndex]
   return slot.end - slot.start
@@ -143,8 +127,9 @@ function findRoom({ rooms, roomType, prog, day, slotIndexes, roomSlots }) {
   })
 }
 
-function generateSchedule({ approvedAssignments, subjectsById, facultyById }) {
+function generateSchedule({ approvedAssignments, subjectsById, facultyById, rooms }) {
   const tasks = buildTasks(approvedAssignments, subjectsById, facultyById)
+  const activeRooms = rooms.filter(room => room.status !== 'Inactive' && room.status !== 'Maintenance')
   const teacherSlots = new Set()
   const sectionSlots = new Set()
   const roomSlots = new Set()
@@ -167,7 +152,7 @@ function generateSchedule({ approvedAssignments, subjectsById, facultyById }) {
         if (teacherBusy || sectionBusy) continue
 
         const room = findRoom({
-          rooms: ROOMS,
+          rooms: activeRooms,
           roomType: task.roomType,
           prog: task.subject.prog,
           day,
@@ -390,6 +375,7 @@ export default function SchedulerPage() {
     facultyById,
     isTermFinalized,
     getFinalizeBlockers,
+    rooms,
   } = useData()
 
   const [schedule, setSchedule] = useState(null)
@@ -414,7 +400,7 @@ export default function SchedulerPage() {
   const scheduledHours = generated.entries.reduce((sum, entry) => sum + entry.hours, 0)
 
   function runGenerate() {
-    setSchedule(generateSchedule({ approvedAssignments: approvedLoads, subjectsById, facultyById }))
+    setSchedule(generateSchedule({ approvedAssignments: approvedLoads, subjectsById, facultyById, rooms }))
   }
 
   function clearSchedule() {

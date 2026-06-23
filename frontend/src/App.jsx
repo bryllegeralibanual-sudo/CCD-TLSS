@@ -7,6 +7,9 @@ import Login from './pages/Login'
 import DashboardPage from './pages/admin/Dashboardpage'
 import LoadAssignmentPage from './pages/admin/LoadAssignmentPage'
 import SchedulerPage from './pages/admin/SchedulerPage'
+import CurriculumPage from './pages/admin/CurriculumPage'
+import FacultyPage from './pages/admin/FacultyPage'
+import RoomsLabsPage from './pages/admin/RoomsLabsPage'
 import ApprovalsPage from './pages/head/ApprovalsPage'
 import RegistrarPage from './pages/registrar/RegistrarPage'
 import MyLoadPage from './pages/teacher/MyLoadPage'
@@ -37,6 +40,17 @@ export default function App() {
             </Route>
 
             <Route
+              path="/admin/faculty"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AppLayout title="Faculty" />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<FacultyPage />} />
+            </Route>
+
+            <Route
               path="/admin/loads"
               element={
                 <ProtectedRoute roles={['admin']}>
@@ -45,6 +59,28 @@ export default function App() {
               }
             >
               <Route index element={<LoadAssignmentPage />} />
+            </Route>
+
+            <Route
+              path="/admin/curriculum"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AppLayout title="Curriculum Prospectus" />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<CurriculumPage />} />
+            </Route>
+
+            <Route
+              path="/admin/rooms"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AppLayout title="Rooms & Labs" />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<RoomsLabsPage />} />
             </Route>
 
             <Route
