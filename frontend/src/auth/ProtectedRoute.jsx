@@ -30,7 +30,7 @@ export default function ProtectedRoute({ roles, children }) {
 export function roleHome(role) {
   switch (role) {
     case 'admin':
-      return '/admin/loads'
+      return '/admin/dashboard'
     case 'program_head':
       return '/head/approvals'
     case 'registrar':

@@ -5,6 +5,7 @@ import ProtectedRoute, { roleHome } from './auth/ProtectedRoute'
 import AppLayout from './components/AppLayout'
 import Login from './pages/Login'
 import SchedulerPage from './pages/SchedulerPage'
+import DashboardPage from './pages/admin/Dashboardpage'
 import LoadAssignmentPage from './pages/admin/LoadAssignmentPage'
 import ApprovalsPage from './pages/head/ApprovalsPage'
 import RegistrarPage from './pages/registrar/RegistrarPage'
@@ -23,6 +24,17 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<RoleRedirect />} />
+
+            <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AppLayout title="Dashboard" />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<DashboardPage />} />
+            </Route>
 
             <Route
               path="/admin/loads"
