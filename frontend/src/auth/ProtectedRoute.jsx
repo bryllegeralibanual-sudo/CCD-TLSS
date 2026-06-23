@@ -2,8 +2,8 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 
 // Wrap a route element: <ProtectedRoute roles={['admin']}><AdminPage/></ProtectedRoute>
-// Logged-out users go to /login. Logged-in users with the wrong role get a
-// clear "not allowed" notice instead of a silent redirect.
+// Logged-out users go to /login. Logged-in users with the wrong role get
+// automatically redirected to their role's home page.
 export default function ProtectedRoute({ roles, children }) {
   const { account, loading } = useAuth()
   const location = useLocation()
@@ -17,14 +17,7 @@ export default function ProtectedRoute({ roles, children }) {
   }
 
   if (roles && !roles.includes(account.role)) {
-    return (
-      <div style={{ maxWidth: 480, margin: '80px auto', textAlign: 'center', fontFamily: 'system-ui' }}>
-        <h2 style={{ marginBottom: 8 }}>Not authorized</h2>
-        <p style={{ color: '#6b6b67' }}>
-          Your account ({account.role.replace('_', ' ')}) doesn't have access to this page.
-        </p>
-      </div>
-    )
+    return <Navigate to={roleHome(account.role)} replace />
   }
 
   return children
