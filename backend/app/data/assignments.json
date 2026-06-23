@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "ay": "2025-2026",
+    "sem": "1st",
+    "facultyId": 7,
+    "subjectId": 1,
+    "section": "BTVTED-CP 1A",
+    "status": "pending",
+    "submittedBy": "admin-1",
+    "submittedAt": "2026-06-22T03:21:07.234211Z",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "comment": null
+  },
+  {
+    "id": 2,
+    "ay": "2025-2026",
+    "sem": "1st",
+    "facultyId": 2,
+    "subjectId": 8,
+    "section": "BTVTED-CP 1A",
+    "status": "pending",
+    "submittedBy": "admin-1",
+    "submittedAt": "2026-06-22T03:21:32.722711Z",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "comment": null
+  }
+]

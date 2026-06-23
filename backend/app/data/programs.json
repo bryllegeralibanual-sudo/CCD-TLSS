@@ -1,0 +1,38 @@
+[
+  {
+    "code": "BTVTED-CP",
+    "label": "BTVTEd - CP",
+    "name": "Bachelor of Technical-Vocational Teacher Education",
+    "major": "Computer Programming",
+    "sections": 2,
+    "years": 4,
+    "headGroup": "BTVTED"
+  },
+  {
+    "code": "BTVTED-HVACRT",
+    "label": "BTVTEd - HVACRT",
+    "name": "Bachelor of Technical-Vocational Teacher Education",
+    "major": "HVAC/R Technology",
+    "sections": 1,
+    "years": 4,
+    "headGroup": "BTVTED"
+  },
+  {
+    "code": "BECED",
+    "label": "BECEd",
+    "name": "Bachelor of Early Childhood Education",
+    "major": "General",
+    "sections": 3,
+    "years": 4,
+    "headGroup": "BECED"
+  },
+  {
+    "code": "BSENTREP",
+    "label": "BS Entrepreneurship",
+    "name": "Bachelor of Science in Entrepreneurship",
+    "major": "General",
+    "sections": 2,
+    "years": 4,
+    "headGroup": "BSENTREP"
+  }
+]

@@ -1,0 +1,287 @@
+[
+  {
+    "id": "admin-1",
+    "email": "admin@ccd.edu.ph",
+    "password": "admin123",
+    "role": "admin",
+    "name": "Admin (Teacher-in-Charge)"
+  },
+  {
+    "id": "head-btvted",
+    "email": "head.btvted@ccd.edu.ph",
+    "password": "head123",
+    "role": "program_head",
+    "name": "BTVTEd Program Head",
+    "programs": [
+      "BTVTED-CP",
+      "BTVTED-HVACRT"
+    ]
+  },
+  {
+    "id": "head-beced",
+    "email": "head.beced@ccd.edu.ph",
+    "password": "head123",
+    "role": "program_head",
+    "name": "BECEd Program Head",
+    "programs": [
+      "BECED"
+    ]
+  },
+  {
+    "id": "head-bsentrep",
+    "email": "head.bsentrep@ccd.edu.ph",
+    "password": "head123",
+    "role": "program_head",
+    "name": "BS Entrepreneurship Program Head",
+    "programs": [
+      "BSENTREP"
+    ]
+  },
+  {
+    "id": "registrar-1",
+    "email": "registrar@ccd.edu.ph",
+    "password": "registrar123",
+    "role": "registrar",
+    "name": "Registrar"
+  },
+  {
+    "id": "teacher-1",
+    "email": "romel.salazar@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "Romel Salazar",
+    "facultyId": 1
+  },
+  {
+    "id": "teacher-2",
+    "email": "demi.sumile@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "Demi Sumile",
+    "facultyId": 2
+  },
+  {
+    "id": "teacher-3",
+    "email": "wendel.galgo@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "Wendel Galgo",
+    "facultyId": 3
+  },
+  {
+    "id": "teacher-4",
+    "email": "kate.dela.calzada@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "Kate Dela Calzada",
+    "facultyId": 4
+  },
+  {
+    "id": "teacher-5",
+    "email": "emily.urgino@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "Emily Urgino",
+    "facultyId": 5
+  },
+  {
+    "id": "teacher-6",
+    "email": "joy.bendejo@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "Joy Bendejo",
+    "facultyId": 6
+  },
+  {
+    "id": "teacher-7",
+    "email": "fe.perez@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "Fe Perez",
+    "facultyId": 7
+  },
+  {
+    "id": "teacher-8",
+    "email": "ian.sumile@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "Ian Sumile",
+    "facultyId": 8
+  },
+  {
+    "id": "teacher-9",
+    "email": "beced.faculty.01@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 01",
+    "facultyId": 9
+  },
+  {
+    "id": "teacher-10",
+    "email": "beced.faculty.02@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 02",
+    "facultyId": 10
+  },
+  {
+    "id": "teacher-11",
+    "email": "beced.faculty.03@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 03",
+    "facultyId": 11
+  },
+  {
+    "id": "teacher-12",
+    "email": "beced.faculty.04@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 04",
+    "facultyId": 12
+  },
+  {
+    "id": "teacher-13",
+    "email": "beced.faculty.05@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 05",
+    "facultyId": 13
+  },
+  {
+    "id": "teacher-14",
+    "email": "beced.faculty.06@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 06",
+    "facultyId": 14
+  },
+  {
+    "id": "teacher-15",
+    "email": "beced.faculty.07@ccd.edu.ph",
+    "password": "teacher123",
+ "role": "teacher",
+    "name": "BECEd Faculty 07",
+    "facultyId": 15
+  },
+  {
+    "id": "teacher-16",
+    "email": "beced.faculty.08@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 08",
+    "facultyId": 16
+  },
+  {
+    "id": "teacher-17",
+    "email": "beced.faculty.09@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 09",
+    "facultyId": 17
+  },
+  {
+    "id": "teacher-18",
+    "email": "beced.faculty.10@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 10",
+    "facultyId": 18
+  },
+  {
+    "id": "teacher-19",
+    "email": "beced.faculty.11@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 11",
+    "facultyId": 19
+  },
+  {
+    "id": "teacher-20",
+    "email": "beced.faculty.12@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BECEd Faculty 12",
+    "facultyId": 20
+  },
+  {
+    "id": "teacher-21",
+    "email": "bsentrep.faculty.01@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BSEntrep Faculty 01",
+    "facultyId": 21
+  },
+  {
+    "id": "teacher-22",
+    "email": "bsentrep.faculty.02@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BSEntrep Faculty 02",
+    "facultyId": 22
+  },
+  {
+    "id": "teacher-23",
+    "email": "bsentrep.faculty.03@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BSEntrep Faculty 03",
+    "facultyId": 23
+  },
+  {
+    "id": "teacher-24",
+    "email": "bsentrep.faculty.04@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BSEntrep Faculty 04",
+    "facultyId": 24
+  },
+  {
+    "id": "teacher-25",
+    "email": "bsentrep.faculty.05@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BSEntrep Faculty 05",
+    "facultyId": 25
+  },
+  {
+    "id": "teacher-26",
+    "email": "bsentrep.faculty.06@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BSEntrep Faculty 06",
+    "facultyId": 26
+  },
+  {
+    "id": "teacher-27",
+    "email": "bsentrep.faculty.07@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BSEntrep Faculty 07",
+    "facultyId": 27
+  },
+  {
+    "id": "teacher-28",
+    "email": "bsentrep.faculty.08@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BSEntrep Faculty 08",
+    "facultyId": 28
+  },
+  {
+    "id": "teacher-29",
+    "email": "bsentrep.faculty.09@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BSEntrep Faculty 09",
+    "facultyId": 29
+  },
+  {
+    "id": "teacher-30",
+    "email": "bsentrep.faculty.10@ccd.edu.ph",
+    "password": "teacher123",
+    "role": "teacher",
+    "name": "BSEntrep Faculty 10",
+    "facultyId": 30
+  }
+]
