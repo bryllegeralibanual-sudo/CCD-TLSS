@@ -1,6 +1,10 @@
 {
   "dependencies": {
+<<<<<<< HEAD
     "@supabase/supabase-js": "^2.108.2",
     "dotenv": "^17.4.2"
+=======
+    "@supabase/supabase-js": "^2.108.2"
+>>>>>>> a5b584a (Update Frontend with backend)
   }
 }

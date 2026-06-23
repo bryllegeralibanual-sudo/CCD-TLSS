@@ -9,6 +9,7 @@
 //
 // IMPORTANT: uses the service-role key (bypasses RLS) — never run this from
 // a browser or commit the key. Run it locally or in a one-off CI step only.
+
 import dotenv from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
