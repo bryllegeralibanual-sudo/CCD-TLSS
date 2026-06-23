@@ -5,8 +5,12 @@ import { useAuth } from './AuthContext'
 // Logged-out users go to /login. Logged-in users with the wrong role get a
 // clear "not allowed" notice instead of a silent redirect.
 export default function ProtectedRoute({ roles, children }) {
-  const { account } = useAuth()
+  const { account, loading } = useAuth()
   const location = useLocation()
+
+  if (loading) {
+    return null // or a spinner — avoids a flash redirect to /login on refresh
+  }
 
   if (!account) {
     return <Navigate to="/login" state={{ from: location }} replace />

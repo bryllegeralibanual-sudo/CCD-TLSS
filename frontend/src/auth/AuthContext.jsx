@@ -1,35 +1,68 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { findAccount, findAccountById } from './accounts'
+import * as api from './api'
 
 const AuthContext = createContext(null)
-const STORAGE_KEY = 'ccd-tlss.session-account-id'
+const TOKEN_KEY = 'ccd-tlss.token'
+
+// Maps the backend UserResponse shape to the `account` shape pages already
+// consume (see accounts.js, now retired): { id, email, role, name, programs, facultyId }
+function toAccount(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    name: user.full_name || user.email,
+    programs: user.programs || [],
+    facultyId: user.facultyId ?? null,
+  }
+}
 
 export function AuthProvider({ children }) {
-  const [account, setAccount] = useState(() => {
-    const savedId = localStorage.getItem(STORAGE_KEY)
-    return savedId ? findAccountById(savedId) : null
-  })
+  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY))
+  const [account, setAccount] = useState(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
+  // On load, if a token exists, fetch the current profile to restore the session.
   useEffect(() => {
-    if (account) localStorage.setItem(STORAGE_KEY, account.id)
-    else localStorage.removeItem(STORAGE_KEY)
-  }, [account])
+    if (!token) {
+      setLoading(false)
+      return
+    }
+    api.me(token)
+      .then((user) => setAccount(toAccount(user)))
+      .catch(() => {
+        localStorage.removeItem(TOKEN_KEY)
+        setToken(null)
+      })
+      .finally(() => setLoading(false))
+  }, [token])
 
-  const login = (email, password) => {
-    const found = findAccount(email, password)
-    if (!found) {
-      setError('Incorrect email or password.')
+  const login = async (email, password) => {
+    try {
+      const res = await api.login(email, password)
+      localStorage.setItem(TOKEN_KEY, res.access_token)
+      setToken(res.access_token)
+      setAccount(toAccount(res.user))
+      setError('')
+      return true
+    } catch (e) {
+      setError(e.message || 'Incorrect email or password.')
       return false
     }
-    setError('')
-    setAccount(found)
-    return true
   }
 
-  const logout = () => setAccount(null)
+  const logout = () => {
+    if (token) api.logout(token).catch(() => {})
+    localStorage.removeItem(TOKEN_KEY)
+    setToken(null)
+    setAccount(null)
+  }
 
-  const value = useMemo(() => ({ account, login, logout, error, setError }), [account, error])
+  const value = useMemo(
+    () => ({ account, login, logout, error, setError, loading, token }),
+    [account, error, loading, token],
+  )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

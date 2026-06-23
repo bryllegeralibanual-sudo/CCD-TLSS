@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import * as api from './api'
+import { useAuth } from '../auth/AuthContext'
 import { FACULTY_SEED } from './facultySeed'
 import { SUBJECTS } from './subjects'
 import { PROGRAM_BY_CODE } from './programs'
@@ -6,8 +8,6 @@ import { checkAssignmentCompatibility } from './validation'
 
 const DataContext = createContext(null)
 
-const ASSIGNMENTS_KEY = 'ccd-tlss.assignments'
-const FINALIZED_KEY = 'ccd-tlss.finalized-terms'
 const TERM_KEY = 'ccd-tlss.current-term'
 
 function load(key, fallback) {
@@ -19,23 +19,41 @@ function load(key, fallback) {
   }
 }
 
-// NOTE: this whole file is a stand-in for a real backend. Everything here is
-// stored in the browser's localStorage so the approval workflow is demoable
-// without standing up a server/database. Swap the bodies of these functions
-// for real API calls later — the shapes (assignment objects, function
-// signatures) were designed so that swap doesn't require touching the pages.
 export function DataProvider({ children }) {
-  const [assignments, setAssignments] = useState(() => load(ASSIGNMENTS_KEY, []))
-  const [finalizedTerms, setFinalizedTerms] = useState(() => load(FINALIZED_KEY, []))
+  const { token } = useAuth()
+  const [assignments, setAssignments] = useState([])
+  const [finalizedTerms, setFinalizedTerms] = useState([])
+  const [faculty, setFaculty] = useState(FACULTY_SEED)
+  const [subjects, setSubjects] = useState(SUBJECTS)
   const [term, setTerm] = useState(() => load(TERM_KEY, { ay: '2025-2026', sem: '1st' }))
 
-  useEffect(() => localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(assignments)), [assignments])
-  useEffect(() => localStorage.setItem(FINALIZED_KEY, JSON.stringify(finalizedTerms)), [finalizedTerms])
-  useEffect(() => localStorage.setItem(TERM_KEY, JSON.stringify(term)), [term])
+  useEffect(() => {
+    localStorage.setItem(TERM_KEY, JSON.stringify(term))
+  }, [term])
 
-  const faculty = FACULTY_SEED
+  useEffect(() => {
+    if (!token) {
+      setAssignments([])
+      setFinalizedTerms([])
+      setFaculty(FACULTY_SEED)
+      setSubjects(SUBJECTS)
+      return
+    }
+
+    api.getMetadata(token)
+      .then((data) => {
+        setFaculty(data.faculty ?? FACULTY_SEED)
+        setSubjects(data.subjects ?? SUBJECTS)
+        setAssignments(data.assignments ?? [])
+        setFinalizedTerms(data.finalizedTerms ?? [])
+      })
+      .catch((error) => {
+        console.error('Failed to load data metadata', error)
+      })
+  }, [token])
+
   const facultyById = useMemo(() => Object.fromEntries(faculty.map((f) => [f.id, f])), [faculty])
-  const subjectsById = useMemo(() => Object.fromEntries(SUBJECTS.map((s) => [s.id, s])), [])
+  const subjectsById = useMemo(() => Object.fromEntries(subjects.map((s) => [s.id, s])), [subjects])
 
   const isTermFinalized = (ay, sem) => finalizedTerms.some((t) => t.ay === ay && t.sem === sem)
 
@@ -55,45 +73,50 @@ export function DataProvider({ children }) {
   }
 
   // Returns { ok, blockers } — does not throw, so callers can show messages inline.
-  function createAssignment({ facultyId, subjectId, section }, account) {
+  async function createAssignment({ facultyId, subjectId, section }, account) {
     if (isTermFinalized(term.ay, term.sem)) {
       return { ok: false, blockers: [`${term.ay} ${term.sem} semester is already finalized — reopen it before making changes.`] }
     }
     const check = checkCompatibility({ facultyId, subjectId, section })
     if (!check.ok) return check
 
-    const nextId = assignments.reduce((max, a) => Math.max(max, a.id), 0) + 1
-    const newAssignment = {
-      id: nextId,
-      ay: term.ay,
-      facultyId,
-      subjectId,
-      section,
-      status: 'pending',
-      submittedBy: account.id,
-      submittedAt: new Date().toISOString(),
-      reviewedBy: null,
-      reviewedAt: null,
-      comment: null,
+    try {
+      const newAssignment = await api.createAssignment(
+        { facultyId, subjectId, section, ay: term.ay, sem: term.sem },
+        token,
+      )
+      setAssignments((prev) => [...prev, newAssignment])
+      return { ok: true, blockers: [], assignment: newAssignment }
+    } catch (error) {
+      return { ok: false, blockers: [error.message || 'Unable to create assignment.'] }
     }
-    setAssignments((prev) => [...prev, newAssignment])
-    return { ok: true, blockers: [], assignment: newAssignment }
   }
 
-  function withdrawAssignment(id) {
-    setAssignments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'withdrawn' } : a)))
+  async function withdrawAssignment(id) {
+    try {
+      const updated = await api.withdrawAssignment(id, token)
+      setAssignments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+    } catch (error) {
+      console.error('Failed to withdraw assignment', error)
+    }
   }
 
-  function approveAssignment(id, account) {
-    setAssignments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: 'approved', reviewedBy: account.id, reviewedAt: new Date().toISOString(), comment: null } : a)),
-    )
+  async function approveAssignment(id, account) {
+    try {
+      const updated = await api.approveAssignment(id, {}, token)
+      setAssignments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+    } catch (error) {
+      console.error('Failed to approve assignment', error)
+    }
   }
 
-  function rejectAssignment(id, account, comment) {
-    setAssignments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: 'rejected', reviewedBy: account.id, reviewedAt: new Date().toISOString(), comment } : a)),
-    )
+  async function rejectAssignment(id, account, comment) {
+    try {
+      const updated = await api.rejectAssignment(id, { comment }, token)
+      setAssignments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+    } catch (error) {
+      console.error('Failed to reject assignment', error)
+    }
   }
 
   // Blocked until every assignment submitted for this term is approved or withdrawn.
@@ -107,15 +130,26 @@ export function DataProvider({ children }) {
     return blockers
   }
 
-  function finalizeTerm(ay, sem, account) {
+  async function finalizeTerm(ay, sem, account) {
     const blockers = getFinalizeBlockers(ay, sem)
     if (blockers.length) return { ok: false, blockers }
-    setFinalizedTerms((prev) => [...prev, { ay, sem, finalizedBy: account.id, finalizedAt: new Date().toISOString() }])
-    return { ok: true, blockers: [] }
+
+    try {
+      await api.finalizeTerm({ ay, sem }, token)
+      setFinalizedTerms((prev) => [...prev, { ay, sem, finalizedBy: account.id, finalizedAt: new Date().toISOString() }])
+      return { ok: true, blockers: [] }
+    } catch (error) {
+      return { ok: false, blockers: [error.message || 'Unable to finalize term.'] }
+    }
   }
 
-  function reopenTerm(ay, sem) {
-    setFinalizedTerms((prev) => prev.filter((t) => !(t.ay === ay && t.sem === sem)))
+  async function reopenTerm(ay, sem) {
+    try {
+      await api.reopenTerm({ ay, sem }, token)
+      setFinalizedTerms((prev) => prev.filter((t) => !(t.ay === ay && t.sem === sem)))
+    } catch (error) {
+      console.error('Failed to reopen term', error)
+    }
   }
 
   function pendingForProgramHead(account) {
@@ -151,7 +185,7 @@ export function DataProvider({ children }) {
     isTermFinalized,
     faculty,
     facultyById,
-    subjects: SUBJECTS,
+    subjects,
     subjectsById,
     assignments,
     checkCompatibility,

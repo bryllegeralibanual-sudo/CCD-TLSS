@@ -27,9 +27,9 @@ export default function LoadAssignmentPage() {
   const selectedFaculty = facultyId ? facultyById[Number(facultyId)] : null
   const [feedback, setFeedback] = useState(null)
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!subjectId || !facultyId) return
-    const result = createAssignment({ facultyId: Number(facultyId), subjectId: Number(subjectId), section }, account)
+    const result = await createAssignment({ facultyId: Number(facultyId), subjectId: Number(subjectId), section }, account)
     if (result.ok) {
       setFeedback({ type: 'success', text: `Submitted for Program Head review: ${subjectsById[Number(subjectId)].code} → ${facultyById[Number(facultyId)].ln}.` })
       setSubjectId('')
