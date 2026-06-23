@@ -454,18 +454,29 @@ export default function Login() {
             </div>
 
             {/* Form card */}
-            <div className={`w-full mx-auto rounded-3xl border px-5 py-6 sm:px-8 sm:py-8 ${
+            <div className={`w-full mx-auto rounded-3xl border px-5 py-6 sm:px-8 sm:py-8 backdrop-blur-2xl backdrop-saturate-150 ${
               isDesktop ? 'max-w-[440px]' : isTablet ? 'max-w-[460px]' : 'max-w-full'
             } ${
               dark
-                ? 'border-emerald-900 bg-[#101F18]/95 shadow-[0_24px_70px_rgba(0,0,0,0.32)]'
-                : 'border-gray-100 bg-white shadow-[0_24px_70px_rgba(16,36,26,0.12)]'
+                ? 'border-white/10 bg-[#101F18]/68 shadow-[0_24px_70px_rgba(0,0,0,0.38)]'
+                : 'border-white/70 bg-white/62 shadow-[0_24px_70px_rgba(16,36,26,0.16)]'
             } ${formVisible ? 'reveal' : 'opacity-0'}`}>
+              <div className="pointer-events-none absolute inset-px rounded-[calc(1.5rem-1px)]"
+                style={{
+                  background: dark
+                    ? 'linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 42%, rgba(16,185,129,0.06))'
+                    : 'linear-gradient(145deg, rgba(255,255,255,0.88), rgba(255,255,255,0.30) 46%, rgba(16,185,129,0.08))',
+                  boxShadow: dark
+                    ? 'inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(255,255,255,0.03)'
+                    : 'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(16,36,26,0.04)',
+                }}
+              />
+              <div className="relative z-10">
 
               {/* Avatar */}
               <div className={`mx-auto rounded-full flex items-center justify-center mb-4 ${
                 isMobile ? 'w-10 h-10' : 'w-12 h-12'
-              } ${dark ? 'bg-emerald-500/15' : 'bg-emerald-50'}`}>
+              } ${dark ? 'bg-emerald-500/15' : 'bg-white/70'}`}>
                 <UserRound size={isMobile ? 18 : 22} className="text-emerald-600" />
               </div>
 
@@ -619,6 +630,7 @@ export default function Login() {
                     {b.label}
                   </div>
                 ))}
+              </div>
               </div>
             </div>
           </div>
