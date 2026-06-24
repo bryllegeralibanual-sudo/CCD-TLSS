@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Camera, Mail, Search, Users } from 'lucide-react'
+import { AlertTriangle, Camera, Mail, Search, Users, X, BookOpen, Clock, Briefcase, ChevronRight } from 'lucide-react'
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, programLabel } from '../../data/programs'
 import { getFacultyMaxUnits, getFacultyUnits } from '../../data/validation'
@@ -32,10 +32,161 @@ function LoadBar({ used, max }) {
   )
 }
 
+function FacultyDetailDrawer({ faculty, onClose, dark, term, assignments, subjectsById }) {
+  if (!faculty) return null
+
+  const used = getFacultyUnits(assignments, subjectsById, faculty.id, term.sem)
+  const max = getFacultyMaxUnits(faculty)
+  const percent = max > 0 ? Math.round((used / max) * 100) : 0
+  
+  const current = assignments
+    .filter(a => a.facultyId === faculty.id && a.ay === term.ay && a.status !== 'withdrawn' && subjectsById[a.subjectId]?.sem === term.sem)
+    .map(a => ({ ...a, subject: subjectsById[a.subjectId] }))
+
+  const programs = new Set()
+  current.forEach(a => {
+    if (a.subject?.prog) programs.add(a.subject.prog)
+  })
+
+  const subjects = [...new Set(current.map(a => a.subject?.code))].filter(Boolean)
+  
+  // Estimate hours (assuming 3 hours per lecture unit, 2 hours per lab unit per week)
+  const weeklyHours = current.reduce((sum, a) => {
+    const subj = a.subject
+    return sum + ((subj?.lec || 0) * 3 + (subj?.lab || 0) * 2)
+  }, 0)
+
+  const loadStatus = used > max ? 'Overloaded' : percent >= 85 ? 'Near Capacity' : percent >= 50 ? 'Balanced' : 'Underloaded'
+  const statusColor = used > max ? '#DC2626' : percent >= 85 ? '#D97706' : percent >= 50 ? MID_GREEN : '#3B82F6'
+
+  return (
+    <>
+      {/* Overlay */}
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={onClose} />
+      
+      {/* Drawer */}
+      <div className={`fixed right-0 top-0 h-screen w-full max-w-md z-50 overflow-y-auto shadow-2xl transition-transform ${
+        dark ? 'bg-[#0A1410] border-l border-emerald-900/30' : 'bg-white'
+      }`}>
+        <div className="sticky top-0 z-10 flex items-center justify-between p-5" style={{ background: dark ? '#0F1C16' : '#f9fafb', borderBottom: dark ? '1px solid #1a3029' : '1px solid #e5e7eb' }}>
+          <h2 className={`font-bold ${dark ? 'text-white' : 'text-gray-900'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Faculty Details</h2>
+          <button onClick={onClose} className={`p-1.5 rounded-lg transition-colors ${
+            dark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+          }`}>
+            <X size={18} className={dark ? 'text-white' : 'text-gray-600'} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {/* Header with avatar */}
+          <div className="flex gap-4">
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl" style={{ background: `linear-gradient(135deg, ${FOREST}, ${MID_GREEN})` }}>
+              {avatarUrl(faculty) ? <img src={avatarUrl(faculty)} alt={`${faculty.fn} ${faculty.ln}`} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-2xl font-black text-white">{initials(faculty)}</div>}
+            </div>
+            <div className="flex-1">
+              <p className={`text-lg font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>{faculty.fn} {faculty.ln}</p>
+              <p className={`text-sm mt-1 ${dark ? 'text-emerald-200/60' : 'text-gray-600'}`}>{faculty.spec || 'No specialization'}</p>
+              <p className={`text-xs mt-2 font-semibold px-2.5 py-1 rounded-full w-fit ${
+                used > max ? 'bg-red-100 text-red-700' : percent >= 85 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+              }`}>{loadStatus}</p>
+            </div>
+          </div>
+
+          {/* Workload overview */}
+          <div className={`p-4 rounded-lg ${dark ? 'bg-white/8' : 'bg-gray-50'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className={`text-sm font-bold ${dark ? 'text-emerald-100' : 'text-gray-700'}`}>Current Load</span>
+              <span className={`text-xl font-black ${dark ? 'text-white' : 'text-gray-900'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif", color: statusColor }}>{used}/{max} units</span>
+            </div>
+            <div className={`h-2 rounded-full overflow-hidden ${dark ? 'bg-white/10' : 'bg-gray-200'}`}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, percent)}%`, backgroundColor: statusColor }} />
+            </div>
+            <div className="flex gap-3 mt-3 text-xs">
+              <div className={`flex-1 p-2 rounded ${dark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                <p className={dark ? 'text-emerald-200/60' : 'text-gray-500'}>Type</p>
+                <p className={`font-bold mt-0.5 ${dark ? 'text-white' : 'text-gray-900'}`}>{faculty.type || 'Full-Time'}</p>
+              </div>
+              <div className={`flex-1 p-2 rounded ${dark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                <p className={dark ? 'text-emerald-200/60' : 'text-gray-500'}>Weekly Hrs</p>
+                <p className={`font-bold mt-0.5 ${dark ? 'text-white' : 'text-gray-900'}`}>{weeklyHours} hrs</p>
+              </div>
+              <div className={`flex-1 p-2 rounded ${dark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                <p className={dark ? 'text-emerald-200/60' : 'text-gray-500'}>Max Units</p>
+                <p className={`font-bold mt-0.5 ${dark ? 'text-white' : 'text-gray-900'}`}>{max} units</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Programs */}
+          {programs.size > 0 && (
+            <div>
+              <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${dark ? 'text-white' : 'text-gray-900'}`}>
+                <Briefcase size={16} /> Programs
+              </h3>
+              <div className="space-y-2">
+                {Array.from(programs).map(prog => (
+                  <div key={prog} className={`p-3 rounded-lg ${dark ? 'bg-white/8' : 'bg-gray-50'}`}>
+                    <p className={`text-sm font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}>✓ {programLabel(prog)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Subjects taught */}
+          {subjects.length > 0 && (
+            <div>
+              <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${dark ? 'text-white' : 'text-gray-900'}`}>
+                <BookOpen size={16} /> Subjects ({subjects.length})
+              </h3>
+              <div className="space-y-2">
+                {subjects.map(code => (
+                  <div key={code} className={`p-3 rounded-lg ${dark ? 'bg-white/8' : 'bg-gray-50'}`}>
+                    <p className={`text-sm font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}>• {code}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Current assignments */}
+          {current.length > 0 && (
+            <div>
+              <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${dark ? 'text-white' : 'text-gray-900'}`}>
+                <Clock size={16} /> Current Assignments ({current.length})
+              </h3>
+              <div className="space-y-2">
+                {current.map(a => (
+                  <div key={a.id} className={`p-3 rounded-lg ${dark ? 'bg-white/8' : 'bg-gray-50'}`}>
+                    <p className={`text-xs font-bold ${dark ? 'text-emerald-300' : 'text-emerald-700'}`}>{a.subject?.code}</p>
+                    <p className={`text-sm font-semibold mt-1 ${dark ? 'text-white' : 'text-gray-900'}`}>{a.subject?.title}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className={`text-xs px-2 py-1 rounded ${dark ? 'bg-white/10' : 'bg-gray-200'}`}>{a.section}</span>
+                      <span className={`text-xs font-semibold ${dark ? 'text-emerald-200' : 'text-emerald-700'}`}>{(a.subject?.lec || 0) + (a.subject?.lab || 0)} units</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {current.length === 0 && (
+            <div className={`p-8 rounded-lg text-center ${dark ? 'bg-white/5' : 'bg-gray-50'}`}>
+              <Clock size={32} className={`mx-auto mb-3 ${dark ? 'text-emerald-900' : 'text-gray-300'}`} />
+              <p className={dark ? 'text-emerald-200/50' : 'text-gray-400'}>No active assignments this term</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 export default function FacultyPage() {
   const { term, faculty, assignments, subjectsById } = useData()
   const [program, setProgram] = useState('ALL')
   const [query, setQuery] = useState('')
+  const [selectedFaculty, setSelectedFaculty] = useState(null)
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -75,7 +226,7 @@ export default function FacultyPage() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-black text-white" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Faculty Directory</p>
-            <p className="mt-0.5 text-xs text-emerald-100/70">Specializations, program coverage, current teaching loads, and profile photos</p>
+            <p className="mt-0.5 text-xs text-emerald-100/70">Click any faculty card to view detailed analytics and current assignments</p>
           </div>
         </div>
         <div className="grid gap-3 p-4 sm:grid-cols-4">
@@ -106,7 +257,7 @@ export default function FacultyPage() {
             {people.map(f => {
               const img = avatarUrl(f)
               return (
-                <article key={f.id} className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
+                <article key={f.id} onClick={() => setSelectedFaculty(f)} className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm hover:shadow-md hover:border-emerald-700/20 cursor-pointer transition-all">
                   <div className="flex gap-3">
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-emerald-900/10">
                       {img ? <img src={img} alt={`${f.fn} ${f.ln}`} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-lg font-black text-white" style={{ background: `linear-gradient(135deg, ${FOREST}, ${MID_GREEN})` }}>{initials(f)}</div>}
@@ -141,6 +292,16 @@ export default function FacultyPage() {
           </div>
         </section>
       ))}
+
+      {/* Faculty Detail Drawer */}
+      <FacultyDetailDrawer 
+        faculty={selectedFaculty} 
+        onClose={() => setSelectedFaculty(null)}
+        dark={false}
+        term={term}
+        assignments={assignments}
+        subjectsById={subjectsById}
+      />
     </div>
   )
 }

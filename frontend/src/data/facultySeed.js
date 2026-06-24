@@ -8,7 +8,7 @@ export const FACULTY_SEED = [
     email: "romel.salazar@ccd.edu.ph",
     prog: "BTVTED-CP", shared: [],
     spec: "Programming & Software Development",
-    type: "Full-Time", maxUnits: 21, preferred: "morning",
+    type: "Full-Time", maxUnits: 18, preferred: "morning",
   },
   {
     id: 2,
@@ -16,7 +16,7 @@ export const FACULTY_SEED = [
     email: "demi.sumile@ccd.edu.ph",
     prog: "BTVTED-CP", shared: [],
     spec: "Programming & Web Development",
-    type: "Full-Time", maxUnits: 21, preferred: "afternoon",
+    type: "Full-Time", maxUnits: 18, preferred: "afternoon",
   },
   {
     id: 3,
@@ -24,7 +24,7 @@ export const FACULTY_SEED = [
     email: "wendel.galgo@ccd.edu.ph",
     prog: "BTVTED-CP", shared: [],
     spec: "Database & Systems",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 4,
@@ -32,7 +32,7 @@ export const FACULTY_SEED = [
     email: "kate.dela.calzada@ccd.edu.ph",
     prog: "BTVTED-CP", shared: [],
     spec: "Networking & Infrastructure",
-    type: "Full-Time", maxUnits: 21, preferred: "morning",
+    type: "Full-Time", maxUnits: 18, preferred: "morning",
   },
   {
     id: 5,
@@ -40,7 +40,7 @@ export const FACULTY_SEED = [
     email: "emily.urgino@ccd.edu.ph",
     prog: "BTVTED-HVACRT", shared: ["BTVTED-CP","BTVTED-HVACRT"],
     spec: "HVAC Systems & Refrigeration",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 6,
@@ -48,7 +48,7 @@ export const FACULTY_SEED = [
     email: "joy.bendejo@ccd.edu.ph",
     prog: "BTVTED-HVACRT", shared: ["BTVTED-CP","BTVTED-HVACRT"],
     spec: "HVAC Installation & Maintenance",
-    type: "Full-Time", maxUnits: 21, preferred: "afternoon",
+    type: "Full-Time", maxUnits: 18, preferred: "afternoon",
   },
   {
     id: 7,
@@ -56,7 +56,7 @@ export const FACULTY_SEED = [
     email: "fe.perez@ccd.edu.ph",
     prog: "BTVTED-CP", shared: ["BTVTED-CP","BTVTED-HVACRT"],
     spec: "Professional Education & Pedagogy",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 8,
@@ -64,7 +64,7 @@ export const FACULTY_SEED = [
     email: "ian.sumile@ccd.edu.ph",
     prog: "BTVTED-HVACRT", shared: [],
     spec: "HVAC Troubleshooting & Design",
-    type: "Full-Time", maxUnits: 21, preferred: "morning",
+    type: "Full-Time", maxUnits: 18, preferred: "morning",
   },
   {
     id: 9,
@@ -72,7 +72,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.01@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 10,
@@ -80,7 +80,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.02@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 11,
@@ -88,7 +88,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.03@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 12,
@@ -96,7 +96,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.04@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 13,
@@ -104,7 +104,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.05@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 14,
@@ -112,7 +112,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.06@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 15,
@@ -120,7 +120,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.07@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 16,
@@ -128,7 +128,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.08@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 17,
@@ -136,7 +136,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.09@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 18,
@@ -144,7 +144,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.10@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 19,
@@ -152,7 +152,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.11@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 20,
@@ -160,7 +160,7 @@ export const FACULTY_SEED = [
     email: "beced.faculty.12@ccd.edu.ph",
     prog: "BECED", shared: [],
     spec: "Early Childhood Education & Child Development",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 21,
@@ -168,7 +168,7 @@ export const FACULTY_SEED = [
     email: "bsentrep.faculty.01@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
     spec: "Entrepreneurship & Business Management",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 22,
@@ -176,7 +176,7 @@ export const FACULTY_SEED = [
     email: "bsentrep.faculty.02@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
     spec: "Entrepreneurship & Business Management",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 23,
@@ -184,7 +184,7 @@ export const FACULTY_SEED = [
     email: "bsentrep.faculty.03@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
     spec: "Entrepreneurship & Business Management",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 24,
@@ -192,7 +192,7 @@ export const FACULTY_SEED = [
     email: "bsentrep.faculty.04@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
     spec: "Entrepreneurship & Business Management",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 25,
@@ -200,7 +200,7 @@ export const FACULTY_SEED = [
     email: "bsentrep.faculty.05@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
     spec: "Entrepreneurship & Business Management",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 26,
@@ -208,7 +208,7 @@ export const FACULTY_SEED = [
     email: "bsentrep.faculty.06@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
     spec: "Entrepreneurship & Business Management",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 27,
@@ -216,7 +216,7 @@ export const FACULTY_SEED = [
     email: "bsentrep.faculty.07@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
     spec: "Entrepreneurship & Business Management",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 28,
@@ -224,7 +224,7 @@ export const FACULTY_SEED = [
     email: "bsentrep.faculty.08@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
     spec: "Entrepreneurship & Business Management",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 29,
@@ -232,7 +232,7 @@ export const FACULTY_SEED = [
     email: "bsentrep.faculty.09@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
     spec: "Entrepreneurship & Business Management",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
     id: 30,
@@ -240,6 +240,6 @@ export const FACULTY_SEED = [
     email: "bsentrep.faculty.10@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
     spec: "Entrepreneurship & Business Management",
-    type: "Full-Time", maxUnits: 21, preferred: "flexible",
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
 ]

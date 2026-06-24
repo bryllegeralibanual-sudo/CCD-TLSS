@@ -69,7 +69,7 @@ export default function MyLoadPage() {
     const s = subjectsById[a.subjectId]
     return sum + (s ? s.lec + s.lab : 0)
   }, 0)
-  const maxUnits = fac ? getFacultyMaxUnits(fac) : 21
+  const maxUnits = fac ? getFacultyMaxUnits(fac) : 18
 
   if (!fac) {
     return (

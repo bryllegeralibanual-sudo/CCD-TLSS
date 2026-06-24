@@ -7,10 +7,13 @@ import AppLayout from './components/AppLayout'
 import Login from './pages/Login'
 import DashboardPage from './pages/admin/DashboardPage'
 import LoadAssignmentPage from './pages/admin/LoadAssignmentPage'
+import ApprovalCenterPage from './pages/admin/ApprovalCenterPage'
 import SchedulerPage from './pages/admin/SchedulerPage'
 import CurriculumPage from './pages/admin/CurriculumPage'
 import FacultyPage from './pages/admin/FacultyPage'
 import RoomsLabsPage from './pages/admin/RoomsLabsPage'
+import ReportsPage from './pages/admin/ReportsPage'
+import AIAssignmentPage from './pages/admin/AIAssignmentPage'
 import ApprovalsPage from './pages/head/ApprovalsPage'
 import RegistrarPage from './pages/registrar/RegistrarPage'
 import MyLoadPage from './pages/teacher/MyLoadPage'
@@ -38,6 +41,15 @@ export default function App() {
               </Route>
               <Route path="/admin/loads" element={<ProtectedRoute roles={['admin']}><AppLayout title="Load Assignment" /></ProtectedRoute>}>
                 <Route index element={<LoadAssignmentPage />} />
+              </Route>
+              <Route path="/admin/approvals" element={<ProtectedRoute roles={['admin']}><AppLayout title="Approval Center" /></ProtectedRoute>}>
+                <Route index element={<ApprovalCenterPage />} />
+              </Route>
+              <Route path="/admin/reports" element={<ProtectedRoute roles={['admin']}><AppLayout title="Reports" /></ProtectedRoute>}>
+                <Route index element={<ReportsPage />} />
+              </Route>
+              <Route path="/admin/ai-assignment" element={<ProtectedRoute roles={['admin']}><AppLayout title="AI Auto Assignment" /></ProtectedRoute>}>
+                <Route index element={<AIAssignmentPage />} />
               </Route>
               <Route path="/admin/curriculum" element={<ProtectedRoute roles={['admin']}><AppLayout title="Curriculum Prospectus" /></ProtectedRoute>}>
                 <Route index element={<CurriculumPage />} />

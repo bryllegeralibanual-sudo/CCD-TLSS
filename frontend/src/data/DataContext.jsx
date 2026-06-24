@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { FACULTY_SEED } from './facultySeed'
 import { SUBJECTS } from './subjects'
 import { PROGRAM_BY_CODE } from './programs'
-import { checkAssignmentCompatibility } from './validation'
+import { checkAssignmentCompatibility, getFacultyUnits, getFacultyMaxUnits, canTeachProgram } from './validation'
 
 const DataContext = createContext(null)
 
@@ -14,6 +14,7 @@ const SUBJECTS_KEY = 'ccd-tlss.subjects'
 const ROOMS_KEY = 'ccd-tlss.rooms'
 const USERS_KEY = 'ccd-tlss.users'
 const SETTINGS_KEY = 'ccd-tlss.settings'
+const ACTIVITY_KEY = 'ccd-tlss.activity-log'
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const DEFAULT_ROOMS = [
@@ -33,7 +34,7 @@ export const DEFAULT_ROOMS = [
 ]
 
 const DEFAULT_SETTINGS = {
-  maxFacultyUnits: 21,
+  maxFacultyUnits: 18,
   classDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
   requireProgramHeadApproval: true,
   allowSchedulePreviewBeforeFinalization: true,
@@ -62,6 +63,7 @@ export function DataProvider({ children }) {
   const [rooms, setRooms] = useState(() => load(ROOMS_KEY, DEFAULT_ROOMS))
   const [users, setUsers] = useState(() => load(USERS_KEY, []))
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
+  const [activity, setActivity] = useState(() => load(ACTIVITY_KEY, []))
 
   useEffect(() => localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(assignments)), [assignments])
   useEffect(() => localStorage.setItem(FINALIZED_KEY, JSON.stringify(finalizedTerms)), [finalizedTerms])
@@ -71,6 +73,7 @@ export function DataProvider({ children }) {
   useEffect(() => localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms)), [rooms])
   useEffect(() => localStorage.setItem(USERS_KEY, JSON.stringify(users)), [users])
   useEffect(() => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)), [settings])
+  useEffect(() => localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activity)), [activity])
 
   const facultyById = useMemo(() => Object.fromEntries(faculty.map((f) => [f.id, f])), [faculty])
   const subjectsById = useMemo(() => Object.fromEntries(subjects.map((s) => [s.id, s])), [subjects])
@@ -116,6 +119,33 @@ export function DataProvider({ children }) {
     }
     setAssignments((prev) => [...prev, newAssignment])
     return { ok: true, blockers: [], assignment: newAssignment }
+  }
+
+  function createBulkAssignments(items, account) {
+    if (isTermFinalized(term.ay, term.sem)) {
+      return { ok: false, blockers: [`${term.ay} ${term.sem} semester is already finalized - reopen it before making changes.`], created: [] }
+    }
+
+    const submittedAt = new Date().toISOString()
+    setAssignments((prev) => {
+      const nextStartId = prev.reduce((max, a) => Math.max(max, a.id), 0) + 1
+      const created = items.map((item, index) => ({
+        id: nextStartId + index,
+        ay: term.ay,
+        facultyId: item.facultyId,
+        subjectId: item.subjectId,
+        section: item.section,
+        status: 'pending',
+        submittedBy: account?.id || 'system-auto',
+        submittedAt,
+        reviewedBy: null,
+        reviewedAt: null,
+        comment: item.overload ? 'Auto-assigned with overload after max loads were filled.' : null,
+      }))
+      return [...prev, ...created]
+    })
+
+    return { ok: true, blockers: [], created: items }
   }
 
   function withdrawAssignment(id) {
@@ -215,6 +245,162 @@ export function DataProvider({ children }) {
     return byProgram
   }
 
+  // ACTIVITY TRACKING
+  function logActivity(action, details, userId) {
+    const event = {
+      id: `activity-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      action,
+      details,
+      userId,
+    }
+    setActivity((prev) => [event, ...prev])
+  }
+
+  function getRecentActivity(limit = 20) {
+    return activity.slice(0, limit)
+  }
+
+  // ANALYTICS & INSIGHTS
+  
+  // Faculty workload analysis for heatmap + warnings
+  function getFacultyWorkload(ay, sem) {
+    const relevantAssignments = assignments.filter(
+      (a) => a.ay === ay && subjectsById[a.subjectId]?.sem === sem && a.status !== 'withdrawn' && a.status !== 'rejected',
+    )
+
+    return faculty.map((fac) => {
+      const units = relevantAssignments
+        .filter((a) => a.facultyId === fac.id)
+        .reduce((sum, a) => {
+          const subj = subjectsById[a.subjectId]
+          return sum + (subj ? subj.lec + subj.lab : 0)
+        }, 0)
+      const max = fac.maxUnits || settings.maxFacultyUnits
+      const percent = (units / max) * 100
+      const status = units > max ? 'overloaded' : units >= max * 0.9 ? 'near-capacity' : units >= max * 0.5 ? 'balanced' : 'underloaded'
+      return { facultyId: fac.id, name: `${fac.fn} ${fac.ln}`, units, max, percent, status }
+    })
+  }
+
+  // Get critical alerts for dashboard
+  function getCriticalAlerts(ay, sem) {
+    const alerts = []
+    const ta = termAssignments(ay, sem)
+
+    // Find faculty near maximum units
+    const workload = getFacultyWorkload(ay, sem)
+    const nearCapacity = workload.filter((w) => w.status === 'near-capacity')
+    const overloaded = workload.filter((w) => w.status === 'overloaded')
+
+    if (nearCapacity.length > 0) {
+      alerts.push({
+        type: 'near-capacity',
+        severity: 'medium',
+        message: `⚠ ${nearCapacity.length} faculty at near-maximum capacity`,
+        near_capacity: nearCapacity,
+      })
+    }
+
+    if (overloaded.length > 0) {
+      alerts.push({
+        type: 'overloaded',
+        severity: 'high',
+        message: `⚠ ${overloaded.length} faculty exceeding maximum units`,
+        overloaded: overloaded,
+      })
+    }
+
+    // Pending approvals
+    const pending = ta.filter((a) => a.status === 'pending').length
+    if (pending > 0) {
+      alerts.push({
+        type: 'pending-approvals',
+        severity: 'medium',
+        message: `⚠ ${pending} assignments waiting for Program Head approval`,
+      })
+    }
+
+    return alerts
+  }
+
+  // Faculty recommendations for a subject based on specialization + workload
+  function getFacultyRecommendations(subjectId) {
+    const subject = subjectsById[subjectId]
+    if (!subject) return []
+
+    const candidates = faculty
+      .filter((fac) => canTeachProgram(fac, subject.prog))
+      .map((fac) => {
+        const currentUnits = getFacultyUnits(assignments, subjectsById, fac.id, subject.sem)
+        const maxUnits = getFacultyMaxUnits(fac)
+        const availableUnits = maxUnits - currentUnits
+        const wouldFit = availableUnits >= subject.lec + subject.lab
+
+        // Specialization match score (0-100)
+        let specScore = 0
+        if (fac.spec) {
+          const subjCodePrefix = subject.code.slice(0, 2).toLowerCase()
+          if (fac.spec.toLowerCase().includes(subjCodePrefix)) specScore = 100
+          else if (fac.spec.toLowerCase().includes(subject.prog.slice(0, 4).toLowerCase())) specScore = 50
+          else specScore = 20
+        }
+
+        // Workload score (prefer less loaded, 0-100)
+        const workloadScore = ((maxUnits - currentUnits) / maxUnits) * 100
+
+        // Total score for ranking
+        const score = specScore * 0.6 + workloadScore * 0.4
+
+        return {
+          facultyId: fac.id,
+          name: `${fac.fn} ${fac.ln}`,
+          spec: fac.spec,
+          currentUnits,
+          maxUnits,
+          availableUnits,
+          wouldFit,
+          specScore,
+          workloadScore,
+          totalScore: score,
+          type: fac.type || 'Full-Time',
+        }
+      })
+      .filter((c) => c.wouldFit)
+      .sort((a, b) => b.totalScore - a.totalScore)
+
+    return candidates.slice(0, 5) // Top 5 recommendations
+  }
+
+  // Get load distribution for analytics (underloaded, balanced, etc.)
+  function getLoadDistribution(ay, sem) {
+    const workload = getFacultyWorkload(ay, sem)
+    const distribution = {
+      underloaded: workload.filter((w) => w.status === 'underloaded').length,
+      balanced: workload.filter((w) => w.status === 'balanced').length,
+      nearCapacity: workload.filter((w) => w.status === 'near-capacity').length,
+      overloaded: workload.filter((w) => w.status === 'overloaded').length,
+    }
+    return distribution
+  }
+
+  // Get assignment progress for current term
+  function getAssignmentProgress(ay, sem) {
+    const ta = termAssignments(ay, sem)
+    const total = ta.length
+    const completed = ta.filter((a) => a.status === 'approved').length
+    const pending = ta.filter((a) => a.status === 'pending').length
+    const rejected = ta.filter((a) => a.status === 'rejected').length
+    
+    return {
+      total,
+      completed,
+      pending,
+      rejected,
+      percentComplete: total > 0 ? Math.round((completed / total) * 100) : 0,
+    }
+  }
+
   const value = {
     term,
     setTerm,
@@ -238,6 +424,7 @@ export function DataProvider({ children }) {
     assignments,
     checkCompatibility,
     createAssignment,
+    createBulkAssignments,
     withdrawAssignment,
     approveAssignment,
     rejectAssignment,
@@ -249,6 +436,14 @@ export function DataProvider({ children }) {
     assignmentsForFaculty,
     registrarSummary,
     termAssignments,
+    activity,
+    logActivity,
+    getRecentActivity,
+    getFacultyWorkload,
+    getCriticalAlerts,
+    getFacultyRecommendations,
+    getLoadDistribution,
+    getAssignmentProgress,
   }
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>

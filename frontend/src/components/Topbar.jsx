@@ -2,6 +2,7 @@ import { ChevronDown, Menu, CalendarDays, CheckCircle2, Sun, Moon } from 'lucide
 import { useAuth } from '../auth/AuthContext'
 import { useData } from '../data/DataContext'
 import { useTheme } from '../context/ThemeContext'
+import NotificationCenter from './NotificationCenter'
 
 const FOREST    = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -61,7 +62,7 @@ function TermSelect({ value, onChange, options, prefix, dark }) {
 
 export default function Topbar({ title, onMenuClick }) {
   const { account }            = useAuth()
-  const { term, setTerm, isTermFinalized } = useData()
+  const { term, setTerm, isTermFinalized, getCriticalAlerts, termAssignments } = useData()
   const { dark, setDark }      = useTheme()
 
   const canEditTerm = account.role === 'admin' || account.role === 'registrar'
@@ -132,6 +133,12 @@ export default function Topbar({ title, onMenuClick }) {
         </div>
 
         {/* Dark mode toggle */}
+        <NotificationCenter 
+          alerts={getCriticalAlerts?.(term.ay, term.sem) || {}} 
+          approvals={termAssignments?.(term.ay, term.sem)?.filter(a => a.status === 'pending') || []} 
+          dark={dark} 
+          term={term}
+        />
         <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: 3, borderRadius: 10,
           background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(3,56,38,0.06)',
           border: `1px solid ${border}` }}>

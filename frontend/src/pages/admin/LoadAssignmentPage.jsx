@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   AlertTriangle, Briefcase, CheckCircle2, ChevronUp,
-  Filter, Info, Plus, Search, X, XCircle,
+  Filter, Info, Plus, Search, Users, Wand2, X, XCircle,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
@@ -124,6 +124,49 @@ function ProgressBar({ assigned, total, hasRejected }) {
         <div style={{ height: '100%', width: `${pct}%`, borderRadius: 99, background: color, transition: 'width 0.3s ease' }} />
       </div>
     </div>
+  )
+}
+
+function FacultyLoadSidebar({ facultyOptions, assignments, subjectsById, term }) {
+  const rows = useMemo(() => {
+    const termAssignments = assignments.filter(a => a.ay === term.ay && a.status !== 'rejected' && a.status !== 'withdrawn')
+    return facultyOptions.map(fac => {
+      const used = getFacultyUnits(termAssignments, subjectsById, fac.id, term.sem)
+      const max = getFacultyMaxUnits(fac)
+      const pct = max > 0 ? Math.min((used / max) * 100, 140) : 0
+      const status = used > max ? 'Overload' : used >= max * 0.85 ? 'Near max' : used < max * 0.5 ? 'Underload' : 'Balanced'
+      const color = used > max ? '#DC2626' : used >= max * 0.85 ? '#B45309' : used < max * 0.5 ? '#2563EB' : MID_GREEN
+      return { fac, used, max, pct, status, color }
+    }).sort((a, b) => a.used - b.used || a.fac.ln.localeCompare(b.fac.ln))
+  }, [assignments, facultyOptions, subjectsById, term.ay, term.sem])
+
+  return (
+    <aside style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ borderRadius: 14, background: '#fff', border: '1px solid rgba(3,56,38,0.10)', boxShadow: '0 1px 4px rgba(3,56,38,0.06)', overflow: 'hidden', position: 'sticky', top: 16 }}>
+        <div style={{ padding: '13px 14px', borderBottom: '1px solid rgba(3,56,38,0.08)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Users size={15} style={{ color: MID_GREEN }} />
+          <div>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: FOREST }}>Program Faculty</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(3,56,38,0.5)', fontWeight: 600 }}>Current {term.sem} semester load</p>
+          </div>
+        </div>
+        <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 'calc(100vh - 190px)', overflow: 'auto' }}>
+          {rows.map(row => (
+            <div key={row.fac.id} style={{ padding: 10, borderRadius: 10, border: '1px solid rgba(3,56,38,0.09)', background: row.used > row.max ? 'rgba(220,38,38,0.035)' : 'rgba(3,56,38,0.018)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: FOREST, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.fac.ln}, {row.fac.fn}</p>
+                <span style={{ fontSize: 11, fontWeight: 900, color: row.color, whiteSpace: 'nowrap' }}>{row.used}/{row.max}</span>
+              </div>
+              <p style={{ margin: '3px 0 7px', fontSize: 10.5, color: 'rgba(3,56,38,0.48)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.fac.spec || 'No specialization'}</p>
+              <div style={{ height: 5, borderRadius: 99, background: 'rgba(3,56,38,0.08)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.min(row.pct, 100)}%`, background: row.color, borderRadius: 99 }} />
+              </div>
+              <p style={{ margin: '6px 0 0', fontSize: 10.5, fontWeight: 800, color: row.color }}>{row.status}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </aside>
   )
 }
 
@@ -287,6 +330,37 @@ function SubjectAssignmentRow({
 
       {!assignment && expanded && (
         <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(3,56,38,0.03)', border: `1.5px solid ${needsReplacement ? 'rgba(220,38,38,0.20)' : `${GOLD}30`}`, marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          
+          {/* RECOMMENDATIONS SECTION - HIGHLIGHTED */}
+          {recommendations.length > 0 && (
+            <div style={{ padding: '10px 12px', borderRadius: 9, background: 'rgba(16,185,129,0.08)', border: '1.5px solid rgba(16,185,129,0.18)' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: 11, fontWeight: 900, color: MID_GREEN, textTransform: 'uppercase', letterSpacing: '0.05em' }}>🥇 Recommended Faculty</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {recommendations.map((item, idx) => (
+                  <button 
+                    key={item.faculty.id} 
+                    type="button" 
+                    onClick={() => setSelectedFacId(String(item.faculty.id))} 
+                    style={{ 
+                      border: `1.5px solid ${MID_GREEN}`, 
+                      background: selectedFacId === String(item.faculty.id) ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)', 
+                      color: MID_GREEN, 
+                      borderRadius: 8, 
+                      padding: '8px 10px', 
+                      fontSize: 11, 
+                      fontWeight: 800, 
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div>{idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} {item.faculty.ln}</div>
+                    <div style={{ fontSize: 10, opacity: 0.9 }}>{item.afterUnits}/{item.maxUnits} units</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)', gap: 10 }}>
             <div>
               <label style={{ fontSize: 11, fontWeight: 800, color: 'rgba(3,56,38,0.55)', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Search Faculty</label>
@@ -309,16 +383,6 @@ function SubjectAssignmentRow({
             </div>
           </div>
 
-          {recommendations.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {recommendations.map(item => (
-                <button key={item.faculty.id} type="button" onClick={() => setSelectedFacId(String(item.faculty.id))} style={{ border: `1px solid ${item.hasWarning ? 'rgba(217,180,74,0.35)' : 'rgba(16,185,129,0.24)'}`, background: item.hasWarning ? 'rgba(217,180,74,0.10)' : 'rgba(16,185,129,0.07)', color: item.hasWarning ? '#92400E' : MID_GREEN, borderRadius: 99, padding: '5px 9px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
-                  {item.faculty.ln}, {item.faculty.fn} - {item.afterUnits}/{item.maxUnits}
-                </button>
-              ))}
-            </div>
-          )}
-
           {selectedCandidate && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderRadius: 8, background: 'rgba(3,56,38,0.06)' }}>
@@ -331,7 +395,7 @@ function SubjectAssignmentRow({
                   {selectedCandidate.check.blockers.map((b, i) => (
                     <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)' }}>
                       <AlertTriangle size={12} style={{ color: '#DC2626', flexShrink: 0, marginTop: 1 }} />
-                      <p style={{ margin: 0, fontSize: 11, color: '#991B1B' }}>{b}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: '#991B1B', fontWeight: 600 }}>{b}</p>
                     </div>
                   ))}
                   {selectedCandidate.check.notes.map((n, i) => (
@@ -435,7 +499,7 @@ export default function LoadAssignmentPage() {
     term, isTermFinalized,
     faculty, subjects, assignments,
     subjectsById, facultyById,
-    createAssignment, withdrawAssignment, checkCompatibility,
+    createAssignment, createBulkAssignments, withdrawAssignment, checkCompatibility,
   } = useData()
 
   const finalized = isTermFinalized(term.ay, term.sem)
@@ -529,6 +593,95 @@ export default function LoadAssignmentPage() {
     return result
   }
 
+  function subjectUnits(subject) {
+    return (subject?.lec || 0) + (subject?.lab || 0)
+  }
+
+  function specScore(facultyRecord, subject) {
+    const spec = (facultyRecord.spec || '').toLowerCase()
+    const codePrefix = (subject.code || '').slice(0, 2).toLowerCase()
+    const titleWords = (subject.title || '').toLowerCase().split(/\W+/).filter(word => word.length > 4)
+    if (codePrefix && spec.includes(codePrefix)) return 40
+    if (titleWords.some(word => spec.includes(word))) return 26
+    return 8
+  }
+
+  function handleAutoAssignProgram() {
+    if (finalized) return
+
+    const termAssignments = assignments.filter(a => a.ay === term.ay)
+    const simulated = termAssignments.filter(a => a.status !== 'rejected' && a.status !== 'withdrawn').map(a => ({ ...a }))
+    const loads = new Map(facultyOptions.map(fac => [fac.id, getFacultyUnits(simulated, subjectsById, fac.id, term.sem)]))
+    const created = []
+    const failed = []
+    const tasks = sectionRows.flatMap(row =>
+      row.requiredSubjects
+        .filter(subject => !row.activeAssignments.some(a => a.subjectId === subject.id))
+        .map(subject => ({ section: row.section, subject, units: subjectUnits(subject) })),
+    ).sort((a, b) => b.units - a.units || a.subject.code.localeCompare(b.subject.code))
+
+    function hasExactAssignment(facultyId, subjectId, section) {
+      return simulated.some(a => a.facultyId === facultyId && a.subjectId === subjectId && a.section === section && a.status !== 'rejected' && a.status !== 'withdrawn')
+    }
+
+    function chooseCandidate(task, allowOverload) {
+      return facultyOptions
+        .filter(fac => canTeachProgram(fac, task.subject.prog) && !hasExactAssignment(fac.id, task.subject.id, task.section))
+        .map(fac => {
+          const current = loads.get(fac.id) || 0
+          const max = getFacultyMaxUnits(fac)
+          const after = current + task.units
+          const overBy = Math.max(0, after - max)
+          if (!allowOverload && overBy > 0) return null
+          const reusableCode = simulated.some(a => a.facultyId === fac.id && subjectsById[a.subjectId]?.code === task.subject.code)
+          const score = specScore(fac, task.subject) + (reusableCode ? 12 : 0) - (current / Math.max(max, 1)) * 10 - overBy * 6
+          return { fac, current, max, after, overBy, score }
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.score - a.score || a.overBy - b.overBy || a.after - b.after || a.fac.ln.localeCompare(b.fac.ln))[0]
+    }
+
+    for (const task of tasks) {
+      const picked = chooseCandidate(task, false) || chooseCandidate(task, true)
+      if (!picked) {
+        failed.push(`${task.section} ${task.subject.code}`)
+        continue
+      }
+
+      const nextAssignment = {
+        id: `auto-${created.length}`,
+        ay: term.ay,
+        facultyId: picked.fac.id,
+        subjectId: task.subject.id,
+        section: task.section,
+        status: 'pending',
+      }
+      simulated.push(nextAssignment)
+      loads.set(picked.fac.id, picked.after)
+      created.push({
+        facultyId: picked.fac.id,
+        subjectId: task.subject.id,
+        section: task.section,
+        overload: picked.overBy > 0,
+      })
+    }
+
+    if (created.length === 0) {
+      notify('error', failed.length ? `No auto assignments created. Unassigned: ${failed.slice(0, 3).join(', ')}.` : 'All visible program subjects are already assigned.')
+      return
+    }
+
+    const result = createBulkAssignments(created, account)
+    if (!result.ok) {
+      notify('error', result.blockers?.[0] || 'Auto assignment could not be saved.')
+      return
+    }
+
+    const overloaded = created.filter(item => item.overload).length
+    const failedText = failed.length ? ` ${failed.length} subject(s) still need manual review.` : ''
+    notify('success', `Auto-assigned ${created.length} subject(s). ${overloaded} overload assignment(s) used after max loads were filled.${failedText}`)
+  }
+
   function handleWithdrawAssignment(id) {
     if (finalized) return
     withdrawAssignment(id)
@@ -541,7 +694,7 @@ export default function LoadAssignmentPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ maxWidth: 1360, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Toast toast={toast} onClose={() => setToast(null)} />
 
       <div style={{ background: '#fff', borderRadius: 16, border: '1px solid rgba(3,56,38,0.10)', overflow: 'hidden', boxShadow: '0 1px 4px rgba(3,56,38,0.06)' }}>
@@ -597,6 +750,10 @@ export default function LoadAssignmentPage() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', alignSelf: 'end' }}>
+              <button type="button" onClick={handleAutoAssignProgram} disabled={finalized} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 11px', borderRadius: 9, border: 'none', background: finalized ? 'rgba(3,56,38,0.12)' : `linear-gradient(105deg, ${FOREST} 0%, ${MID_GREEN} 100%)`, color: finalized ? 'rgba(3,56,38,0.35)' : '#fff', fontSize: 12, fontWeight: 900, cursor: finalized ? 'not-allowed' : 'pointer', boxShadow: finalized ? 'none' : '0 8px 18px rgba(3,56,38,0.16)' }}>
+                <Wand2 size={13} />
+                Auto Assign
+              </button>
               <Filter size={12} style={{ color: 'rgba(3,56,38,0.35)' }} />
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ appearance: 'none', WebkitAppearance: 'none', fontSize: 12, fontWeight: 700, color: FOREST, background: 'rgba(3,56,38,0.05)', border: '1px solid rgba(3,56,38,0.13)', borderRadius: 7, padding: '7px 28px 7px 10px', cursor: 'pointer', outline: 'none' }}>
                 <option value="ALL">All statuses</option>
@@ -612,28 +769,36 @@ export default function LoadAssignmentPage() {
 
       <ActionRequiredPanel rows={sectionRows} onFocusStatus={focusStatus} />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {visibleRows.length === 0 ? (
-          <div style={{ padding: '34px 18px', borderRadius: 14, background: '#fff', border: '1px solid rgba(3,56,38,0.10)', textAlign: 'center' }}>
-            <CheckCircle2 size={22} style={{ color: MID_GREEN, opacity: 0.55 }} />
-            <p style={{ margin: '8px 0 0', fontSize: 13, color: 'rgba(3,56,38,0.45)', fontWeight: 700 }}>No sections match the current filters.</p>
-          </div>
-        ) : (
-          visibleRows.map(row => (
-            <SectionCard
-              key={row.section}
-              row={row}
-              allAssignments={assignments}
-              allFaculty={facultyOptions}
-              onAssign={handleAssignSubject}
-              onWithdraw={handleWithdrawAssignment}
-              checkCompat={checkCompatibility}
-              subjectsById={subjectsById}
-              facultyById={facultyById}
-              finalized={finalized}
-            />
-          ))
-        )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(260px, 300px)', gap: 14, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+          {visibleRows.length === 0 ? (
+            <div style={{ padding: '34px 18px', borderRadius: 14, background: '#fff', border: '1px solid rgba(3,56,38,0.10)', textAlign: 'center' }}>
+              <CheckCircle2 size={22} style={{ color: MID_GREEN, opacity: 0.55 }} />
+              <p style={{ margin: '8px 0 0', fontSize: 13, color: 'rgba(3,56,38,0.45)', fontWeight: 700 }}>No sections match the current filters.</p>
+            </div>
+          ) : (
+            visibleRows.map(row => (
+              <SectionCard
+                key={row.section}
+                row={row}
+                allAssignments={assignments}
+                allFaculty={facultyOptions}
+                onAssign={handleAssignSubject}
+                onWithdraw={handleWithdrawAssignment}
+                checkCompat={checkCompatibility}
+                subjectsById={subjectsById}
+                facultyById={facultyById}
+                finalized={finalized}
+              />
+            ))
+          )}
+        </div>
+        <FacultyLoadSidebar
+          facultyOptions={facultyOptions}
+          assignments={assignments}
+          subjectsById={subjectsById}
+          term={term}
+        />
       </div>
     </div>
   )

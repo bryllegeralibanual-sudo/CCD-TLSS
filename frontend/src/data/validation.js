@@ -13,7 +13,7 @@ export function canTeachProgram(fac, progCode) {
 }
 
 export function getFacultyMaxUnits(fac) {
-  return fac.maxUnits || (fac.type === 'Part-Time' ? 12 : 21)
+  return fac.maxUnits || (fac.type === 'Part-Time' ? 12 : 18)
 }
 
 // Units the faculty member already carries this semester, optionally excluding

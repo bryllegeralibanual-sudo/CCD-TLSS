@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Briefcase, CalendarDays, ClipboardCheck,
   ShieldCheck, GraduationCap, LogOut, ChevronRight, X,
-  BookOpen, Users, Building2,
+  BookOpen, Users, Building2, FileText, Wand2,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { useData } from '../data/DataContext'
@@ -14,6 +14,8 @@ const NAV = {
   admin:        [
     { section: 'Overview', items: [
       { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/admin/approvals', label: 'Approval Center', icon: ClipboardCheck, badge: false },
+      { to: '/admin/reports', label: 'Reports', icon: FileText },
     ] },
     { section: 'Faculty', items: [
       { to: '/admin/faculty', label: 'Faculty', icon: Users },
@@ -25,6 +27,7 @@ const NAV = {
     ] },
     { section: 'Scheduling', items: [
       { to: '/scheduler', label: 'Schedule Generator', icon: CalendarDays },
+      { to: '/admin/ai-assignment', label: 'AI Auto Assignment', icon: Wand2 },
     ] },
   ],
   program_head: [{ section: 'Program Head', items: [{ to: '/head/approvals', label: 'Approvals', icon: ClipboardCheck, badge: true }] }],
