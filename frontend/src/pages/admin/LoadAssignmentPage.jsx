@@ -8,6 +8,7 @@ import { useData } from '../../data/DataContext'
 import { PROGRAMS, getSections } from '../../data/programs'
 import { canTeachProgram, getFacultyMaxUnits, getFacultyUnits } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
+<<<<<<< Updated upstream
 
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -47,11 +48,14 @@ export default function LoadAssignmentPage() {
 
   const termAssignments = assignments.filter((a) => a.ay === term.ay && subjectsById[a.subjectId]?.sem === term.sem)
 =======
+=======
+>>>>>>> Stashed changes
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const FOREST    = '#033826'
 const MID_GREEN = '#0F6B3C'
 const GOLD      = '#D9B44A'
 // ─────────────────────────────────────────────────────────────────────────────
+<<<<<<< Updated upstream
 >>>>>>> 61534261fa6fd18f6bee8d37f5ccb155ca5202a6
 =======
 const FOREST = '#033826'
@@ -59,6 +63,8 @@ const MID_GREEN = '#0F6B3C'
 const GOLD = '#D9B44A'
 const ACTIVE_STATUSES = new Set(['pending', 'approved'])
 >>>>>>> 535f3bc5accbb2ce7cc7bf198939e50261ac4a2f
+=======
+>>>>>>> Stashed changes
 
 function getSectionStatus(sectionAssignments, requiredSubjects) {
   const active = sectionAssignments.filter(a => ACTIVE_STATUSES.has(a.status))
