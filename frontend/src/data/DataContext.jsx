@@ -9,6 +9,34 @@ import { checkAssignmentCompatibility } from './validation'
 const DataContext = createContext(null)
 
 const TERM_KEY = 'ccd-tlss.current-term'
+const FACULTY_KEY = 'ccd-tlss.faculty'
+const SUBJECTS_KEY = 'ccd-tlss.subjects'
+const ROOMS_KEY = 'ccd-tlss.rooms'
+const USERS_KEY = 'ccd-tlss.users'
+const SETTINGS_KEY = 'ccd-tlss.settings'
+
+export const DEFAULT_ROOMS = [
+  { id: 1, name: 'B1-C1', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
+  { id: 2, name: 'B1-C3', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
+  { id: 3, name: 'B1-C4', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
+  { id: 4, name: 'B4-C3', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
+  { id: 5, name: 'B4-C4', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
+  { id: 6, name: 'B4-C5', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
+  { id: 7, name: 'B4-C6', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
+  { id: 8, name: 'B4-C7', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
+  { id: 9, name: 'B1-C2 HVACRT LAB', type: 'HVAC Lab', capacity: 30, prog: 'BTVTED-HVACRT', status: 'Active' },
+  { id: 10, name: 'WELDING LABORATORY', type: 'Welding Lab', capacity: 28, prog: 'BTVTED-HVACRT', status: 'Active' },
+  { id: 11, name: 'B4-C1 COMPUTER LAB', type: 'Computer Lab', capacity: 35, prog: 'BTVTED-CP', status: 'Active' },
+  { id: 12, name: 'B4-C2 SPEECH LAB', type: 'Speech Lab', capacity: 35, prog: '', status: 'Active' },
+  { id: 13, name: 'SCIENCE LABORATORY', type: 'Science Lab', capacity: 32, prog: '', status: 'Active' },
+]
+
+const DEFAULT_SETTINGS = {
+  maxFacultyUnits: 21,
+  classDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+  requireProgramHeadApproval: true,
+  allowSchedulePreviewBeforeFinalization: true,
+}
 
 function load(key, fallback) {
   try {
@@ -26,7 +54,13 @@ export function DataProvider({ children }) {
   const [faculty, setFaculty] = useState(FACULTY_SEED)
   const [subjects, setSubjects] = useState(SUBJECTS)
   const [term, setTerm] = useState(() => load(TERM_KEY, { ay: '2025-2026', sem: '1st' }))
+  const [faculty, setFaculty] = useState(() => load(FACULTY_KEY, FACULTY_SEED))
+  const [subjects, setSubjects] = useState(() => load(SUBJECTS_KEY, SUBJECTS))
+  const [rooms, setRooms] = useState(() => load(ROOMS_KEY, DEFAULT_ROOMS))
+  const [users, setUsers] = useState(() => load(USERS_KEY, []))
+  const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
 
+<<<<<<< HEAD
   useEffect(() => {
     localStorage.setItem(TERM_KEY, JSON.stringify(term))
   }, [term])
@@ -51,6 +85,16 @@ export function DataProvider({ children }) {
         console.error('Failed to load data metadata', error)
       })
   }, [token])
+=======
+  useEffect(() => localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(assignments)), [assignments])
+  useEffect(() => localStorage.setItem(FINALIZED_KEY, JSON.stringify(finalizedTerms)), [finalizedTerms])
+  useEffect(() => localStorage.setItem(TERM_KEY, JSON.stringify(term)), [term])
+  useEffect(() => localStorage.setItem(FACULTY_KEY, JSON.stringify(faculty)), [faculty])
+  useEffect(() => localStorage.setItem(SUBJECTS_KEY, JSON.stringify(subjects)), [subjects])
+  useEffect(() => localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms)), [rooms])
+  useEffect(() => localStorage.setItem(USERS_KEY, JSON.stringify(users)), [users])
+  useEffect(() => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)), [settings])
+>>>>>>> 535f3bc5accbb2ce7cc7bf198939e50261ac4a2f
 
   const facultyById = useMemo(() => Object.fromEntries(faculty.map((f) => [f.id, f])), [faculty])
   const subjectsById = useMemo(() => Object.fromEntries(subjects.map((s) => [s.id, s])), [subjects])
@@ -166,6 +210,38 @@ export function DataProvider({ children }) {
     return assignments.filter((a) => a.facultyId === facultyId && a.status !== 'withdrawn')
   }
 
+  function upsertFaculty(record) {
+    setFaculty((prev) => {
+      const id = record.id || prev.reduce((max, item) => Math.max(max, item.id), 0) + 1
+      const next = { ...record, id, maxUnits: Number(record.maxUnits || settings.maxFacultyUnits) }
+      return prev.some((item) => item.id === id) ? prev.map((item) => (item.id === id ? next : item)) : [...prev, next]
+    })
+  }
+
+  function upsertSubject(record) {
+    setSubjects((prev) => {
+      const id = record.id || prev.reduce((max, item) => Math.max(max, item.id), 0) + 1
+      const next = { ...record, id, yr: Number(record.yr), lec: Number(record.lec || 0), lab: Number(record.lab || 0) }
+      return prev.some((item) => item.id === id) ? prev.map((item) => (item.id === id ? next : item)) : [...prev, next]
+    })
+  }
+
+  function upsertRoom(record) {
+    setRooms((prev) => {
+      const id = record.id || prev.reduce((max, item) => Math.max(max, item.id), 0) + 1
+      const next = { ...record, id, capacity: Number(record.capacity || 0) }
+      return prev.some((item) => item.id === id) ? prev.map((item) => (item.id === id ? next : item)) : [...prev, next]
+    })
+  }
+
+  function upsertUser(record) {
+    setUsers((prev) => {
+      const id = record.id || `user-${Date.now()}`
+      const next = { ...record, id }
+      return prev.some((item) => item.id === id) ? prev.map((item) => (item.id === id ? next : item)) : [...prev, next]
+    })
+  }
+
   function registrarSummary(ay, sem) {
     const relevant = termAssignments(ay, sem)
     const byProgram = {}
@@ -185,8 +261,23 @@ export function DataProvider({ children }) {
     isTermFinalized,
     faculty,
     facultyById,
+<<<<<<< HEAD
+=======
+    setFaculty,
+    upsertFaculty,
+>>>>>>> 535f3bc5accbb2ce7cc7bf198939e50261ac4a2f
     subjects,
     subjectsById,
+    setSubjects,
+    upsertSubject,
+    rooms,
+    setRooms,
+    upsertRoom,
+    users,
+    setUsers,
+    upsertUser,
+    settings,
+    setSettings,
     assignments,
     checkCompatibility,
     createAssignment,
