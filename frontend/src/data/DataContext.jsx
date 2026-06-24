@@ -15,6 +15,7 @@ const ROOMS_KEY = 'ccd-tlss.rooms'
 const USERS_KEY = 'ccd-tlss.users'
 const SETTINGS_KEY = 'ccd-tlss.settings'
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const DEFAULT_ROOMS = [
   { id: 1, name: 'B1-C1', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
   { id: 2, name: 'B1-C3', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
