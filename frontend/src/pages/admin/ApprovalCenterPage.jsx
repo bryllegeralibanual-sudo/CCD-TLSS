@@ -201,7 +201,12 @@ export default function ApprovalCenterPage() {
       subjectCode: subj?.code,
       subjectTitle: subj?.title,
       section: a.section,
-      facultyName: Memo(() => ta.filter(a => a.status === 'approved').map(a => {
+      facultyName: `${fac?.fn} ${fac?.ln}`,
+      date: new Date(a.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    }
+  }), [ta, subjectsById, facultyById])
+
+  const approved = useMemo(() => ta.filter(a => a.status === 'approved').map(a => {
     const subj = subjectsById[a.subjectId]
     const fac = facultyById[a.facultyId]
     const prog = PROGRAMS.find(p => p.code === subj?.prog)
