@@ -6,8 +6,8 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { useData } from '../data/DataContext'
-import ccdLogo from '../assets/images/ccd-logo.png'
-import ccdBg from '../assets/images/ccd-bg.png'
+import ccdLogo from '../assets/images/ccd-logo.webp'
+import ccdBg from '../assets/images/ccd-bg.webp'
 
 const GOLD = '#D9B44A'
 const NAV = {

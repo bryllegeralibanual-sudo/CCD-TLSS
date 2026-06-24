@@ -7,9 +7,9 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { roleHome } from '../auth/ProtectedRoute'
-import btvtedCrest from '../assets/images/btvted-crest.png'
-import ccdLogo from '../assets/images/ccd-logo.png'
-import ccdBg from '../assets/images/ccd-bg.png'
+import btvtedCrest from '../assets/images/btvted-crest.webp'
+import ccdLogo from '../assets/images/ccd-logo.webp'
+import ccdBg from '../assets/images/ccd-bg.webp'
 
 // ─── UI UX Pro Max Skill Applied ──────────────────────────────────────────────
 // Responsive: mobile-first, 375 / 768 / 1024 / 1280+ breakpoints
