@@ -1,6 +1,5 @@
 import {
-  ShieldCheck, Lock, Unlock, AlertTriangle, CheckCircle2,
-  TrendingUp, BookOpen, ChevronRight,
+  ShieldCheck, Lock, Unlock, AlertTriangle, CheckCircle2, BookOpen,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'

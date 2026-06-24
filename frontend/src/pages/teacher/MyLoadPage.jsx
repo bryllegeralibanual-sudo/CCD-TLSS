@@ -2,7 +2,7 @@ import { GraduationCap, BookOpen, CheckCircle2, Clock, XCircle } from 'lucide-re
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { programLabel } from '../../data/programs'
-import { getFacultyMaxUnits, getFacultyUnits } from '../../data/validation'
+import { getFacultyMaxUnits } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ function StatPill({ icon: Icon, label, value, color }) {
 
 export default function MyLoadPage() {
   const { account }   = useAuth()
-  const { term, facultyById, subjectsById, assignments, assignmentsForFaculty } = useData()
+  const { term, facultyById, subjectsById, assignmentsForFaculty } = useData()
 
   const fac       = facultyById[account.facultyId]
   const semLabel  = term.sem === '1st' ? '1st' : term.sem === '2nd' ? '2nd' : 'Summer'

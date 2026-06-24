@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo } from "react"
 import { Link } from 'react-router-dom'
 import { Users, BookOpen, Clock, CheckCircle2, ChevronRight, TrendingUp, AlertCircle, CalendarDays } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
-import { PROGRAMS, programLabel } from '../../data/programs'
+import { useTheme } from '../../context/ThemeContext'
+import { PROGRAMS } from '../../data/programs'
 import StatusBadge from '../../components/StatusBadge'
 
 const GOLD = '#D9B44A'
@@ -33,13 +34,13 @@ function StatCard({ icon: Icon, label, value, sub, accent, dark }) {
 
 export default function DashboardPage() {
   const { account } = useAuth()
-  const dark = false
-  const { term, faculty, subjects, termAssignments, registrarSummary, isTermFinalized, subjectsById, facultyById } = useData()
+  const { dark } = useTheme()
+  const { term, faculty, termAssignments, registrarSummary, isTermFinalized, subjectsById, facultyById } = useData()
 
   const ta = useMemo(() => termAssignments(term.ay, term.sem), [term, termAssignments])
   const pending  = ta.filter(a => a.status === 'pending').length
   const approved = ta.filter(a => a.status === 'approved').length
-  const rejected = ta.filter(a => a.status === 'rejected').length
+  
   const summary  = registrarSummary(term.ay, term.sem)
   const finalized = isTermFinalized(term.ay, term.sem)
   const recent = [...ta].reverse().slice(0, 6)
