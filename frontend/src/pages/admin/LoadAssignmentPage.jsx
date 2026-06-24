@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   AlertTriangle, Briefcase, CheckCircle2, ChevronUp,
   Filter, Info, Plus, Search, Users, Wand2, X, XCircle,
@@ -12,13 +12,14 @@ import StatusBadge from '../../components/StatusBadge'
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
 const GOLD = '#D9B44A'
-const ACTIVE_STATUSES = new Set(['pending', 'approved'])
+const ACTIVE_STATUSES = new Set(['draft', 'pending', 'approved'])
 
 function getSectionStatus(sectionAssignments, requiredSubjects) {
   const active = sectionAssignments.filter(a => ACTIVE_STATUSES.has(a.status))
   const rejected = sectionAssignments.filter(a => a.status === 'rejected')
   if (rejected.length > 0) return 'replacement'
   if (active.length === 0) return 'incomplete'
+  if (active.some(a => a.status === 'draft')) return 'draft'
   if (active.some(a => a.status === 'pending')) return 'pending'
   if (active.length === requiredSubjects.length) return 'complete'
   return 'incomplete'
@@ -28,7 +29,8 @@ function sectionStatusMeta(status) {
   const map = {
     replacement: { label: 'Needs replacement', color: '#991B1B', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.18)' },
     incomplete: { label: 'Incomplete', color: '#B45309', bg: 'rgba(217,180,74,0.14)', border: 'rgba(217,180,74,0.25)' },
-    pending: { label: 'Pending review', color: '#92400E', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.24)' },
+    draft: { label: 'Ready for review', color: '#2563EB', bg: 'rgba(37,99,235,0.10)', border: 'rgba(37,99,235,0.22)' },
+    pending: { label: 'Pending program head', color: '#92400E', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.24)' },
     complete: { label: 'Complete', color: MID_GREEN, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.22)' },
   }
   return map[status] || map.incomplete
@@ -433,16 +435,23 @@ function SectionCard({
   subjectsById,
   facultyById,
   finalized,
+  onSubmit,
+  isSubmitted,
 }) {
   const { section, requiredSubjects, assignments, activeAssignments, rejectedAssignments, status, assignedCount, rejectedCount, requiredCount } = row
   const completionPct = requiredCount > 0 ? (assignedCount / requiredCount) * 100 : 0
   const hasRejected = rejectedCount > 0
+  const draftCount = activeAssignments.filter(a => a.status === 'draft').length
   const pendingCount = activeAssignments.filter(a => a.status === 'pending').length
   const approvedCount = activeAssignments.filter(a => a.status === 'approved').length
+  // Button is ONLY enabled when ALL subjects assigned, NO rejections, has DRAFT assignments, NOT already submitted, and term NOT finalized
+  const allComplete = assignedCount === requiredCount
+  const hasDrafts = draftCount > 0
+  const canSubmit = allComplete && !hasRejected && hasDrafts && !isSubmitted && !finalized
 
   return (
-    <div style={{ borderRadius: 12, border: `1.5px solid ${hasRejected ? 'rgba(220,38,38,0.24)' : status === 'complete' ? 'rgba(16,185,129,0.25)' : 'rgba(3,56,38,0.12)'}`, background: hasRejected ? 'rgba(220,38,38,0.02)' : status === 'complete' ? 'rgba(16,185,129,0.03)' : '#fff', overflow: 'hidden', boxShadow: '0 1px 3px rgba(3,56,38,0.06)' }}>
-      <div style={{ borderLeft: `3px solid ${hasRejected ? '#DC2626' : status === 'complete' ? MID_GREEN : GOLD}`, padding: '16px', borderBottom: '1px solid rgba(3,56,38,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+    <div style={{ borderRadius: 12, border: `1.5px solid ${hasRejected ? 'rgba(220,38,38,0.24)' : status === 'draft' ? 'rgba(37,99,235,0.25)' : status === 'complete' ? 'rgba(16,185,129,0.25)' : 'rgba(3,56,38,0.12)'}`, background: hasRejected ? 'rgba(220,38,38,0.02)' : status === 'draft' ? 'rgba(37,99,235,0.03)' : status === 'complete' ? 'rgba(16,185,129,0.03)' : '#fff', overflow: 'hidden', boxShadow: '0 1px 3px rgba(3,56,38,0.06)' }}>
+      <div style={{ borderLeft: `3px solid ${hasRejected ? '#DC2626' : status === 'draft' ? '#2563EB' : status === 'complete' ? MID_GREEN : GOLD}`, padding: '16px', borderBottom: '1px solid rgba(3,56,38,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: FOREST, fontFamily: "'EB Garamond',Georgia,serif" }}>{section}</h3>
           <p style={{ margin: 0, fontSize: 11, color: 'rgba(3,56,38,0.5)', marginTop: 4 }}>{assignedCount}/{requiredCount} subjects assigned</p>
@@ -450,9 +459,33 @@ function SectionCard({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <SectionStatusBadge status={status} />
+          {draftCount > 0 && <StatusBadge status="draft" />}
           {pendingCount > 0 && <StatusBadge status="pending" />}
           {approvedCount > 0 && <StatusBadge status="approved" />}
           <span style={{ minWidth: 24, height: 24, borderRadius: 99, background: hasRejected ? 'rgba(220,38,38,0.10)' : completionPct === 100 ? 'rgba(16,185,129,0.15)' : 'rgba(217,180,74,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: hasRejected ? '#991B1B' : completionPct === 100 ? MID_GREEN : '#92620A' }}>{Math.round(completionPct)}%</span>
+          
+          {isSubmitted ? (
+            <span style={{ fontSize: 11, fontWeight: 800, color: MID_GREEN, background: 'rgba(16,185,129,0.10)', border: `1px solid rgba(16,185,129,0.25)`, padding: '6px 10px', borderRadius: 7, whiteSpace: 'nowrap' }}>✓ Submitted</span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onSubmit(section)}
+              disabled={!canSubmit}
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                padding: '7px 12px',
+                borderRadius: 7,
+                border: canSubmit ? 'none' : '1px solid rgba(3,56,38,0.15)',
+                background: canSubmit ? `linear-gradient(105deg, ${FOREST} 0%, ${MID_GREEN} 100%)` : 'rgba(3,56,38,0.08)',
+                color: canSubmit ? '#fff' : 'rgba(3,56,38,0.35)',
+                cursor: canSubmit ? 'pointer' : 'not-allowed',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Submit for Review
+            </button>
+          )}
         </div>
       </div>
 
@@ -499,7 +532,7 @@ export default function LoadAssignmentPage() {
     term, isTermFinalized,
     faculty, subjects, assignments,
     subjectsById, facultyById,
-    createAssignment, createBulkAssignments, withdrawAssignment, checkCompatibility,
+    createAssignment, createBulkAssignments, withdrawAssignment, checkCompatibility, submitToProgramHead,
   } = useData()
 
   const finalized = isTermFinalized(term.ay, term.sem)
@@ -507,6 +540,23 @@ export default function LoadAssignmentPage() {
   const [filterStatus, setFilterStatus] = useState('ALL')
   const [viewMode, setViewMode] = useState('all')
   const [toast, setToast] = useState(null)
+  const [submittedSections, setSubmittedSections] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`ccd-tlss.submitted-sections`)
+      return saved ? new Set(JSON.parse(saved)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
+
+  // Persist submitted sections and reset when program changes
+  useEffect(() => {
+    localStorage.setItem(`ccd-tlss.submitted-sections`, JSON.stringify([...submittedSections]))
+  }, [submittedSections])
+
+  useEffect(() => {
+    setSubmittedSections(new Set())
+  }, [selectedProgram])
 
   const allSections = useMemo(() => getSections(), [])
   const sectionsForProgram = useMemo(
@@ -559,12 +609,13 @@ export default function LoadAssignmentPage() {
     total: sectionRows.length,
     replacement: sectionRows.filter(row => row.status === 'replacement').length,
     incomplete: sectionRows.filter(row => row.status === 'incomplete').length,
+    draft: sectionRows.filter(row => row.status === 'draft').length,
     pending: sectionRows.filter(row => row.status === 'pending').length,
     complete: sectionRows.filter(row => row.status === 'complete').length,
   }), [sectionRows])
 
   const visibleRows = sectionRows.filter(row => {
-    if (viewMode === 'needsWork' && (row.status === 'pending' || row.status === 'complete')) return false
+    if (viewMode === 'needsWork' && (row.status === 'pending' || row.status === 'complete' || row.status === 'approved')) return false
     if (filterStatus !== 'ALL' && row.status !== filterStatus) return false
     return true
   })
@@ -584,9 +635,9 @@ export default function LoadAssignmentPage() {
     const result = createAssignment({ facultyId, subjectId, section }, account)
     if (result.ok && rejectedId) {
       withdrawAssignment(rejectedId)
-      notify('success', 'Replacement assigned and sent back for Program Head review.')
+      notify('success', 'Replacement assigned. Review the section before submitting to program head.')
     } else if (result.ok) {
-      notify('success', 'Assignment created and sent for Program Head review.')
+      notify('success', 'Assignment created. Complete the section, then submit for program head review.')
     } else {
       notify('error', result.blockers?.[0] || 'Assignment could not be created.')
     }
@@ -600,10 +651,33 @@ export default function LoadAssignmentPage() {
   function specScore(facultyRecord, subject) {
     const spec = (facultyRecord.spec || '').toLowerCase()
     const codePrefix = (subject.code || '').slice(0, 2).toLowerCase()
-    const titleWords = (subject.title || '').toLowerCase().split(/\W+/).filter(word => word.length > 4)
-    if (codePrefix && spec.includes(codePrefix)) return 40
-    if (titleWords.some(word => spec.includes(word))) return 26
-    return 8
+    const progCode = (subject.prog || '').slice(0, 4).toLowerCase()
+    const fullTitle = (subject.title || '').toLowerCase()
+    const titleWords = fullTitle.split(/\W+/).filter(word => word.length > 3)
+    
+    // Exact code match (e.g., "CP" in Computer Programming specialization)
+    if (codePrefix && spec.includes(codePrefix)) return 100
+    
+    // Program code match (e.g., "BTVT" from BTVTED-CP)
+    if (progCode && spec.includes(progCode)) return 85
+    
+    // Strong keyword matches from title
+    const keywordMatches = titleWords.filter(word => spec.includes(word)).length
+    if (keywordMatches >= 2) return 75
+    if (keywordMatches === 1) return 60
+    
+    // Check for related technical terms in specialization
+    const techTerms = titleWords.filter(word => 
+      spec.includes(word) || 
+      (word.length > 4 && spec.includes(word.slice(0, -1))) // "networking" → "network"
+    )
+    if (techTerms.length > 0) return 50
+    
+    // Faculty has any specialization (even if not matching)
+    if (spec.length > 0) return 20
+    
+    // No specialization info
+    return 5
   }
 
   function handleAutoAssignProgram() {
@@ -625,20 +699,58 @@ export default function LoadAssignmentPage() {
     }
 
     function chooseCandidate(task, allowOverload) {
-      return facultyOptions
+      const candidates = facultyOptions
         .filter(fac => canTeachProgram(fac, task.subject.prog) && !hasExactAssignment(fac.id, task.subject.id, task.section))
         .map(fac => {
           const current = loads.get(fac.id) || 0
           const max = getFacultyMaxUnits(fac)
           const after = current + task.units
           const overBy = Math.max(0, after - max)
-          if (!allowOverload && overBy > 0) return null
+          const specScoreVal = specScore(fac, task.subject)
           const reusableCode = simulated.some(a => a.facultyId === fac.id && subjectsById[a.subjectId]?.code === task.subject.code)
-          const score = specScore(fac, task.subject) + (reusableCode ? 12 : 0) - (current / Math.max(max, 1)) * 10 - overBy * 6
-          return { fac, current, max, after, overBy, score }
+          
+          // Overall score: prioritizes specialization heavily
+          const score = (specScoreVal * 2) + (reusableCode ? 15 : 0) - (current / Math.max(max, 1)) * 8 - (overBy * 5)
+          
+          return { 
+            fac, 
+            current, 
+            max, 
+            after, 
+            overBy, 
+            score,
+            specScoreVal,
+            hasNoOverload: overBy === 0,
+            hasSpecMatch: specScoreVal >= 50,
+          }
         })
-        .filter(Boolean)
-        .sort((a, b) => b.score - a.score || a.overBy - b.overBy || a.after - b.after || a.fac.ln.localeCompare(b.fac.ln))[0]
+        .filter(c => !c.overBy || allowOverload)
+      
+      if (candidates.length === 0) return null
+      
+      // Multi-pass selection strategy:
+      
+      // Pass 1: Specialization match WITHOUT overload
+      const pass1 = candidates.filter(c => c.hasNoOverload && c.hasSpecMatch)
+        .sort((a, b) => b.specScoreVal - a.specScoreVal || b.score - a.score || a.fac.ln.localeCompare(b.fac.ln))
+      if (pass1.length > 0) return pass1[0]
+      
+      // Pass 2: ANY candidate without overload
+      const pass2 = candidates.filter(c => c.hasNoOverload)
+        .sort((a, b) => b.specScoreVal - a.specScoreVal || b.score - a.score || a.fac.ln.localeCompare(b.fac.ln))
+      if (pass2.length > 0) return pass2[0]
+      
+      // Pass 3: Specialization match WITH overload (if allowed)
+      if (allowOverload) {
+        const pass3 = candidates.filter(c => c.hasSpecMatch)
+          .sort((a, b) => b.specScoreVal - a.specScoreVal || a.overBy - b.overBy || b.score - a.score || a.fac.ln.localeCompare(b.fac.ln))
+        if (pass3.length > 0) return pass3[0]
+      }
+      
+      // Pass 4: Last resort - any available candidate
+      const pass4 = candidates
+        .sort((a, b) => b.specScoreVal - a.specScoreVal || b.score - a.score || a.overBy - b.overBy || a.fac.ln.localeCompare(b.fac.ln))
+      return pass4[0] || null
     }
 
     for (const task of tasks) {
@@ -679,13 +791,29 @@ export default function LoadAssignmentPage() {
 
     const overloaded = created.filter(item => item.overload).length
     const failedText = failed.length ? ` ${failed.length} subject(s) still need manual review.` : ''
-    notify('success', `Auto-assigned ${created.length} subject(s). ${overloaded} overload assignment(s) used after max loads were filled.${failedText}`)
+    notify('success', `Auto-assigned ${created.length} subject(s). Review the assignments, then click "Submit for Review" on each section.${failedText}`)
   }
 
   function handleWithdrawAssignment(id) {
     if (finalized) return
     withdrawAssignment(id)
     notify('success', 'Assignment withdrawn.')
+  }
+
+  function handleSubmitSection(sectionName) {
+    // Get all draft assignments for this section
+    const sectionAssignments = programAssignments.filter(a => a.section === sectionName && a.status === 'draft')
+    
+    if (sectionAssignments.length === 0) {
+      notify('error', 'No draft assignments to submit.')
+      return
+    }
+
+    // Submit draft assignments to program head for review
+    const assignmentIds = sectionAssignments.map(a => a.id)
+    submitToProgramHead(assignmentIds, account)
+    setSubmittedSections(prev => new Set([...prev, sectionName]))
+    notify('success', `${sectionName} submitted to program head for review. ${sectionAssignments.length} assignment(s) pending.`)
   }
 
   function focusStatus(status) {
@@ -725,6 +853,7 @@ export default function LoadAssignmentPage() {
             <StatTile label="Sections" value={summary.total} active={filterStatus === 'ALL'} onClick={() => setFilterStatus('ALL')} />
             <StatTile label="Needs Replacement" value={summary.replacement} tone="danger" active={filterStatus === 'replacement'} onClick={() => focusStatus('replacement')} />
             <StatTile label="Incomplete" value={summary.incomplete} tone="warning" active={filterStatus === 'incomplete'} onClick={() => focusStatus('incomplete')} />
+            <StatTile label="Ready for Review" value={summary.draft} tone="neutral" active={filterStatus === 'draft'} onClick={() => setFilterStatus('draft')} />
             <StatTile label="Pending" value={summary.pending} tone="warning" active={filterStatus === 'pending'} onClick={() => focusStatus('pending')} />
             <StatTile label="Complete" value={summary.complete} tone="success" active={filterStatus === 'complete'} onClick={() => focusStatus('complete')} />
           </div>
@@ -759,7 +888,8 @@ export default function LoadAssignmentPage() {
                 <option value="ALL">All statuses</option>
                 <option value="replacement">Needs replacement</option>
                 <option value="incomplete">Incomplete</option>
-                <option value="pending">Pending review</option>
+                <option value="draft">Ready for review</option>
+                <option value="pending">Pending program head</option>
                 <option value="complete">Complete</option>
               </select>
             </div>
@@ -789,6 +919,8 @@ export default function LoadAssignmentPage() {
                 subjectsById={subjectsById}
                 facultyById={facultyById}
                 finalized={finalized}
+                onSubmit={handleSubmitSection}
+                isSubmitted={submittedSections.has(row.section)}
               />
             ))
           )}

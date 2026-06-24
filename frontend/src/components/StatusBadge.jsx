@@ -1,4 +1,5 @@
 const CONFIG = {
+  draft:     { dot: 'bg-blue-400',                 pill: 'bg-blue-50 text-blue-700 border-blue-200',         label: 'Draft'          },
   pending:   { dot: 'bg-amber-400 animate-pulse', pill: 'bg-amber-50 text-amber-700 border-amber-200',       label: 'Pending Review' },
   approved:  { dot: 'bg-emerald-500',             pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Approved'       },
   rejected:  { dot: 'bg-red-400',                 pill: 'bg-red-50 text-red-700 border-red-200',             label: 'Rejected'       },

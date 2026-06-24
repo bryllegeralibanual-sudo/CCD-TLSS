@@ -110,9 +110,11 @@ export function DataProvider({ children }) {
       facultyId,
       subjectId,
       section,
-      status: 'pending',
-      submittedBy: account.id,
-      submittedAt: new Date().toISOString(),
+      status: 'draft',
+      createdBy: account.id,
+      createdAt: new Date().toISOString(),
+      submittedBy: null,
+      submittedAt: null,
       reviewedBy: null,
       reviewedAt: null,
       comment: null,
@@ -126,7 +128,7 @@ export function DataProvider({ children }) {
       return { ok: false, blockers: [`${term.ay} ${term.sem} semester is already finalized - reopen it before making changes.`], created: [] }
     }
 
-    const submittedAt = new Date().toISOString()
+    const createdAt = new Date().toISOString()
     setAssignments((prev) => {
       const nextStartId = prev.reduce((max, a) => Math.max(max, a.id), 0) + 1
       const created = items.map((item, index) => ({
@@ -135,9 +137,11 @@ export function DataProvider({ children }) {
         facultyId: item.facultyId,
         subjectId: item.subjectId,
         section: item.section,
-        status: 'pending',
-        submittedBy: account?.id || 'system-auto',
-        submittedAt,
+        status: 'draft',
+        createdBy: account?.id || 'system-auto',
+        createdAt,
+        submittedBy: null,
+        submittedAt: null,
         reviewedBy: null,
         reviewedAt: null,
         comment: item.overload ? 'Auto-assigned with overload after max loads were filled.' : null,
@@ -161,6 +165,17 @@ export function DataProvider({ children }) {
   function rejectAssignment(id, account, comment) {
     setAssignments((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: 'rejected', reviewedBy: account.id, reviewedAt: new Date().toISOString(), comment } : a)),
+    )
+  }
+
+  function submitToProgramHead(assignmentIds, account) {
+    const now = new Date().toISOString()
+    setAssignments((prev) =>
+      prev.map((a) =>
+        assignmentIds.includes(a.id)
+          ? { ...a, status: 'pending', submittedBy: account.id, submittedAt: now }
+          : a
+      ),
     )
   }
 
@@ -428,6 +443,7 @@ export function DataProvider({ children }) {
     withdrawAssignment,
     approveAssignment,
     rejectAssignment,
+    submitToProgramHead,
     getFinalizeBlockers,
     finalizeTerm,
     reopenTerm,

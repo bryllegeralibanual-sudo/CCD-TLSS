@@ -286,7 +286,7 @@ export default function AIAssignmentPage() {
         <div>
           <p className={`text-sm font-semibold ${dark ? 'text-emerald-100' : 'text-gray-800'}`}>How AI Assignment Works</p>
           <p className={`text-xs mt-1 ${dark ? 'text-emerald-200/60' : 'text-gray-600'}`}>
-            Our AI engine analyzes faculty specializations, current workload, teaching year preferences, and program requirements to generate optimal recommendations. You can review and reject any recommendation before applying.
+            Our AI engine analyzes faculty specializations, current workload, teaching year preferences, and program requirements to generate optimal recommendations. You can review and reject any recommendation before applying. Once applied, assignments start in draft status. Review them in the Load Assignment page, then submit to program head for final approval.
           </p>
         </div>
       </div>
