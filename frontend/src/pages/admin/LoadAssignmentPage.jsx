@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import {
   AlertTriangle, Briefcase, CheckCircle2, ChevronUp,
-  Filter, Info, Plus, Search, Users, Wand2, X, XCircle,
+  Filter, Info, Plus, Search, Users, Wand2, X, XCircle, Send,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
@@ -12,13 +12,29 @@ import StatusBadge from '../../components/StatusBadge'
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
 const GOLD = '#D9B44A'
-const ACTIVE_STATUSES = new Set(['draft', 'pending', 'approved'])
+const ACTIVE_STATUSES = new Set(['draft', 'pending', 'approved', 'tba'])
+
+function preferredYears(facultyRecord) {
+  const years = facultyRecord?.preferredYearLevels || facultyRecord?.preferredYears || []
+  if (Array.isArray(years)) return years.map(Number).filter(Boolean)
+  if (years) return [Number(years)].filter(Boolean)
+  return []
+}
+
+function yearPriorityScore(facultyRecord, subject) {
+  const years = preferredYears(facultyRecord)
+  if (years.length === 0 || !subject?.yr) return 0
+  return years.includes(Number(subject.yr)) ? 25 : -8
+}
 
 function getSectionStatus(sectionAssignments, requiredSubjects) {
   const active = sectionAssignments.filter(a => ACTIVE_STATUSES.has(a.status))
   const rejected = sectionAssignments.filter(a => a.status === 'rejected')
+  const tbaCount = sectionAssignments.filter(a => a.status === 'tba').length
+  
   if (rejected.length > 0) return 'replacement'
   if (active.length === 0) return 'incomplete'
+  if (tbaCount > 0) return 'incomplete' // TBA means not fully assigned yet
   if (active.some(a => a.status === 'draft')) return 'draft'
   if (active.some(a => a.status === 'pending')) return 'pending'
   if (active.length === requiredSubjects.length) return 'complete'
@@ -236,12 +252,18 @@ function SubjectAssignmentRow({
   subjectsById,
   facultyById,
   finalized,
+  requestOverload,
+  account,
 }) {
   const [expanded, setExpanded] = useState(false)
   const [selectedFacId, setSelectedFacId] = useState('')
   const [facultySearch, setFacultySearch] = useState('')
+  const [showOverloadForm, setShowOverloadForm] = useState(false)
+  const [overloadReason, setOverloadReason] = useState('')
+  const [overloadUnits, setOverloadUnits] = useState('')
 
   const needsReplacement = !assignment && rejectedAssignment
+  const isTBA = assignment?.status === 'tba' // TBA = To Be Assigned
   const unitsTaken = (subject?.lec || 0) + (subject?.lab || 0)
   const rankedFaculty = useMemo(() => {
     const query = facultySearch.trim().toLowerCase()
@@ -251,24 +273,26 @@ function SubjectAssignmentRow({
         const usedUnits = getFacultyUnits(allAssignments, subjectsById, fac.id, subject?.sem)
         const maxUnits = getFacultyMaxUnits(fac)
         const afterUnits = usedUnits + unitsTaken
-        const hasBlockers = !check.ok || afterUnits > maxUnits
+        const needsOverload = afterUnits > maxUnits
+        const hasBlockers = !check.ok
         const hasWarning = check.notes.some(note => note.toLowerCase().includes('mismatch') || note.toLowerCase().includes('near'))
-        const rank = hasBlockers ? 2 : hasWarning ? 1 : 0
-        return { faculty: fac, check, usedUnits, maxUnits, afterUnits, hasBlockers, hasWarning, rank }
+        const priorityScore = yearPriorityScore(fac, subject)
+        const rank = hasBlockers ? 3 : needsOverload ? 2 : hasWarning ? 1 : 0
+        return { faculty: fac, check, usedUnits, maxUnits, afterUnits, needsOverload, hasBlockers, hasWarning, priorityScore, rank }
       })
       .filter(item => {
         if (!query) return true
         const fac = item.faculty
         return `${fac.fn} ${fac.ln} ${fac.spec || ''}`.toLowerCase().includes(query)
       })
-      .sort((a, b) => a.rank - b.rank || a.afterUnits - b.afterUnits || a.faculty.ln.localeCompare(b.faculty.ln))
+      .sort((a, b) => a.rank - b.rank || b.priorityScore - a.priorityScore || a.afterUnits - b.afterUnits || a.faculty.ln.localeCompare(b.faculty.ln))
   }, [allAssignments, allFaculty, checkCompat, facultySearch, section, subject, subjectsById, unitsTaken])
 
   const selectedCandidate = rankedFaculty.find(item => item.faculty.id === Number(selectedFacId))
-  const canAssign = selectedCandidate && !selectedCandidate.hasBlockers && !finalized
-  const borderColor = assignment ? 'rgba(16,185,129,0.25)' : needsReplacement ? 'rgba(220,38,38,0.25)' : 'rgba(3,56,38,0.12)'
-  const bgColor = assignment ? 'rgba(16,185,129,0.04)' : needsReplacement ? 'rgba(220,38,38,0.035)' : 'rgba(3,56,38,0.01)'
-  const recommendations = rankedFaculty.filter(item => !item.hasBlockers).slice(0, 3)
+  const canAssign = selectedCandidate && !selectedCandidate.hasBlockers && !selectedCandidate.needsOverload && !finalized
+  const borderColor = assignment && !isTBA ? 'rgba(16,185,129,0.25)' : isTBA ? 'rgba(217,180,74,0.30)' : needsReplacement ? 'rgba(220,38,38,0.25)' : 'rgba(3,56,38,0.12)'
+  const bgColor = assignment && !isTBA ? 'rgba(16,185,129,0.04)' : isTBA ? 'rgba(217,180,74,0.06)' : needsReplacement ? 'rgba(220,38,38,0.035)' : 'rgba(3,56,38,0.01)'
+  const recommendations = rankedFaculty.filter(item => !item.hasBlockers && !item.needsOverload).slice(0, 3)
 
   function submitAssignment() {
     if (!canAssign) return
@@ -278,6 +302,21 @@ function SubjectAssignmentRow({
       setSelectedFacId('')
       setFacultySearch('')
     }
+  }
+
+  function handleRequestOverload() {
+    if (!selectedCandidate || !overloadUnits) return
+    const excessUnits = selectedCandidate.afterUnits - selectedCandidate.maxUnits
+    if (excessUnits <= 0) return
+    requestOverload({
+      facultyId: Number(selectedFacId),
+      requestedUnits: Math.min(Number(overloadUnits), excessUnits),
+      reason: overloadReason,
+      requestType: 'admin-to-ph',
+    }, account)
+    setShowOverloadForm(false)
+    setOverloadReason('')
+    setOverloadUnits('')
   }
 
   return (
@@ -303,9 +342,21 @@ function SubjectAssignmentRow({
               </p>
             </div>
           )}
+
+          {isTBA && (
+            <div style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'rgba(217,180,74,0.08)', border: '1.5px solid rgba(217,180,74,0.25)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                <AlertTriangle size={12} style={{ color: '#92400E', flexShrink: 0 }} />
+                <span style={{ fontSize: 11, fontWeight: 900, color: '#92400E' }}>Not enough available teachers</span>
+              </div>
+              <p style={{ margin: '2px 0 0', fontSize: 11, color: '#92400E' }}>
+                {assignment?.comment || 'All teachers at max capacity (18 units). Overload required.'}
+              </p>
+            </div>
+          )}
         </div>
 
-        {assignment ? (
+        {assignment && !isTBA ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             <div style={{ textAlign: 'right', fontSize: 12 }}>
               <p style={{ margin: 0, fontWeight: 700, color: FOREST }}>{facultyById[assignment.facultyId]?.ln}, {facultyById[assignment.facultyId]?.fn}</p>
@@ -313,6 +364,17 @@ function SubjectAssignmentRow({
             </div>
             <CheckCircle2 size={20} style={{ color: MID_GREEN, flexShrink: 0 }} />
             <button type="button" onClick={() => onWithdraw(assignment.id)} disabled={finalized} aria-label="Withdraw assignment" style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', color: '#991B1B', cursor: finalized ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: finalized ? 0.5 : 1 }}>
+              <X size={14} />
+            </button>
+          </div>
+        ) : isTBA ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <div style={{ textAlign: 'right', fontSize: 12 }}>
+              <p style={{ margin: 0, fontWeight: 700, color: '#92400E' }}>TBA</p>
+              <p style={{ margin: 0, fontSize: 11, color: 'rgba(146,64,14,0.7)', marginTop: 1 }}>Needs overload</p>
+            </div>
+            <AlertTriangle size={20} style={{ color: '#FCD34D', flexShrink: 0 }} />
+            <button type="button" onClick={() => onWithdraw(assignment.id)} disabled={finalized} aria-label="Withdraw TBA" style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', color: '#991B1B', cursor: finalized ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: finalized ? 0.5 : 1 }}>
               <X size={14} />
             </button>
           </div>
@@ -330,7 +392,68 @@ function SubjectAssignmentRow({
         )}
       </div>
 
-      {!assignment && expanded && (
+      {isTBA && expanded && (
+        <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(217,180,74,0.03)', border: `1.5px solid rgba(217,180,74,0.20)`, marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ padding: '10px 12px', borderRadius: 9, background: 'rgba(217,180,74,0.10)', border: '1.5px solid rgba(217,180,74,0.25)' }}>
+            <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#92400E' }}>No Teachers Available</p>
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#92400E' }}>
+              All faculty who can teach this subject have reached their maximum capacity of 18 units.
+            </p>
+            <p style={{ margin: '6px 0 0', fontSize: 11, color: '#92400E', fontWeight: 600 }}>
+              To assign this subject, you must request overload approval from the Program Head.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => {
+                setExpanded(false)
+              }}
+              disabled={finalized}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: 7,
+                border: '1px solid rgba(3,56,38,0.15)',
+                background: '#fff',
+                color: FOREST,
+                fontWeight: 700,
+                fontSize: 11,
+                cursor: finalized ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setExpanded(false)
+                // Withdraw the TBA assignment to clear it
+                if (assignment?.id) {
+                  onWithdraw(assignment.id)
+                }
+              }}
+              disabled={finalized}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: 7,
+                border: '1px solid rgba(220,38,38,0.20)',
+                background: 'rgba(220,38,38,0.08)',
+                color: '#991B1B',
+                fontWeight: 700,
+                fontSize: 11,
+                cursor: finalized ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Clear TBA
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!assignment && !isTBA && expanded && (
         <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(3,56,38,0.03)', border: `1.5px solid ${needsReplacement ? 'rgba(220,38,38,0.20)' : `${GOLD}30`}`, marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
           
           {/* RECOMMENDATIONS SECTION - HIGHLIGHTED */}
@@ -378,7 +501,7 @@ function SubjectAssignmentRow({
                 <option value="">Choose faculty</option>
                 {rankedFaculty.map(item => (
                   <option key={item.faculty.id} value={item.faculty.id} disabled={item.hasBlockers}>
-                    {item.faculty.ln}, {item.faculty.fn} - {item.hasBlockers ? 'Blocked' : item.hasWarning ? 'Review notes' : 'Recommended'} ({item.afterUnits}/{item.maxUnits} units)
+                    {item.faculty.ln}, {item.faculty.fn} - {item.hasBlockers ? 'Blocked' : item.needsOverload ? 'Needs overload' : item.hasWarning ? 'Review notes' : 'Recommended'} ({item.afterUnits}/{item.maxUnits} units)
                   </option>
                 ))}
               </select>
@@ -389,7 +512,7 @@ function SubjectAssignmentRow({
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderRadius: 8, background: 'rgba(3,56,38,0.06)' }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: FOREST }}>Workload Check</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: selectedCandidate.hasBlockers ? '#DC2626' : MID_GREEN }}>{selectedCandidate.afterUnits}/{selectedCandidate.maxUnits} units</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: selectedCandidate.hasBlockers || selectedCandidate.needsOverload ? '#DC2626' : MID_GREEN }}>{selectedCandidate.afterUnits}/{selectedCandidate.maxUnits} units</span>
               </div>
 
               {(selectedCandidate.check.blockers.length > 0 || selectedCandidate.check.notes.length > 0) && (
@@ -406,6 +529,120 @@ function SubjectAssignmentRow({
                       <p style={{ margin: 0, fontSize: 11, color: FOREST }}>{n}</p>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {selectedCandidate.afterUnits > selectedCandidate.maxUnits && !showOverloadForm && (
+                <div style={{ padding: '10px 12px', borderRadius: 9, background: 'rgba(217,180,74,0.10)', border: '1.5px solid rgba(217,180,74,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#92400E' }}>Exceeds maximum capacity by {selectedCandidate.afterUnits - selectedCandidate.maxUnits} units</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(146,64,14,0.7)' }}>Request overload approval from program head</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowOverloadForm(true)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: 7,
+                      border: 'none',
+                      background: '#FCD34D',
+                      color: '#92400E',
+                      fontWeight: 700,
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Request Overload
+                  </button>
+                </div>
+              )}
+
+              {showOverloadForm && selectedCandidate.afterUnits > selectedCandidate.maxUnits && (
+                <div style={{ padding: '12px', borderRadius: 9, background: 'rgba(217,180,74,0.08)', border: '1.5px solid rgba(217,180,74,0.20)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 800, color: 'rgba(3,56,38,0.55)', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Units to Request</label>
+                    <input
+                      type="number"
+                      value={overloadUnits}
+                      onChange={e => setOverloadUnits(e.target.value)}
+                      placeholder={`Enter units (max: ${selectedCandidate.afterUnits - selectedCandidate.maxUnits})`}
+                      min="1"
+                      max={selectedCandidate.afterUnits - selectedCandidate.maxUnits}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        border: '1px solid rgba(3,56,38,0.15)',
+                        fontSize: 12,
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 800, color: 'rgba(3,56,38,0.55)', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Reason (optional)</label>
+                    <textarea
+                      value={overloadReason}
+                      onChange={e => setOverloadReason(e.target.value)}
+                      placeholder="Why is this overload necessary?"
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        border: '1px solid rgba(3,56,38,0.15)',
+                        fontSize: 12,
+                        fontFamily: 'system-ui',
+                        minHeight: 40,
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowOverloadForm(false)
+                        setOverloadReason('')
+                        setOverloadUnits('')
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 10px',
+                        borderRadius: 7,
+                        border: '1px solid rgba(3,56,38,0.15)',
+                        background: '#fff',
+                        color: FOREST,
+                        fontWeight: 700,
+                        fontSize: 11,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRequestOverload}
+                      disabled={!overloadUnits}
+                      style={{
+                        flex: 1,
+                        padding: '8px 10px',
+                        borderRadius: 7,
+                        border: 'none',
+                        background: overloadUnits ? '#FCD34D' : 'rgba(3,56,38,0.12)',
+                        color: overloadUnits ? '#92400E' : 'rgba(3,56,38,0.35)',
+                        fontWeight: 700,
+                        fontSize: 11,
+                        cursor: overloadUnits ? 'pointer' : 'not-allowed',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <Send size={11} /> Submit
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -437,6 +674,8 @@ function SectionCard({
   finalized,
   onSubmit,
   isSubmitted,
+  requestOverload,
+  account,
 }) {
   const { section, requiredSubjects, assignments, activeAssignments, rejectedAssignments, status, assignedCount, rejectedCount, requiredCount } = row
   const completionPct = requiredCount > 0 ? (assignedCount / requiredCount) * 100 : 0
@@ -512,6 +751,8 @@ function SectionCard({
                 subjectsById={subjectsById}
                 facultyById={facultyById}
                 finalized={finalized}
+                requestOverload={requestOverload}
+                account={account}
               />
             )
           })}
@@ -533,6 +774,7 @@ export default function LoadAssignmentPage() {
     faculty, subjects, assignments,
     subjectsById, facultyById,
     createAssignment, createBulkAssignments, withdrawAssignment, checkCompatibility, submitToProgramHead,
+    requestOverload,
   } = useData()
 
   const finalized = isTermFinalized(term.ay, term.sem)
@@ -687,7 +929,7 @@ export default function LoadAssignmentPage() {
     const simulated = termAssignments.filter(a => a.status !== 'rejected' && a.status !== 'withdrawn').map(a => ({ ...a }))
     const loads = new Map(facultyOptions.map(fac => [fac.id, getFacultyUnits(simulated, subjectsById, fac.id, term.sem)]))
     const created = []
-    const failed = []
+    const tba = [] // Subjects that can't be assigned (TBA = To Be Assigned)
     const tasks = sectionRows.flatMap(row =>
       row.requiredSubjects
         .filter(subject => !row.activeAssignments.some(a => a.subjectId === subject.id))
@@ -698,65 +940,60 @@ export default function LoadAssignmentPage() {
       return simulated.some(a => a.facultyId === facultyId && a.subjectId === subjectId && a.section === section && a.status !== 'rejected' && a.status !== 'withdrawn')
     }
 
-    function chooseCandidate(task, allowOverload) {
+    function chooseCandidate(task) {
+      // STRICT: Only assign teachers who don't exceed their 18-unit limit (NO OVERLOAD)
       const candidates = facultyOptions
         .filter(fac => canTeachProgram(fac, task.subject.prog) && !hasExactAssignment(fac.id, task.subject.id, task.section))
         .map(fac => {
           const current = loads.get(fac.id) || 0
           const max = getFacultyMaxUnits(fac)
           const after = current + task.units
-          const overBy = Math.max(0, after - max)
+          const canFit = after <= max // STRICT: Can only assign if it fits within max
           const specScoreVal = specScore(fac, task.subject)
+          const yearScoreVal = yearPriorityScore(fac, task.subject)
           const reusableCode = simulated.some(a => a.facultyId === fac.id && subjectsById[a.subjectId]?.code === task.subject.code)
           
           // Overall score: prioritizes specialization heavily
-          const score = (specScoreVal * 2) + (reusableCode ? 15 : 0) - (current / Math.max(max, 1)) * 8 - (overBy * 5)
+          const score = (specScoreVal * 2) + yearScoreVal + (reusableCode ? 15 : 0) - (current / Math.max(max, 1)) * 8
           
           return { 
             fac, 
             current, 
             max, 
             after, 
-            overBy, 
             score,
             specScoreVal,
-            hasNoOverload: overBy === 0,
+            yearScoreVal,
+            canFit,
             hasSpecMatch: specScoreVal >= 50,
           }
         })
-        .filter(c => !c.overBy || allowOverload)
+        .filter(c => c.canFit) // STRICT: Only candidates that fit within max limit
       
       if (candidates.length === 0) return null
       
-      // Multi-pass selection strategy:
+      // Multi-pass selection strategy (WITHOUT overload):
       
-      // Pass 1: Specialization match WITHOUT overload
-      const pass1 = candidates.filter(c => c.hasNoOverload && c.hasSpecMatch)
-        .sort((a, b) => b.specScoreVal - a.specScoreVal || b.score - a.score || a.fac.ln.localeCompare(b.fac.ln))
+      // Pass 1: Specialization match (highest priority)
+      const pass1 = candidates.filter(c => c.hasSpecMatch)
+        .sort((a, b) => b.specScoreVal - a.specScoreVal || b.yearScoreVal - a.yearScoreVal || b.score - a.score || a.fac.ln.localeCompare(b.fac.ln))
       if (pass1.length > 0) return pass1[0]
       
-      // Pass 2: ANY candidate without overload
-      const pass2 = candidates.filter(c => c.hasNoOverload)
-        .sort((a, b) => b.specScoreVal - a.specScoreVal || b.score - a.score || a.fac.ln.localeCompare(b.fac.ln))
-      if (pass2.length > 0) return pass2[0]
-      
-      // Pass 3: Specialization match WITH overload (if allowed)
-      if (allowOverload) {
-        const pass3 = candidates.filter(c => c.hasSpecMatch)
-          .sort((a, b) => b.specScoreVal - a.specScoreVal || a.overBy - b.overBy || b.score - a.score || a.fac.ln.localeCompare(b.fac.ln))
-        if (pass3.length > 0) return pass3[0]
-      }
-      
-      // Pass 4: Last resort - any available candidate
-      const pass4 = candidates
-        .sort((a, b) => b.specScoreVal - a.specScoreVal || b.score - a.score || a.overBy - b.overBy || a.fac.ln.localeCompare(b.fac.ln))
-      return pass4[0] || null
+      // Pass 2: ANY candidate available
+      const pass2 = candidates
+        .sort((a, b) => b.yearScoreVal - a.yearScoreVal || b.score - a.score || a.fac.ln.localeCompare(b.fac.ln))
+      return pass2[0] || null
     }
 
     for (const task of tasks) {
-      const picked = chooseCandidate(task, false) || chooseCandidate(task, true)
+      const picked = chooseCandidate(task)
       if (!picked) {
-        failed.push(`${task.section} ${task.subject.code}`)
+        // Can't assign this subject - mark as TBA (To Be Assigned)
+        tba.push({
+          subjectId: task.subject.id,
+          section: task.section,
+          reason: 'Not enough available teachers within capacity - overload required',
+        })
         continue
       }
 
@@ -766,7 +1003,7 @@ export default function LoadAssignmentPage() {
         facultyId: picked.fac.id,
         subjectId: task.subject.id,
         section: task.section,
-        status: 'pending',
+        status: 'draft',
       }
       simulated.push(nextAssignment)
       loads.set(picked.fac.id, picked.after)
@@ -774,24 +1011,54 @@ export default function LoadAssignmentPage() {
         facultyId: picked.fac.id,
         subjectId: task.subject.id,
         section: task.section,
-        overload: picked.overBy > 0,
       })
     }
 
-    if (created.length === 0) {
-      notify('error', failed.length ? `No auto assignments created. Unassigned: ${failed.slice(0, 3).join(', ')}.` : 'All visible program subjects are already assigned.')
+    if (created.length === 0 && tba.length === 0) {
+      notify('error', 'All visible program subjects are already assigned.')
       return
     }
 
-    const result = createBulkAssignments(created, account)
-    if (!result.ok) {
-      notify('error', result.blockers?.[0] || 'Auto assignment could not be saved.')
-      return
+    // Create the assignments
+    if (created.length > 0) {
+      const result = createBulkAssignments(created, account)
+      if (!result.ok) {
+        notify('error', result.blockers?.[0] || 'Auto assignment could not be saved.')
+        return
+      }
     }
 
-    const overloaded = created.filter(item => item.overload).length
-    const failedText = failed.length ? ` ${failed.length} subject(s) still need manual review.` : ''
-    notify('success', `Auto-assigned ${created.length} subject(s). Review the assignments, then click "Submit for Review" on each section.${failedText}`)
+    // Create TBA placeholder assignments (facultyId = null, status = 'tba')
+    if (tba.length > 0) {
+      const createdAt = new Date().toISOString()
+      setAssignments((prev) => {
+        const nextStartId = prev.reduce((max, a) => Math.max(max, a.id), 0) + 1
+        const tbaRecords = tba.map((item, index) => ({
+          id: nextStartId + index,
+          ay: term.ay,
+          facultyId: null, // TBA - no faculty assigned
+          subjectId: item.subjectId,
+          section: item.section,
+          status: 'tba', // Special status for TBA
+          createdBy: account?.id || 'system-auto',
+          createdAt,
+          submittedBy: null,
+          submittedAt: null,
+          reviewedBy: null,
+          reviewedAt: null,
+          comment: item.reason,
+        }))
+        return [...prev, ...tbaRecords]
+      })
+    }
+
+    const summary = []
+    if (created.length > 0) summary.push(`${created.length} auto-assigned`)
+    if (tba.length > 0) summary.push(`${tba.length} marked as TBA (overload needed)`)
+    const message = summary.length > 0 
+      ? `Done: ${summary.join(', ')}. Review assignments, then click "Submit for Review" on each section.`
+      : 'Auto-assignment complete.'
+    notify('success', message)
   }
 
   function handleWithdrawAssignment(id) {
@@ -921,6 +1188,8 @@ export default function LoadAssignmentPage() {
                 finalized={finalized}
                 onSubmit={handleSubmitSection}
                 isSubmitted={submittedSections.has(row.section)}
+                requestOverload={requestOverload}
+                account={account}
               />
             ))
           )}

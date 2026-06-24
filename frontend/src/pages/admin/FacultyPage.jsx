@@ -1,12 +1,32 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Camera, Mail, Search, Users, X, BookOpen, Clock, Briefcase, ChevronRight } from 'lucide-react'
+import { AlertTriangle, Camera, Mail, Search, Users, X, BookOpen, Clock, Briefcase, Pencil, Save } from 'lucide-react'
 import { useData } from '../../data/DataContext'
+import { useAuth } from '../../auth/AuthContext'
 import { PROGRAMS, programLabel } from '../../data/programs'
 import { getFacultyMaxUnits, getFacultyUnits } from '../../data/validation'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
 const GOLD = '#D9B44A'
+const YEAR_LEVELS = [
+  { value: 1, label: '1st year' },
+  { value: 2, label: '2nd year' },
+  { value: 3, label: '3rd year' },
+  { value: 4, label: '4th year' },
+]
+
+function normalizePreferredYears(faculty) {
+  const years = faculty?.preferredYearLevels || faculty?.preferredYears || []
+  if (Array.isArray(years)) return years.map(Number).filter(Boolean)
+  if (years) return [Number(years)].filter(Boolean)
+  return []
+}
+
+function preferredYearLabel(faculty) {
+  const years = normalizePreferredYears(faculty)
+  if (years.length === 0) return 'Any year level'
+  return YEAR_LEVELS.filter(y => years.includes(y.value)).map(y => y.label).join(', ')
+}
 
 function initials(faculty) {
   return `${faculty.fn?.[0] || ''}${faculty.ln?.[0] || ''}`.toUpperCase()
@@ -182,11 +202,117 @@ function FacultyDetailDrawer({ faculty, onClose, dark, term, assignments, subjec
   )
 }
 
+function FacultyEditModal({ faculty, onClose, onSave }) {
+  const [form, setForm] = useState(() => ({
+    ...faculty,
+    preferredYearLevels: normalizePreferredYears(faculty),
+  }))
+
+  if (!faculty) return null
+
+  function updateField(field, value) {
+    setForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  function toggleYear(year) {
+    setForm(prev => {
+      const current = new Set(normalizePreferredYears(prev))
+      if (current.has(year)) current.delete(year)
+      else current.add(year)
+      return { ...prev, preferredYearLevels: Array.from(current).sort((a, b) => a - b) }
+    })
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    onSave({
+      ...form,
+      maxUnits: Number(form.maxUnits || 18),
+      preferredYearLevels: normalizePreferredYears(form),
+    })
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed left-1/2 top-1/2 z-50 w-[min(94vw,520px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
+          <div>
+            <p className="text-sm font-black text-white" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Edit Faculty Priority</p>
+            <p className="mt-0.5 text-xs font-semibold text-emerald-100/70">{faculty.fn} {faculty.ln}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-white/80 hover:bg-white/10" aria-label="Close edit faculty">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
+              Type
+              <select value={form.type || 'Full-Time'} onChange={e => updateField('type', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold normal-case tracking-normal text-emerald-950 outline-none">
+                <option value="Full-Time">Full-Time</option>
+                <option value="Part-Time">Part-Time</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
+              Max Units
+              <input type="number" min="1" value={form.maxUnits || 18} onChange={e => updateField('maxUnits', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold normal-case tracking-normal text-emerald-950 outline-none" />
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
+            Specialization
+            <input value={form.spec || ''} onChange={e => updateField('spec', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+          </label>
+
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-emerald-950/45">Prioritize Year Levels</p>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {YEAR_LEVELS.map(year => {
+                const active = normalizePreferredYears(form).includes(year.value)
+                return (
+                  <button
+                    key={year.value}
+                    type="button"
+                    onClick={() => toggleYear(year.value)}
+                    className="rounded-xl border px-3 py-2 text-xs font-black transition"
+                    style={{
+                      borderColor: active ? MID_GREEN : 'rgba(3,56,38,0.14)',
+                      background: active ? 'rgba(15,107,60,0.10)' : '#fff',
+                      color: active ? MID_GREEN : 'rgba(3,56,38,0.55)',
+                    }}
+                  >
+                    {year.label}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-2 text-xs font-semibold text-emerald-950/45">Selected years are prioritized during manual recommendations and auto-assignment.</p>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-emerald-950/10 pt-4">
+            <button type="button" onClick={onClose} className="rounded-xl border border-emerald-950/15 px-4 py-2 text-sm font-black text-emerald-950/65">Cancel</button>
+            <button type="submit" className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-white" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
+              <Save size={15} /> Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  )
+}
+
 export default function FacultyPage() {
-  const { term, faculty, assignments, subjectsById } = useData()
-  const [program, setProgram] = useState('ALL')
+  const { term, faculty, assignments, subjectsById, upsertFaculty } = useData()
+  const { account } = useAuth()
+  const isHeadView = account?.role === 'program_head'
+  const headPrograms = account?.programs || []
+  
+  const [program, setProgram] = useState(isHeadView ? (headPrograms[0] || 'ALL') : 'ALL')
   const [query, setQuery] = useState('')
   const [selectedFaculty, setSelectedFaculty] = useState(null)
+  const [editingFaculty, setEditingFaculty] = useState(null)
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -199,10 +325,10 @@ export default function FacultyPage() {
           .map(a => ({ ...a, subject: subjectsById[a.subjectId] }))
         return { ...f, used, max, current }
       })
-      .filter(f => program === 'ALL' || f.prog === program || (f.shared || []).includes(program))
-      .filter(f => !q || `${f.fn} ${f.ln} ${f.email} ${f.spec} ${f.prog}`.toLowerCase().includes(q))
+      .filter(f => isHeadView ? headPrograms.includes(f.prog) : (program === 'ALL' || f.prog === program || (f.shared || []).includes(program)))
+      .filter(f => !q || `${f.fn} ${f.ln} ${f.email} ${f.spec} ${f.prog} ${preferredYearLabel(f)}`.toLowerCase().includes(q))
       .sort((a, b) => programLabel(a.prog).localeCompare(programLabel(b.prog)) || a.ln.localeCompare(b.ln))
-  }, [assignments, faculty, program, query, subjectsById, term.ay, term.sem])
+  }, [assignments, faculty, program, query, subjectsById, term.ay, term.sem, isHeadView, headPrograms])
 
   const byProgram = useMemo(() => {
     const groups = new Map()
@@ -236,10 +362,12 @@ export default function FacultyPage() {
           <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Term</p><p className="mt-1 text-lg font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{term.sem}</p></div>
         </div>
         <div className="flex flex-wrap gap-3 border-t border-emerald-950/10 p-4">
-          <select value={program} onChange={e => setProgram(e.target.value)} className="rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
-            <option value="ALL">All programs</option>
-            {PROGRAMS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
-          </select>
+          {!isHeadView && (
+            <select value={program} onChange={e => setProgram(e.target.value)} className="rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+              <option value="ALL">All programs</option>
+              {PROGRAMS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
+            </select>
+          )}
           <div className="relative min-w-64 flex-1">
             <Search size={14} className="absolute left-3 top-3 text-emerald-950/35" />
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search faculty, email, specialization" className="w-full rounded-xl border border-emerald-950/15 bg-white py-2 pl-9 pr-3 text-sm text-emerald-950 outline-none" />
@@ -275,8 +403,21 @@ export default function FacultyPage() {
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <span className="rounded-full bg-emerald-950/[0.06] px-2.5 py-1 text-[10px] font-black text-emerald-950/65">{programLabel(f.prog)}</span>
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-800">{preferredYearLabel(f)}</span>
                     {(f.shared || []).filter(p => p !== f.prog).map(p => <span key={p} className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-800">{programLabel(p)}</span>)}
                   </div>
+                  {!isHeadView && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingFaculty(f)
+                      }}
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-50"
+                    >
+                      <Pencil size={13} /> Edit priority
+                    </button>
+                  )}
                   <div className="mt-3 border-t border-emerald-950/10 pt-3">
                     <p className="text-[11px] font-black uppercase tracking-wider text-emerald-950/40">Current loads</p>
                     {f.current.length === 0 ? <p className="mt-1 text-xs font-semibold text-emerald-950/40">No active load this term.</p> : (
@@ -302,6 +443,16 @@ export default function FacultyPage() {
         assignments={assignments}
         subjectsById={subjectsById}
       />
+      {editingFaculty && (
+        <FacultyEditModal
+          faculty={editingFaculty}
+          onClose={() => setEditingFaculty(null)}
+          onSave={(record) => {
+            upsertFaculty(record)
+            setEditingFaculty(null)
+          }}
+        />
+      )}
     </div>
   )
 }

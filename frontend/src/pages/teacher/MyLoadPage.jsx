@@ -1,8 +1,9 @@
-import { GraduationCap, BookOpen, CheckCircle2, Clock, XCircle } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { GraduationCap, BookOpen, CheckCircle2, Clock, XCircle, AlertTriangle, Plus, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { programLabel } from '../../data/programs'
-import { getFacultyMaxUnits } from '../../data/validation'
+import { getFacultyMaxUnits, getFacultyUnits } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -54,7 +55,10 @@ function StatPill({ icon: Icon, label, value, color }) {
 
 export default function MyLoadPage() {
   const { account }   = useAuth()
-  const { term, facultyById, subjectsById, assignmentsForFaculty } = useData()
+  const { term, facultyById, subjectsById, assignmentsForFaculty, requestOverload, getPendingOverloadOffersForTeacher, respondToTeacherOverloadOffer } = useData()
+  const [showOverloadRequest, setShowOverloadRequest] = useState(false)
+  const [requestedUnits, setRequestedUnits] = useState('')
+  const [requestReason, setRequestReason] = useState('')
 
   const fac       = facultyById[account.facultyId]
   const semLabel  = term.sem === '1st' ? '1st' : term.sem === '2nd' ? '2nd' : 'Summer'
@@ -70,6 +74,19 @@ export default function MyLoadPage() {
     return sum + (s ? s.lec + s.lab : 0)
   }, 0)
   const maxUnits = fac ? getFacultyMaxUnits(fac) : 18
+  const pendingOffers = useMemo(() => getPendingOverloadOffersForTeacher(account.facultyId), [account.facultyId, getPendingOverloadOffersForTeacher])
+
+  function handleRequestOverload() {
+    if (!requestedUnits || requestedUnits <= 0) return
+    requestOverload({ facultyId: account.facultyId, requestedUnits: Number(requestedUnits), reason: requestReason, requestType: 'teacher-self' }, account)
+    setRequestedUnits('')
+    setRequestReason('')
+    setShowOverloadRequest(false)
+  }
+
+  function handleOfferResponse(offerId, response, reason) {
+    respondToTeacherOverloadOffer(offerId, response, reason, account)
+  }
 
   if (!fac) {
     return (
@@ -139,7 +156,276 @@ export default function MyLoadPage() {
         </div>
       </div>
 
-      {/* ── Subjects table card ──────────────────────────────────────────── */}
+      {/* ── Overload Request Section ───────────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+        {/* Request overload card */}
+        <div style={{
+          background: '#fff',
+          borderRadius: 16,
+          border: '1.5px solid rgba(217,180,74,0.25)',
+          overflow: 'hidden',
+          boxShadow: '0 1px 4px rgba(3,56,38,0.06)',
+        }}>
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(3,56,38,0.08)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(217,180,74,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Plus size={15} style={{ color: '#B45309' }} />
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: FOREST, fontFamily: "'EB Garamond',Georgia,serif" }}>Request Overload</p>
+              <p style={{ margin: 0, fontSize: 11, color: 'rgba(3,56,38,0.45)', marginTop: 1 }}>Ask program head to accept extra units</p>
+            </div>
+          </div>
+          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {approvedUnits >= maxUnits && !showOverloadRequest ? (
+              <>
+                <div style={{ padding: 12, borderRadius: 10, background: 'rgba(217,180,74,0.08)', border: '1px solid rgba(217,180,74,0.18)' }}>
+                  <p style={{ margin: 0, fontSize: 12, color: '#B45309', fontWeight: 600 }}>You're at maximum capacity ({approvedUnits}/{maxUnits} units). Request overload to take more subjects.</p>
+                </div>
+                <button
+                  onClick={() => setShowOverloadRequest(true)}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: 9,
+                    border: 'none',
+                    background: '#FEF3C7',
+                    color: '#92400E',
+                    fontWeight: 700,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Request Overload
+                </button>
+              </>
+            ) : approvedUnits >= maxUnits && showOverloadRequest ? (
+              <>
+                <input
+                  type="number"
+                  value={requestedUnits}
+                  onChange={e => setRequestedUnits(e.target.value)}
+                  placeholder="How many extra units?"
+                  min="1"
+                  max="6"
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(3,56,38,0.15)',
+                    fontSize: 12,
+                  }}
+                />
+                <textarea
+                  value={requestReason}
+                  onChange={e => setRequestReason(e.target.value)}
+                  placeholder="Optional: Reason for request..."
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(3,56,38,0.15)',
+                    fontSize: 12,
+                    fontFamily: 'system-ui',
+                    minHeight: 50,
+                    resize: 'vertical',
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => {
+                      setShowOverloadRequest(false)
+                      setRequestedUnits('')
+                      setRequestReason('')
+                    }}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      border: '1px solid rgba(3,56,38,0.15)',
+                      background: '#fff',
+                      color: FOREST,
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRequestOverload}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: '#FEF3C7',
+                      color: '#92400E',
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Submit Request
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: 12, color: 'rgba(3,56,38,0.4)' }}>You still have capacity ({approvedUnits}/{maxUnits} units)</p>
+            )}
+          </div>
+        </div>
+
+        {/* Pending offers card */}
+        {pendingOffers.length > 0 && (
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            border: '1.5px solid rgba(16,185,129,0.25)',
+            overflow: 'hidden',
+            boxShadow: '0 1px 4px rgba(3,56,38,0.06)',
+          }}>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(3,56,38,0.08)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertTriangle size={15} style={{ color: MID_GREEN }} />
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: FOREST, fontFamily: "'EB Garamond',Georgia,serif" }}>Overload Offers</p>
+                <p style={{ margin: 0, fontSize: 11, color: 'rgba(3,56,38,0.45)', marginTop: 1 }}>{pendingOffers.length} offer(s) awaiting your response</p>
+              </div>
+            </div>
+            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {pendingOffers.map(offer => {
+                const [responding, setResponding] = useState(false)
+                const [reason, setReason] = useState('')
+                return (
+                  <div key={offer.id} style={{ padding: 12, borderRadius: 10, background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: FOREST }}>+{offer.requestedUnits} units offered</p>
+                        <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(3,56,38,0.45)' }}>From program head</p>
+                      </div>
+                    </div>
+                    {offer.reason && (
+                      <div style={{ padding: 8, borderRadius: 6, background: 'rgba(3,56,38,0.03)', marginBottom: 10 }}>
+                        <p style={{ margin: 0, fontSize: 11, color: 'rgba(3,56,38,0.6)', fontStyle: 'italic' }}>{offer.reason}</p>
+                      </div>
+                    )}
+                    {!responding ? (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => setResponding(true)}
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            borderRadius: 8,
+                            border: 'none',
+                            background: '#D1FAE5',
+                            color: '#059669',
+                            fontWeight: 700,
+                            fontSize: 11,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <ThumbsUp size={12} style={{ display: 'inline', marginRight: 4 }} /> Accept
+                        </button>
+                        <button
+                          onClick={() => setResponding(true)}
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            borderRadius: 8,
+                            border: 'none',
+                            background: '#FEE2E2',
+                            color: '#DC2626',
+                            fontWeight: 700,
+                            fontSize: 11,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <ThumbsDown size={12} style={{ display: 'inline', marginRight: 4 }} /> Decline
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <textarea
+                          value={reason}
+                          onChange={e => setReason(e.target.value)}
+                          placeholder="Optional: Reason for your decision..."
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: 6,
+                            border: '1px solid rgba(3,56,38,0.15)',
+                            fontSize: 11,
+                            fontFamily: 'system-ui',
+                            minHeight: 40,
+                            resize: 'vertical',
+                          }}
+                        />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={() => {
+                              setResponding(false)
+                              setReason('')
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '6px 10px',
+                              borderRadius: 6,
+                              border: '1px solid rgba(3,56,38,0.15)',
+                              background: '#fff',
+                              color: FOREST,
+                              fontWeight: 700,
+                              fontSize: 10,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleOfferResponse(offer.id, 'rejected', reason)
+                              setResponding(false)
+                              setReason('')
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '6px 10px',
+                              borderRadius: 6,
+                              border: 'none',
+                              background: '#FEE2E2',
+                              color: '#DC2626',
+                              fontWeight: 700,
+                              fontSize: 10,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Decline
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleOfferResponse(offer.id, 'accepted', reason)
+                              setResponding(false)
+                              setReason('')
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '6px 10px',
+                              borderRadius: 6,
+                              border: 'none',
+                              background: '#D1FAE5',
+                              color: '#059669',
+                              fontWeight: 700,
+                              fontSize: 10,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Accept
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
       <div style={{
         background: '#fff',
         borderRadius: 16,

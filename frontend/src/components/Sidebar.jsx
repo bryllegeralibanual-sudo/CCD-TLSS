@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Briefcase, CalendarDays, ClipboardCheck,
   ShieldCheck, GraduationCap, LogOut, ChevronRight, X,
-  BookOpen, Users, Building2, FileText, Wand2,
+  BookOpen, Users, Building2, FileText, Wand2, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { useData } from '../data/DataContext'
@@ -30,7 +30,14 @@ const NAV = {
       { to: '/admin/ai-assignment', label: 'AI Auto Assignment', icon: Wand2 },
     ] },
   ],
-  program_head: [{ section: 'Program Head', items: [{ to: '/head/approvals', label: 'Approvals', icon: ClipboardCheck, badge: true }] }],
+  program_head: [
+    { section: 'Program Head', items: [
+      { to: '/head/approvals', label: 'Approvals', icon: ClipboardCheck, badge: true },
+      { to: '/head/faculty', label: 'Faculty', icon: Users },
+      { to: '/head/curriculum', label: 'Curriculum', icon: BookOpen },
+      { to: '/head/overload-requests', label: 'Overload Requests', icon: AlertTriangle },
+    ] },
+  ],
   registrar:    [
     { section: 'Registrar', items: [
       { to: '/registrar', label: 'Finalize Loads', icon: ShieldCheck },

@@ -62,7 +62,7 @@ export function checkAssignmentCompatibility({ faculty, subject, section, assign
   const max = getFacultyMaxUnits(faculty)
   const afterUnits = curUnits + subject.lec + subject.lab
   if (afterUnits > max) {
-    blockers.push(`Exceeds unit cap: ${afterUnits}/${max} units in ${subject.sem === '2nd' ? '2nd' : subject.sem} semester.`)
+    notes.push(`⚠️ Exceeds unit cap: ${afterUnits}/${max} units in ${subject.sem === '2nd' ? '2nd' : subject.sem} semester. Use "Request Overload" to send approval request to program head.`)
   } else if (afterUnits > max * 0.85) {
     notes.push(`Near the unit limit: ${afterUnits}/${max} units after this assignment.`)
   } else {

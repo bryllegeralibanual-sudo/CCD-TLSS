@@ -15,6 +15,7 @@ const ROOMS_KEY = 'ccd-tlss.rooms'
 const USERS_KEY = 'ccd-tlss.users'
 const SETTINGS_KEY = 'ccd-tlss.settings'
 const ACTIVITY_KEY = 'ccd-tlss.activity-log'
+const OVERLOAD_KEY = 'ccd-tlss.overload-requests'
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const DEFAULT_ROOMS = [
@@ -64,6 +65,7 @@ export function DataProvider({ children }) {
   const [users, setUsers] = useState(() => load(USERS_KEY, []))
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
   const [activity, setActivity] = useState(() => load(ACTIVITY_KEY, []))
+  const [overloadRequests, setOverloadRequests] = useState(() => load(OVERLOAD_KEY, []))
 
   useEffect(() => localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(assignments)), [assignments])
   useEffect(() => localStorage.setItem(FINALIZED_KEY, JSON.stringify(finalizedTerms)), [finalizedTerms])
@@ -73,6 +75,7 @@ export function DataProvider({ children }) {
   useEffect(() => localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms)), [rooms])
   useEffect(() => localStorage.setItem(USERS_KEY, JSON.stringify(users)), [users])
   useEffect(() => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)), [settings])
+  useEffect(() => localStorage.setItem(OVERLOAD_KEY, JSON.stringify(overloadRequests)), [overloadRequests])
   useEffect(() => localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activity)), [activity])
 
   const facultyById = useMemo(() => Object.fromEntries(faculty.map((f) => [f.id, f])), [faculty])
@@ -204,6 +207,120 @@ export function DataProvider({ children }) {
   function pendingForProgramHead(account) {
     const programs = account.programs || []
     return termAssignments(term.ay, term.sem).filter((a) => a.status === 'pending' && programs.includes(subjectsById[a.subjectId]?.prog))
+  }
+
+  // OVERLOAD REQUEST SYSTEM
+  function requestOverload({ facultyId, requestedUnits, reason, requestType }, account) {
+    // requestType: 'admin-to-ph' (admin requests PH to ask teacher) or 'teacher-self' (teacher self-requests)
+    const nextId = overloadRequests.reduce((max, r) => Math.max(max, r.id || 0), 0) + 1
+    const newRequest = {
+      id: nextId,
+      facultyId,
+      requestedUnits: Number(requestedUnits),
+      reason,
+      requestType, // 'admin-to-ph' | 'teacher-self'
+      requestedBy: account.id,
+      requestedAt: new Date().toISOString(),
+      ay: term.ay,
+      sem: term.sem,
+      phStatus: 'pending', // 'pending' | 'approved' | 'rejected'
+      phResponsedBy: null,
+      phRespondedAt: null,
+      phReason: null,
+      teacherStatus: null, // 'pending' | 'accepted' | 'rejected' (only if phStatus === 'approved')
+      teacherResponsedBy: null,
+      teacherRespondedAt: null,
+      teacherReason: null,
+    }
+    setOverloadRequests((prev) => [...prev, newRequest])
+    logActivity('overload_requested', { facultyId, requestedUnits, requestType }, account.id)
+    return { ok: true, request: newRequest }
+  }
+
+  function respondToOverloadRequest(requestId, phResponse, phReason, account) {
+    // phResponse: 'approved' | 'rejected'
+    const now = new Date().toISOString()
+    setOverloadRequests((prev) =>
+      prev.map((r) =>
+        r.id === requestId
+          ? {
+              ...r,
+              phStatus: phResponse,
+              phResponsedBy: account.id,
+              phRespondedAt: now,
+              phReason,
+              teacherStatus: phResponse === 'approved' ? 'pending' : null,
+            }
+          : r,
+      ),
+    )
+    logActivity('overload_ph_responded', { requestId, response: phResponse }, account.id)
+  }
+
+  function respondToTeacherOverloadOffer(requestId, teacherResponse, teacherReason, account) {
+    // teacherResponse: 'accepted' | 'rejected'
+    const now = new Date().toISOString()
+    setOverloadRequests((prev) =>
+      prev.map((r) =>
+        r.id === requestId
+          ? {
+              ...r,
+              teacherStatus: teacherResponse,
+              teacherResponsedBy: account.id,
+              teacherRespondedAt: now,
+              teacherReason,
+            }
+          : r,
+      ),
+    )
+    logActivity('overload_teacher_responded', { requestId, response: teacherResponse }, account.id)
+  }
+
+  function getPendingOverloadRequestsForPH(account) {
+    const programs = account.programs || []
+    return overloadRequests.filter(
+      (r) => r.ay === term.ay && r.sem === term.sem && r.phStatus === 'pending' && programs.includes(facultyById[r.facultyId]?.prog),
+    )
+  }
+
+  function getPendingOverloadOffersForTeacher(facultyId) {
+    return overloadRequests.filter((r) => r.facultyId === facultyId && r.ay === term.ay && r.sem === term.sem && r.phStatus === 'approved' && r.teacherStatus === 'pending')
+  }
+
+  function getOverloadHistoryForFaculty(facultyId) {
+    return overloadRequests.filter((r) => r.facultyId === facultyId && r.ay === term.ay && r.sem === term.sem && (r.phStatus !== 'pending' || r.teacherStatus !== null))
+  }
+
+  function getPendingTeacherOverloadRequests(account) {
+    // For PH to see teacher's self-initiated overload requests
+    const programs = account.programs || []
+    return overloadRequests.filter(
+      (r) =>
+        r.ay === term.ay && r.sem === term.sem && r.requestType === 'teacher-self' && r.phStatus === 'pending' && programs.includes(facultyById[r.facultyId]?.prog),
+    )
+  }
+
+  function getTBASubmissionsForPH(account) {
+    // For Program Head to see TBA (To Be Assigned) subjects submitted by admin for overload review
+    const programs = account.programs || []
+    return assignments
+      .filter(a => 
+        a.ay === term.ay && 
+        a.status === 'tba' && 
+        a.submittedBy && 
+        a.submittedAt &&
+        programs.includes(subjectsById[a.subjectId]?.prog)
+      )
+      .map(a => ({
+        id: a.id,
+        section: a.section,
+        subjectId: a.subjectId,
+        subjectCode: subjectsById[a.subjectId]?.code,
+        subjectTitle: subjectsById[a.subjectId]?.title,
+        units: (subjectsById[a.subjectId]?.lec || 0) + (subjectsById[a.subjectId]?.lab || 0),
+        submittedAt: a.submittedAt,
+        reason: a.comment,
+      }))
   }
 
   function decidedForProgramHead(account) {
@@ -340,6 +457,13 @@ export function DataProvider({ children }) {
   }
 
   // Faculty recommendations for a subject based on specialization + workload
+  function preferredYears(fac) {
+    const years = fac?.preferredYearLevels || fac?.preferredYears || []
+    if (Array.isArray(years)) return years.map(Number).filter(Boolean)
+    if (years) return [Number(years)].filter(Boolean)
+    return []
+  }
+
   function getFacultyRecommendations(subjectId) {
     const subject = subjectsById[subjectId]
     if (!subject) return []
@@ -363,9 +487,11 @@ export function DataProvider({ children }) {
 
         // Workload score (prefer less loaded, 0-100)
         const workloadScore = ((maxUnits - currentUnits) / maxUnits) * 100
+        const years = preferredYears(fac)
+        const yearPriorityScore = years.length === 0 || !subject.yr ? 50 : years.includes(Number(subject.yr)) ? 100 : 25
 
         // Total score for ranking
-        const score = specScore * 0.6 + workloadScore * 0.4
+        const score = specScore * 0.5 + workloadScore * 0.3 + yearPriorityScore * 0.2
 
         return {
           facultyId: fac.id,
@@ -377,6 +503,7 @@ export function DataProvider({ children }) {
           wouldFit,
           specScore,
           workloadScore,
+          yearPriorityScore,
           totalScore: score,
           type: fac.type || 'Full-Time',
         }
@@ -460,6 +587,15 @@ export function DataProvider({ children }) {
     getFacultyRecommendations,
     getLoadDistribution,
     getAssignmentProgress,
+    overloadRequests,
+    requestOverload,
+    respondToOverloadRequest,
+    respondToTeacherOverloadOffer,
+    getPendingOverloadRequestsForPH,
+    getPendingOverloadOffersForTeacher,
+    getOverloadHistoryForFaculty,
+    getPendingTeacherOverloadRequests,
+    getTBASubmissionsForPH,
   }
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>

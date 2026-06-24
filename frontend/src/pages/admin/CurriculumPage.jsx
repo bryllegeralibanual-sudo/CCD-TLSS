@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { BookOpen, Filter, GraduationCap, Search } from 'lucide-react'
 import { useData } from '../../data/DataContext'
+import { useAuth } from '../../auth/AuthContext'
 import { PROGRAMS, SEM_LABELS, YEAR_LABELS, programLabel } from '../../data/programs'
 
 const FOREST = '#033826'
@@ -18,7 +19,11 @@ function Stat({ label, value }) {
 
 export default function CurriculumPage() {
   const { subjects } = useData()
-  const [program, setProgram] = useState(PROGRAMS[0].code)
+  const { account } = useAuth()
+  const isHeadView = account?.role === 'program_head'
+  const headPrograms = account?.programs || []
+  
+  const [program, setProgram] = useState(isHeadView ? (headPrograms[0] || PROGRAMS[0].code) : PROGRAMS[0].code)
   const [sem, setSem] = useState('ALL')
   const [year, setYear] = useState('ALL')
   const [query, setQuery] = useState('')
@@ -74,12 +79,14 @@ export default function CurriculumPage() {
         </div>
 
         <div className="flex flex-wrap items-end gap-3 border-t border-emerald-950/10 p-4">
-          <div className="min-w-56 flex-1">
-            <label className="mb-1 block text-[11px] font-extrabold uppercase tracking-wider text-emerald-950/50">Program</label>
-            <select value={program} onChange={e => setProgram(e.target.value)} className="w-full rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
-              {PROGRAMS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
-            </select>
-          </div>
+          {!isHeadView && (
+            <div className="min-w-56 flex-1">
+              <label className="mb-1 block text-[11px] font-extrabold uppercase tracking-wider text-emerald-950/50">Program</label>
+              <select value={program} onChange={e => setProgram(e.target.value)} className="w-full rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+                {PROGRAMS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-[11px] font-extrabold uppercase tracking-wider text-emerald-950/50">Year</label>
             <select value={year} onChange={e => setYear(e.target.value)} className="rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
@@ -126,7 +133,6 @@ export default function CurriculumPage() {
                     <th className="px-4 py-3">Descriptive Title</th>
                     <th className="px-4 py-3">Lec</th>
                     <th className="px-4 py-3">Lab</th>
-                    <th className="px-4 py-3">Room</th>
                     <th className="px-4 py-3">Prerequisite</th>
                   </tr>
                 </thead>
@@ -137,7 +143,6 @@ export default function CurriculumPage() {
                       <td className="px-4 py-3 text-emerald-950/75">{subject.title}</td>
                       <td className="px-4 py-3 font-bold text-emerald-950/70">{subject.lec || 0}</td>
                       <td className="px-4 py-3 font-bold text-emerald-950/70">{subject.lab || 0}</td>
-                      <td className="px-4 py-3 text-xs font-bold text-emerald-950/55">{subject.labRoomType || subject.lecRoomType || 'TBA'}</td>
                       <td className="px-4 py-3 text-xs text-emerald-950/50">{subject.prereq || '-'}</td>
                     </tr>
                   ))}

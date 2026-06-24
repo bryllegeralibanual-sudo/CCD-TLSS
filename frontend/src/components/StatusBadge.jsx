@@ -5,6 +5,7 @@ const CONFIG = {
   rejected:  { dot: 'bg-red-400',                 pill: 'bg-red-50 text-red-700 border-red-200',             label: 'Rejected'       },
   withdrawn: { dot: 'bg-gray-400',                pill: 'bg-gray-100 text-gray-500 border-gray-200',         label: 'Withdrawn'      },
   finalized: { dot: 'bg-emerald-500',             pill: 'bg-emerald-50 text-emerald-800 border-emerald-300', label: 'Finalized'      },
+  tba:       { dot: 'bg-yellow-400',              pill: 'bg-yellow-50 text-yellow-700 border-yellow-200',    label: 'TBA'            },
 }
 
 export default function StatusBadge({ status, size = 'sm' }) {
