@@ -9,6 +9,16 @@
 //
 // IMPORTANT: uses the service-role key (bypasses RLS) — never run this from
 // a browser or commit the key. Run it locally or in a one-off CI step only.
+import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: path.join(__dirname, '../backend/.env'), override: true })
+
+console.log('ENV path:', path.join(__dirname, '../backend/.env'))
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL)
+console.log('SUPABASE_SERVICE_KEY exists:', !!process.env.SUPABASE_SERVICE_KEY)
 
 import { createClient } from '@supabase/supabase-js'
 import { PROGRAMS } from '../frontend/src/data/programs.js'

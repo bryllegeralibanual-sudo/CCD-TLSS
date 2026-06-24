@@ -8,63 +8,13 @@ import { useData } from '../../data/DataContext'
 import { PROGRAMS, getSections } from '../../data/programs'
 import { canTeachProgram, getFacultyMaxUnits, getFacultyUnits } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
-<<<<<<< Updated upstream
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-export default function LoadAssignmentPage() {
-  const { account } = useAuth()
-  const { term, isTermFinalized, faculty, subjects, assignments, subjectsById, facultyById, createAssignment, withdrawAssignment, checkCompatibility } = useData()
-
-  const allSections = useMemo(() => getSections(), [])
-  const [progCode, setProgCode] = useState(PROGRAMS[0].code)
-  const [yr, setYr] = useState(1)
-  const [sectionLbl, setSectionLbl] = useState('A')
-  const [subjectId, setSubjectId] = useState('')
-  const [facultyId, setFacultyId] = useState('')
-
-  const finalized = isTermFinalized(term.ay, term.sem)
-  const sectionsForProg = allSections.filter((s) => s.prog === progCode && s.yr === yr)
-  const section = `${progCode} ${yr}${sectionLbl}`
-
-  const subjectOptions = subjects.filter((s) => s.prog === progCode && s.yr === yr && s.sem === term.sem)
-  const facultyOptions = faculty.filter((f) => canTeachProgram(f, progCode))
-
-  const check = subjectId && facultyId ? checkCompatibility({ facultyId: Number(facultyId), subjectId: Number(subjectId), section }) : null
-  const selectedFaculty = facultyId ? facultyById[Number(facultyId)] : null
-  const [feedback, setFeedback] = useState(null)
-
-  async function handleSubmit() {
-    if (!subjectId || !facultyId) return
-    const result = await createAssignment({ facultyId: Number(facultyId), subjectId: Number(subjectId), section }, account)
-    if (result.ok) {
-      setFeedback({ type: 'success', text: `Submitted for Program Head review: ${subjectsById[Number(subjectId)].code} → ${facultyById[Number(facultyId)].ln}.` })
-      setSubjectId('')
-      setFacultyId('')
-    } else {
-      setFeedback({ type: 'error', text: result.blockers.join(' ') })
-    }
-  }
-
-  const termAssignments = assignments.filter((a) => a.ay === term.ay && subjectsById[a.subjectId]?.sem === term.sem)
-=======
-=======
->>>>>>> Stashed changes
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const FOREST    = '#033826'
 const MID_GREEN = '#0F6B3C'
 const GOLD      = '#D9B44A'
-// ─────────────────────────────────────────────────────────────────────────────
-<<<<<<< Updated upstream
->>>>>>> 61534261fa6fd18f6bee8d37f5ccb155ca5202a6
-=======
-const FOREST = '#033826'
-const MID_GREEN = '#0F6B3C'
-const GOLD = '#D9B44A'
 const ACTIVE_STATUSES = new Set(['pending', 'approved'])
->>>>>>> 535f3bc5accbb2ce7cc7bf198939e50261ac4a2f
-=======
->>>>>>> Stashed changes
+// ─────────────────────────────────────────────────────────────────────────────
 
 function getSectionStatus(sectionAssignments, requiredSubjects) {
   const active = sectionAssignments.filter(a => ACTIVE_STATUSES.has(a.status))
