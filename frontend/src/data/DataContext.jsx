@@ -54,11 +54,6 @@ export function DataProvider({ children }) {
   const [finalizedTerms, setFinalizedTerms] = useState([])
   const [faculty, setFaculty] = useState(FACULTY_SEED)
   const [subjects, setSubjects] = useState(SUBJECTS)
-  const { token } = useAuth()
-  const [assignments, setAssignments] = useState([])
-  const [finalizedTerms, setFinalizedTerms] = useState([])
-  const [faculty, setFaculty] = useState(FACULTY_SEED)
-  const [subjects, setSubjects] = useState(SUBJECTS)
   const [term, setTerm] = useState(() => load(TERM_KEY, { ay: '2025-2026', sem: '1st' }))
 
   useEffect(() => {
@@ -251,11 +246,8 @@ export function DataProvider({ children }) {
     isTermFinalized,
     faculty,
     facultyById,
-<<<<<<< HEAD
-=======
     setFaculty,
     upsertFaculty,
->>>>>>> 535f3bc5accbb2ce7cc7bf198939e50261ac4a2f
     subjects,
     subjects,
     subjectsById,
