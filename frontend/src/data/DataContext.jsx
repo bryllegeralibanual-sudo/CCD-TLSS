@@ -16,6 +16,7 @@ const USERS_KEY = 'ccd-tlss.users'
 const SETTINGS_KEY = 'ccd-tlss.settings'
 const ACTIVITY_KEY = 'ccd-tlss.activity-log'
 const OVERLOAD_KEY = 'ccd-tlss.overload-requests'
+const SCHEDULES_KEY = 'ccd-tlss.schedules'
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const DEFAULT_ROOMS = [
@@ -95,6 +96,7 @@ export function DataProvider({ children }) {
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
   const [activity, setActivity] = useState(() => load(ACTIVITY_KEY, []))
   const [overloadRequests, setOverloadRequests] = useState(() => load(OVERLOAD_KEY, []))
+  const [schedules, setSchedules] = useState(() => load(SCHEDULES_KEY, []))
 
   useEffect(() => localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(assignments)), [assignments])
   useEffect(() => localStorage.setItem(FINALIZED_KEY, JSON.stringify(finalizedTerms)), [finalizedTerms])
@@ -106,6 +108,7 @@ export function DataProvider({ children }) {
   useEffect(() => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)), [settings])
   useEffect(() => localStorage.setItem(OVERLOAD_KEY, JSON.stringify(overloadRequests)), [overloadRequests])
   useEffect(() => localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activity)), [activity])
+  useEffect(() => localStorage.setItem(SCHEDULES_KEY, JSON.stringify(schedules)), [schedules])
 
   const facultyById = useMemo(() => Object.fromEntries(faculty.map((f) => [f.id, f])), [faculty])
   const subjectsById = useMemo(() => Object.fromEntries(subjects.map((s) => [s.id, s])), [subjects])
@@ -572,6 +575,45 @@ export function DataProvider({ children }) {
     }
   }
 
+  function savedScheduleForTerm(ay, sem) {
+    return schedules.find((schedule) => schedule.ay === ay && schedule.sem === sem) || null
+  }
+
+  function saveScheduleForTerm(schedule, account) {
+    const existing = savedScheduleForTerm(term.ay, term.sem)
+    const saved = {
+      ...schedule,
+      ay: term.ay,
+      sem: term.sem,
+      finalized: existing?.finalized || false,
+      finalizedBy: existing?.finalizedBy || null,
+      finalizedAt: existing?.finalizedAt || null,
+      savedBy: account?.id || 'system',
+      savedAt: new Date().toISOString(),
+    }
+    setSchedules((prev) => [saved, ...prev.filter((item) => !(item.ay === term.ay && item.sem === term.sem))])
+    logActivity('schedule_saved', { ay: term.ay, sem: term.sem, rows: schedule.scheduled?.length || 0 }, account?.id || 'system')
+    return saved
+  }
+
+  function finalizeScheduleForTerm(ay, sem, account) {
+    setSchedules((prev) => prev.map((schedule) => (
+      schedule.ay === ay && schedule.sem === sem
+        ? { ...schedule, finalized: true, finalizedBy: account?.id || 'system', finalizedAt: new Date().toISOString() }
+        : schedule
+    )))
+    logActivity('schedule_finalized', { ay, sem }, account?.id || 'system')
+  }
+
+  function reopenScheduleForTerm(ay, sem, account) {
+    setSchedules((prev) => prev.map((schedule) => (
+      schedule.ay === ay && schedule.sem === sem
+        ? { ...schedule, finalized: false, finalizedBy: null, finalizedAt: null }
+        : schedule
+    )))
+    logActivity('schedule_reopened', { ay, sem }, account?.id || 'system')
+  }
+
   const value = {
     term,
     setTerm,
@@ -592,6 +634,11 @@ export function DataProvider({ children }) {
     upsertUser,
     settings,
     setSettings,
+    schedules,
+    savedScheduleForTerm,
+    saveScheduleForTerm,
+    finalizeScheduleForTerm,
+    reopenScheduleForTerm,
     assignments,
     setAssignments,
     checkCompatibility,

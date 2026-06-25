@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { findAccount, findAccountById } from './accounts'
+import { findAccount, findAccountById, saveAccountOverride } from './accounts'
 
 const AuthContext = createContext(null)
 const STORAGE_KEY = 'ccd-tlss.session-account-id'
@@ -28,8 +28,14 @@ export function AuthProvider({ children }) {
   }
 
   const logout = () => setAccount(null)
+  const updateAccount = (patch) => {
+    if (!account) return null
+    const updated = saveAccountOverride(account.id, patch)
+    if (updated) setAccount(updated)
+    return updated
+  }
 
-  const value = useMemo(() => ({ account, login, logout, error, setError }), [account, error])
+  const value = useMemo(() => ({ account, login, logout, updateAccount, error, setError }), [account, error])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

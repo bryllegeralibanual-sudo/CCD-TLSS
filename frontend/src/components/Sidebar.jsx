@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Briefcase, CalendarDays, ClipboardCheck,
   ShieldCheck, GraduationCap, LogOut, ChevronRight, X,
-  BookOpen, Users, Building2, Wand2, AlertTriangle,
+  BookOpen, Users, Building2,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { useData } from '../data/DataContext'
@@ -33,7 +33,6 @@ const NAV = {
       { to: '/head/approvals', label: 'Approvals', icon: ClipboardCheck, badge: true },
       { to: '/head/faculty', label: 'Faculty', icon: Users },
       { to: '/head/curriculum', label: 'Curriculum', icon: BookOpen },
-      { to: '/head/overload-requests', label: 'Overload Requests', icon: AlertTriangle },
     ] },
   ],
   registrar:    [

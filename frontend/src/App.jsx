@@ -13,7 +13,6 @@ import CurriculumPage from './pages/admin/CurriculumPage'
 import FacultyPage from './pages/admin/FacultyPage'
 import RoomsLabsPage from './pages/admin/RoomsLabsPage'
 import ApprovalsPage from './pages/head/ApprovalsPage'
-import OverloadRequestsPage from './pages/head/OverloadRequestsPage'
 import RegistrarPage from './pages/registrar/RegistrarPage'
 import MyLoadPage from './pages/teacher/MyLoadPage'
 
@@ -59,9 +58,6 @@ export default function App() {
               </Route>
               <Route path="/head/curriculum" element={<ProtectedRoute roles={['program_head']}><AppLayout title="Curriculum Prospectus" /></ProtectedRoute>}>
                 <Route index element={<CurriculumPage />} />
-              </Route>
-              <Route path="/head/overload-requests" element={<ProtectedRoute roles={['program_head']}><AppLayout title="Overload Requests" /></ProtectedRoute>}>
-                <Route index element={<OverloadRequestsPage />} />
               </Route>
               <Route path="/registrar" element={<ProtectedRoute roles={['registrar']}><AppLayout title="Finalize Loads" /></ProtectedRoute>}>
                 <Route index element={<RegistrarPage />} />

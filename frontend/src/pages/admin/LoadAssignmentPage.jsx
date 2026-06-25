@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import {
   AlertTriangle, Briefcase, CheckCircle2, ChevronUp,
-  Filter, Info, Plus, Search, Users, Wand2, X, XCircle, Send,
+  Filter, Info, Plus, Search, Users, Wand2, X, XCircle,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
@@ -252,15 +252,10 @@ function SubjectAssignmentRow({
   subjectsById,
   facultyById,
   finalized,
-  requestOverload,
-  account,
 }) {
   const [expanded, setExpanded] = useState(false)
   const [selectedFacId, setSelectedFacId] = useState('')
   const [facultySearch, setFacultySearch] = useState('')
-  const [showOverloadForm, setShowOverloadForm] = useState(false)
-  const [overloadReason, setOverloadReason] = useState('')
-  const [overloadUnits, setOverloadUnits] = useState('')
 
   const needsReplacement = !assignment && rejectedAssignment
   const isTBA = assignment?.status === 'tba' // TBA = To Be Assigned
@@ -304,21 +299,6 @@ function SubjectAssignmentRow({
     }
   }
 
-  function handleRequestOverload() {
-    if (!selectedCandidate || !overloadUnits) return
-    const excessUnits = selectedCandidate.afterUnits - selectedCandidate.maxUnits
-    if (excessUnits <= 0) return
-    requestOverload({
-      facultyId: Number(selectedFacId),
-      requestedUnits: Math.min(Number(overloadUnits), excessUnits),
-      reason: overloadReason,
-      requestType: 'admin-to-ph',
-    }, account)
-    setShowOverloadForm(false)
-    setOverloadReason('')
-    setOverloadUnits('')
-  }
-
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${borderColor}`, background: bgColor, marginBottom: 8 }}>
@@ -350,7 +330,7 @@ function SubjectAssignmentRow({
                 <span style={{ fontSize: 11, fontWeight: 900, color: '#92400E' }}>Not enough available teachers</span>
               </div>
               <p style={{ margin: '2px 0 0', fontSize: 11, color: '#92400E' }}>
-                {assignment?.comment || 'All teachers at max capacity (18 units). Overload required.'}
+                {assignment?.comment || 'No available faculty can take this subject within the maximum unit limit.'}
               </p>
             </div>
           )}
@@ -371,7 +351,7 @@ function SubjectAssignmentRow({
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             <div style={{ textAlign: 'right', fontSize: 12 }}>
               <p style={{ margin: 0, fontWeight: 700, color: '#92400E' }}>TBA</p>
-              <p style={{ margin: 0, fontSize: 11, color: 'rgba(146,64,14,0.7)', marginTop: 1 }}>Needs overload</p>
+              <p style={{ margin: 0, fontSize: 11, color: 'rgba(146,64,14,0.7)', marginTop: 1 }}>Needs reassignment</p>
             </div>
             <AlertTriangle size={20} style={{ color: '#FCD34D', flexShrink: 0 }} />
             <button type="button" onClick={() => onWithdraw(assignment.id)} disabled={finalized} aria-label="Withdraw TBA" style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', color: '#991B1B', cursor: finalized ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: finalized ? 0.5 : 1 }}>
@@ -397,10 +377,10 @@ function SubjectAssignmentRow({
           <div style={{ padding: '10px 12px', borderRadius: 9, background: 'rgba(217,180,74,0.10)', border: '1.5px solid rgba(217,180,74,0.25)' }}>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#92400E' }}>No Teachers Available</p>
             <p style={{ margin: '4px 0 0', fontSize: 11, color: '#92400E' }}>
-              All faculty who can teach this subject have reached their maximum capacity of 18 units.
+              All faculty who can teach this subject have reached their maximum unit capacity.
             </p>
             <p style={{ margin: '6px 0 0', fontSize: 11, color: '#92400E', fontWeight: 600 }}>
-              To assign this subject, you must request overload approval from the Program Head.
+              Adjust existing teaching loads or choose another qualified faculty before assigning this subject.
             </p>
           </div>
 
@@ -501,7 +481,7 @@ function SubjectAssignmentRow({
                 <option value="">Choose faculty</option>
                 {rankedFaculty.map(item => (
                   <option key={item.faculty.id} value={item.faculty.id} disabled={item.hasBlockers}>
-                    {item.faculty.ln}, {item.faculty.fn} - {item.hasBlockers ? 'Blocked' : item.needsOverload ? 'Needs overload' : item.hasWarning ? 'Review notes' : 'Recommended'} ({item.afterUnits}/{item.maxUnits} units)
+                    {item.faculty.ln}, {item.faculty.fn} - {item.hasBlockers ? 'Blocked' : item.needsOverload ? 'Over capacity' : item.hasWarning ? 'Review notes' : 'Recommended'} ({item.afterUnits}/{item.maxUnits} units)
                   </option>
                 ))}
               </select>
@@ -532,116 +512,11 @@ function SubjectAssignmentRow({
                 </div>
               )}
 
-              {selectedCandidate.afterUnits > selectedCandidate.maxUnits && !showOverloadForm && (
-                <div style={{ padding: '10px 12px', borderRadius: 9, background: 'rgba(217,180,74,0.10)', border: '1.5px solid rgba(217,180,74,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              {selectedCandidate.afterUnits > selectedCandidate.maxUnits && (
+                <div style={{ padding: '10px 12px', borderRadius: 9, background: 'rgba(217,180,74,0.10)', border: '1.5px solid rgba(217,180,74,0.25)', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div>
                     <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#92400E' }}>Exceeds maximum capacity by {selectedCandidate.afterUnits - selectedCandidate.maxUnits} units</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(146,64,14,0.7)' }}>Request overload approval from program head</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowOverloadForm(true)}
-                    style={{
-                      padding: '6px 10px',
-                      borderRadius: 7,
-                      border: 'none',
-                      background: '#FCD34D',
-                      color: '#92400E',
-                      fontWeight: 700,
-                      fontSize: 11,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    Request Overload
-                  </button>
-                </div>
-              )}
-
-              {showOverloadForm && selectedCandidate.afterUnits > selectedCandidate.maxUnits && (
-                <div style={{ padding: '12px', borderRadius: 9, background: 'rgba(217,180,74,0.08)', border: '1.5px solid rgba(217,180,74,0.20)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div>
-                    <label style={{ fontSize: 10, fontWeight: 800, color: 'rgba(3,56,38,0.55)', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Units to Request</label>
-                    <input
-                      type="number"
-                      value={overloadUnits}
-                      onChange={e => setOverloadUnits(e.target.value)}
-                      placeholder={`Enter units (max: ${selectedCandidate.afterUnits - selectedCandidate.maxUnits})`}
-                      min="1"
-                      max={selectedCandidate.afterUnits - selectedCandidate.maxUnits}
-                      style={{
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        padding: '8px 10px',
-                        borderRadius: 8,
-                        border: '1px solid rgba(3,56,38,0.15)',
-                        fontSize: 12,
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 10, fontWeight: 800, color: 'rgba(3,56,38,0.55)', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Reason (optional)</label>
-                    <textarea
-                      value={overloadReason}
-                      onChange={e => setOverloadReason(e.target.value)}
-                      placeholder="Why is this overload necessary?"
-                      style={{
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        padding: '8px 10px',
-                        borderRadius: 8,
-                        border: '1px solid rgba(3,56,38,0.15)',
-                        fontSize: 12,
-                        fontFamily: 'system-ui',
-                        minHeight: 40,
-                        resize: 'vertical',
-                      }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowOverloadForm(false)
-                        setOverloadReason('')
-                        setOverloadUnits('')
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '8px 10px',
-                        borderRadius: 7,
-                        border: '1px solid rgba(3,56,38,0.15)',
-                        background: '#fff',
-                        color: FOREST,
-                        fontWeight: 700,
-                        fontSize: 11,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRequestOverload}
-                      disabled={!overloadUnits}
-                      style={{
-                        flex: 1,
-                        padding: '8px 10px',
-                        borderRadius: 7,
-                        border: 'none',
-                        background: overloadUnits ? '#FCD34D' : 'rgba(3,56,38,0.12)',
-                        color: overloadUnits ? '#92400E' : 'rgba(3,56,38,0.35)',
-                        fontWeight: 700,
-                        fontSize: 11,
-                        cursor: overloadUnits ? 'pointer' : 'not-allowed',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 6,
-                      }}
-                    >
-                      <Send size={11} /> Submit
-                    </button>
+                    <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(146,64,14,0.7)' }}>This faculty cannot be assigned unless existing loads are adjusted.</p>
                   </div>
                 </div>
               )}
@@ -674,8 +549,6 @@ function SectionCard({
   finalized,
   onSubmit,
   isSubmitted,
-  requestOverload,
-  account,
 }) {
   const { section, requiredSubjects, assignments, activeAssignments, rejectedAssignments, status, assignedCount, rejectedCount, requiredCount } = row
   const completionPct = requiredCount > 0 ? (assignedCount / requiredCount) * 100 : 0
@@ -751,8 +624,6 @@ function SectionCard({
                 subjectsById={subjectsById}
                 facultyById={facultyById}
                 finalized={finalized}
-                requestOverload={requestOverload}
-                account={account}
               />
             )
           })}
@@ -774,7 +645,6 @@ export default function LoadAssignmentPage() {
     faculty, subjects, assignments, setAssignments,
     subjectsById, facultyById,
     createAssignment, createBulkAssignments, withdrawAssignment, checkCompatibility, submitToProgramHead,
-    requestOverload,
   } = useData()
 
   const finalized = isTermFinalized(term.ay, term.sem)
@@ -1010,7 +880,7 @@ export default function LoadAssignmentPage() {
         tba.push({
           subjectId: task.subject.id,
           section: task.section,
-          reason: 'Not enough available teachers within capacity - overload required',
+          reason: 'Not enough available teachers within capacity - load adjustment required',
         })
         continue
       }
@@ -1072,7 +942,7 @@ export default function LoadAssignmentPage() {
 
     const summary = []
     if (created.length > 0) summary.push(`${created.length} auto-assigned`)
-    if (tba.length > 0) summary.push(`${tba.length} marked as TBA (overload needed)`)
+    if (tba.length > 0) summary.push(`${tba.length} marked as TBA (load adjustment needed)`)
     const message = summary.length > 0 
       ? `Done: ${summary.join(', ')}. Review assignments, then click "Submit for Review" on each section.`
       : 'Auto-assignment complete.'
@@ -1215,9 +1085,7 @@ export default function LoadAssignmentPage() {
                   finalized={finalized}
                   onSubmit={handleSubmitSection}
                   isSubmitted={submittedSections.has(row.section) || row.activeAssignments.some(a => a.status === 'pending' || a.status === 'approved')}
-                  requestOverload={requestOverload}
-                  account={account}
-                />
+              />
               </div>
             ))
           )}

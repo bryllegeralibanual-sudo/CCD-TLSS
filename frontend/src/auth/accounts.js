@@ -27,12 +27,34 @@ const TEACHER_ACCOUNTS = FACULTY_SEED.map((f) => ({
 
 export const MOCK_ACCOUNTS = [...STATIC_ACCOUNTS, ...TEACHER_ACCOUNTS]
 
+const ACCOUNT_OVERRIDES_KEY = 'ccd-tlss.account-overrides'
+
+function loadOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem(ACCOUNT_OVERRIDES_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function accountsWithOverrides() {
+  const overrides = loadOverrides()
+  return MOCK_ACCOUNTS.map((account) => ({ ...account, ...(overrides[account.id] || {}) }))
+}
+
+export function saveAccountOverride(id, patch) {
+  const overrides = loadOverrides()
+  const next = { ...(overrides[id] || {}), ...patch }
+  localStorage.setItem(ACCOUNT_OVERRIDES_KEY, JSON.stringify({ ...overrides, [id]: next }))
+  return accountsWithOverrides().find((account) => account.id === id) || null
+}
+
 export function findAccount(email, password) {
-  return MOCK_ACCOUNTS.find((a) => a.email.toLowerCase() === email.trim().toLowerCase() && a.password === password) || null
+  return accountsWithOverrides().find((a) => a.email.toLowerCase() === email.trim().toLowerCase() && a.password === password) || null
 }
 
 export function findAccountById(id) {
-  return MOCK_ACCOUNTS.find((a) => a.id === id) || null
+  return accountsWithOverrides().find((a) => a.id === id) || null
 }
 
 // Quick-login list shown on the login page so this is actually demoable.
