@@ -1,13 +1,128 @@
 // Auto-ported from public/ccd-scheduling.html (mF faculty list) so faculty
 // records, names, and program affiliations stay consistent with the legacy scheduler.
 // 'shared' lists additional programs a faculty member is also qualified to teach in.
+const CP_SPECIALIZATIONS = [
+  "CP Programming, Web Systems & Application Development",
+  "CP Database, Information Management & Data Structures",
+  "CP Networking, Cybersecurity & Computer Lab Systems",
+  "GE General Education, Communication & Humanities",
+  "GE Mathematics, Science, Society & Research",
+  "TE Professional Education, Assessment & Inclusive Learning",
+  "TV Pedagogy, Trainers Methodology & Learner-Centered Teaching",
+  "BT Industrial Arts, ICT Teaching & Common Competencies",
+  "BT Field Study, Internship & Teaching Competency Appraisal",
+  "PE/NSTP Student Formation, Wellness & Civic Education",
+]
+
+const HVACRT_SPECIALIZATIONS = [
+  "HV HVACR Electrical Circuits, Controls & Instrumentation",
+  "HV Domestic RAC, Commercial Refrigeration & Heat Pump Systems",
+  "HV Installation, Maintenance, Welding & Technical Drawing",
+  "GE General Education, Communication & Humanities",
+  "GE Mathematics, Science, Society & Research",
+  "TE Professional Education, Assessment & Inclusive Learning",
+  "TV Pedagogy, Trainers Methodology & Work-Based Learning",
+  "BT Industrial Arts, AFA, HE & Common Competencies",
+  "BT Field Study, Internship & Teaching Competency Appraisal",
+  "PE/NSTP Student Formation, Wellness & Civic Education",
+]
+
+const BECED_SPECIALIZATIONS = [
+  "EC Child Growth, Cognitive & Social-Emotional Development",
+  "EC Foundations, Curriculum Design & ECE Program Development",
+  "EC Language, Literacy, Storytelling & Communication",
+  "EC Mathematics, Science, Environmental Activities & ICT",
+  "EC Creative Arts, Music, Play-Based Learning & DAP",
+  "EC Inclusive Education, Special Needs & Early Intervention",
+  "EC Assessment, Research, Capstone & Program Evaluation",
+  "EC Family Relations, Parenting Partnerships & Community Engagement",
+  "EC Pedagogy, Learning Environments & Special Methods",
+  "EC Practicum, Internship, Ethics & Professional Growth",
+]
+
+const BSENTREP_SPECIALIZATIONS = [
+  "EN Entrepreneurship, Venture Development & Business Planning",
+  "EN Accounting, Finance, Costing & Financial Modeling",
+  "EN Marketing, Consumer Behavior, Branding & Digital Marketing",
+  "EN Operations, Supply Chain, Quality & Franchise Management",
+  "EN Economics, Business Math, Statistics & Analytics",
+  "EN Business Law, Ethics, Compliance & Risk Management",
+  "EN E-Commerce, Digital Business & Technology Entrepreneurship",
+  "EN Strategy, International Business & Innovation Management",
+  "EN Human Resource, Organizational Behavior & Communication",
+  "EN Agribusiness, Tourism, Real Estate & Sustainable Business",
+]
+
+const CP_ADDITIONAL_SPECIALIZATIONS = [
+  CP_SPECIALIZATIONS[0],
+  CP_SPECIALIZATIONS[1],
+  CP_SPECIALIZATIONS[2],
+  CP_SPECIALIZATIONS[3],
+  CP_SPECIALIZATIONS[4],
+  CP_SPECIALIZATIONS[4],
+  CP_SPECIALIZATIONS[5],
+  CP_SPECIALIZATIONS[6],
+  CP_SPECIALIZATIONS[6],
+  CP_SPECIALIZATIONS[7],
+  CP_SPECIALIZATIONS[7],
+  CP_SPECIALIZATIONS[8],
+  CP_SPECIALIZATIONS[8],
+  CP_SPECIALIZATIONS[9],
+  CP_SPECIALIZATIONS[9],
+]
+
+const HVACRT_ADDITIONAL_SPECIALIZATIONS = [
+  HVACRT_SPECIALIZATIONS[0],
+  HVACRT_SPECIALIZATIONS[1],
+  HVACRT_SPECIALIZATIONS[2],
+  HVACRT_SPECIALIZATIONS[3],
+  HVACRT_SPECIALIZATIONS[3],
+  HVACRT_SPECIALIZATIONS[4],
+  HVACRT_SPECIALIZATIONS[4],
+  HVACRT_SPECIALIZATIONS[5],
+  HVACRT_SPECIALIZATIONS[5],
+  HVACRT_SPECIALIZATIONS[6],
+  HVACRT_SPECIALIZATIONS[6],
+  HVACRT_SPECIALIZATIONS[7],
+  HVACRT_SPECIALIZATIONS[7],
+  HVACRT_SPECIALIZATIONS[8],
+  HVACRT_SPECIALIZATIONS[8],
+  HVACRT_SPECIALIZATIONS[9],
+  HVACRT_SPECIALIZATIONS[9],
+]
+
+const BECED_ADDITIONAL_SPECIALIZATIONS = [
+  BECED_SPECIALIZATIONS[2],
+  BECED_SPECIALIZATIONS[3],
+  BECED_SPECIALIZATIONS[4],
+  BECED_SPECIALIZATIONS[5],
+  BECED_SPECIALIZATIONS[6],
+  BECED_SPECIALIZATIONS[7],
+  BECED_SPECIALIZATIONS[8],
+  BECED_SPECIALIZATIONS[9],
+]
+
+function buildFacultyPlaceholders({ startId, count, label, emailPrefix, prog, specs, startNumber = 1 }) {
+  return Array.from({ length: count }, (_, index) => {
+    const number = String(startNumber + index).padStart(2, '0')
+    return {
+      id: startId + index,
+      fn: `${label} Faculty`, ln: number,
+      email: `${emailPrefix}.faculty.${number}@ccd.edu.ph`,
+      prog, shared: [],
+      spec: specs[index % specs.length],
+      type: "Full-Time", maxUnits: 18, preferred: "flexible",
+    }
+  })
+}
+
 export const FACULTY_SEED = [
   {
     id: 1,
     fn: "Romel", ln: "Salazar",
     email: "romel.salazar@ccd.edu.ph",
     prog: "BTVTED-CP", shared: [],
-    spec: "Programming & Software Development",
+    spec: CP_SPECIALIZATIONS[0],
     type: "Full-Time", maxUnits: 18, preferred: "morning",
   },
   {
@@ -15,7 +130,7 @@ export const FACULTY_SEED = [
     fn: "Demi", ln: "Sumile",
     email: "demi.sumile@ccd.edu.ph",
     prog: "BTVTED-CP", shared: [],
-    spec: "Programming & Web Development",
+    spec: CP_SPECIALIZATIONS[1],
     type: "Full-Time", maxUnits: 18, preferred: "afternoon",
   },
   {
@@ -23,7 +138,7 @@ export const FACULTY_SEED = [
     fn: "Wendel", ln: "Galgo",
     email: "wendel.galgo@ccd.edu.ph",
     prog: "BTVTED-CP", shared: [],
-    spec: "Database & Systems",
+    spec: CP_SPECIALIZATIONS[2],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -31,7 +146,7 @@ export const FACULTY_SEED = [
     fn: "Kate", ln: "Dela Calzada",
     email: "kate.dela.calzada@ccd.edu.ph",
     prog: "BTVTED-CP", shared: [],
-    spec: "Networking & Infrastructure",
+    spec: CP_SPECIALIZATIONS[3],
     type: "Full-Time", maxUnits: 18, preferred: "morning",
   },
   {
@@ -39,7 +154,7 @@ export const FACULTY_SEED = [
     fn: "Emily", ln: "Urgino",
     email: "emily.urgino@ccd.edu.ph",
     prog: "BTVTED-HVACRT", shared: ["BTVTED-CP","BTVTED-HVACRT"],
-    spec: "HVAC Systems & Refrigeration",
+    spec: HVACRT_SPECIALIZATIONS[0],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -47,7 +162,7 @@ export const FACULTY_SEED = [
     fn: "Joy", ln: "Bendejo",
     email: "joy.bendejo@ccd.edu.ph",
     prog: "BTVTED-HVACRT", shared: ["BTVTED-CP","BTVTED-HVACRT"],
-    spec: "HVAC Installation & Maintenance",
+    spec: HVACRT_SPECIALIZATIONS[1],
     type: "Full-Time", maxUnits: 18, preferred: "afternoon",
   },
   {
@@ -55,7 +170,7 @@ export const FACULTY_SEED = [
     fn: "Fe", ln: "Perez",
     email: "fe.perez@ccd.edu.ph",
     prog: "BTVTED-CP", shared: ["BTVTED-CP","BTVTED-HVACRT"],
-    spec: "Professional Education & Pedagogy",
+    spec: CP_SPECIALIZATIONS[5],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -63,7 +178,7 @@ export const FACULTY_SEED = [
     fn: "Ian", ln: "Sumile",
     email: "ian.sumile@ccd.edu.ph",
     prog: "BTVTED-HVACRT", shared: [],
-    spec: "HVAC Troubleshooting & Design",
+    spec: HVACRT_SPECIALIZATIONS[2],
     type: "Full-Time", maxUnits: 18, preferred: "morning",
   },
   {
@@ -71,7 +186,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "01",
     email: "beced.faculty.01@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[0],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -79,7 +194,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "02",
     email: "beced.faculty.02@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[1],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -87,7 +202,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "03",
     email: "beced.faculty.03@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[2],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -95,7 +210,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "04",
     email: "beced.faculty.04@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[3],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -103,7 +218,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "05",
     email: "beced.faculty.05@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[4],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -111,7 +226,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "06",
     email: "beced.faculty.06@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[5],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -119,7 +234,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "07",
     email: "beced.faculty.07@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[6],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -127,7 +242,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "08",
     email: "beced.faculty.08@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[7],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -135,7 +250,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "09",
     email: "beced.faculty.09@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[8],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -143,7 +258,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "10",
     email: "beced.faculty.10@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[9],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -151,7 +266,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "11",
     email: "beced.faculty.11@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[0],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -159,7 +274,7 @@ export const FACULTY_SEED = [
     fn: "BECEd Faculty", ln: "12",
     email: "beced.faculty.12@ccd.edu.ph",
     prog: "BECED", shared: [],
-    spec: "Early Childhood Education & Child Development",
+    spec: BECED_SPECIALIZATIONS[1],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -167,7 +282,7 @@ export const FACULTY_SEED = [
     fn: "BSEntrep Faculty", ln: "01",
     email: "bsentrep.faculty.01@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
-    spec: "Entrepreneurship & Business Management",
+    spec: BSENTREP_SPECIALIZATIONS[0],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -175,7 +290,7 @@ export const FACULTY_SEED = [
     fn: "BSEntrep Faculty", ln: "02",
     email: "bsentrep.faculty.02@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
-    spec: "Entrepreneurship & Business Management",
+    spec: BSENTREP_SPECIALIZATIONS[1],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -183,7 +298,7 @@ export const FACULTY_SEED = [
     fn: "BSEntrep Faculty", ln: "03",
     email: "bsentrep.faculty.03@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
-    spec: "Entrepreneurship & Business Management",
+    spec: BSENTREP_SPECIALIZATIONS[2],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -191,7 +306,7 @@ export const FACULTY_SEED = [
     fn: "BSEntrep Faculty", ln: "04",
     email: "bsentrep.faculty.04@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
-    spec: "Entrepreneurship & Business Management",
+    spec: BSENTREP_SPECIALIZATIONS[3],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -199,7 +314,7 @@ export const FACULTY_SEED = [
     fn: "BSEntrep Faculty", ln: "05",
     email: "bsentrep.faculty.05@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
-    spec: "Entrepreneurship & Business Management",
+    spec: BSENTREP_SPECIALIZATIONS[4],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -207,7 +322,7 @@ export const FACULTY_SEED = [
     fn: "BSEntrep Faculty", ln: "06",
     email: "bsentrep.faculty.06@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
-    spec: "Entrepreneurship & Business Management",
+    spec: BSENTREP_SPECIALIZATIONS[5],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -215,7 +330,7 @@ export const FACULTY_SEED = [
     fn: "BSEntrep Faculty", ln: "07",
     email: "bsentrep.faculty.07@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
-    spec: "Entrepreneurship & Business Management",
+    spec: BSENTREP_SPECIALIZATIONS[6],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -223,7 +338,7 @@ export const FACULTY_SEED = [
     fn: "BSEntrep Faculty", ln: "08",
     email: "bsentrep.faculty.08@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
-    spec: "Entrepreneurship & Business Management",
+    spec: BSENTREP_SPECIALIZATIONS[7],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -231,7 +346,7 @@ export const FACULTY_SEED = [
     fn: "BSEntrep Faculty", ln: "09",
     email: "bsentrep.faculty.09@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
-    spec: "Entrepreneurship & Business Management",
+    spec: BSENTREP_SPECIALIZATIONS[8],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
   {
@@ -239,7 +354,68 @@ export const FACULTY_SEED = [
     fn: "BSEntrep Faculty", ln: "10",
     email: "bsentrep.faculty.10@ccd.edu.ph",
     prog: "BSENTREP", shared: [],
-    spec: "Entrepreneurship & Business Management",
+    spec: BSENTREP_SPECIALIZATIONS[9],
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
+  },
+  ...buildFacultyPlaceholders({
+    startId: 31,
+    count: 15,
+    label: "BTVTEd-CP",
+    emailPrefix: "btvted.cp",
+    prog: "BTVTED-CP",
+    specs: CP_ADDITIONAL_SPECIALIZATIONS,
+    startNumber: 6,
+  }),
+  ...buildFacultyPlaceholders({
+    startId: 46,
+    count: 17,
+    label: "BTVTEd-HVACRT",
+    emailPrefix: "btvted.hvacrt",
+    prog: "BTVTED-HVACRT",
+    specs: HVACRT_ADDITIONAL_SPECIALIZATIONS,
+    startNumber: 4,
+  }),
+  ...buildFacultyPlaceholders({
+    startId: 63,
+    count: 8,
+    label: "BECEd",
+    emailPrefix: "beced",
+    prog: "BECED",
+    specs: BECED_ADDITIONAL_SPECIALIZATIONS,
+    startNumber: 13,
+  }),
+  ...buildFacultyPlaceholders({
+    startId: 71,
+    count: 10,
+    label: "BSEntrep",
+    emailPrefix: "bsentrep",
+    prog: "BSENTREP",
+    specs: BSENTREP_SPECIALIZATIONS,
+    startNumber: 11,
+  }),
+  // PE / NSTP staff
+  {
+    id: 81,
+    fn: "PE Teacher", ln: "01",
+    email: "pe.teacher.01@ccd.edu.ph",
+    prog: "", shared: [],
+    spec: CP_SPECIALIZATIONS[8],
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
+  },
+  {
+    id: 82,
+    fn: "PE Teacher", ln: "02",
+    email: "pe.teacher.02@ccd.edu.ph",
+    prog: "", shared: [],
+    spec: CP_SPECIALIZATIONS[8],
+    type: "Full-Time", maxUnits: 18, preferred: "flexible",
+  },
+  {
+    id: 83,
+    fn: "NSTP Coordinator", ln: "01",
+    email: "nstp.coordinator@ccd.edu.ph",
+    prog: "", shared: [],
+    spec: CP_SPECIALIZATIONS[8],
     type: "Full-Time", maxUnits: 18, preferred: "flexible",
   },
 ]

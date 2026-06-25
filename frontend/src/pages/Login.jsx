@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import {
   Mail, Lock, Eye, EyeOff, Sun, Moon, ShieldCheck, Users, FileText, GraduationCap,
-  CalendarCheck2, CalendarDays, CheckCircle2, User, BarChart3, LogIn, UserCheck,
+  CalendarCheck2, CalendarDays, CheckCircle2, User, LogIn, UserCheck,
   UserRound, Headset, ChevronRight, Loader2,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
@@ -37,7 +37,6 @@ const FEATURES = [
   { icon: CalendarCheck2, label: 'Automated Scheduling',         desc: 'Intelligent scheduling with minimal conflict.' },
   { icon: CheckCircle2,   label: 'Conflict Detection',           desc: 'Identify and resolve scheduling conflicts.' },
   { icon: GraduationCap,  label: 'Academic Planning',            desc: 'Streamlined curriculum and term planning.' },
-  { icon: BarChart3,      label: 'Reports & Analytics',          desc: 'Real-time insights for better decisions.' },
 ]
 
 const TRUST_BADGES = [

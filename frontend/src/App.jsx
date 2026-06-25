@@ -12,8 +12,6 @@ import SchedulerPage from './pages/admin/SchedulerPage'
 import CurriculumPage from './pages/admin/CurriculumPage'
 import FacultyPage from './pages/admin/FacultyPage'
 import RoomsLabsPage from './pages/admin/RoomsLabsPage'
-import ReportsPage from './pages/admin/ReportsPage'
-import AIAssignmentPage from './pages/admin/AIAssignmentPage'
 import ApprovalsPage from './pages/head/ApprovalsPage'
 import OverloadRequestsPage from './pages/head/OverloadRequestsPage'
 import RegistrarPage from './pages/registrar/RegistrarPage'
@@ -46,12 +44,7 @@ export default function App() {
               <Route path="/admin/approvals" element={<ProtectedRoute roles={['admin']}><AppLayout title="Approval Center" /></ProtectedRoute>}>
                 <Route index element={<ApprovalCenterPage />} />
               </Route>
-              <Route path="/admin/reports" element={<ProtectedRoute roles={['admin']}><AppLayout title="Reports" /></ProtectedRoute>}>
-                <Route index element={<ReportsPage />} />
-              </Route>
-              <Route path="/admin/ai-assignment" element={<ProtectedRoute roles={['admin']}><AppLayout title="AI Auto Assignment" /></ProtectedRoute>}>
-                <Route index element={<AIAssignmentPage />} />
-              </Route>
+              {/* AI Auto Assignment removed — functionality available in Load Assignment */}
               <Route path="/admin/curriculum" element={<ProtectedRoute roles={['admin']}><AppLayout title="Curriculum Prospectus" /></ProtectedRoute>}>
                 <Route index element={<CurriculumPage />} />
               </Route>

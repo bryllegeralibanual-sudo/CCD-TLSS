@@ -771,7 +771,7 @@ export default function LoadAssignmentPage() {
   const { account } = useAuth()
   const {
     term, isTermFinalized,
-    faculty, subjects, assignments,
+    faculty, subjects, assignments, setAssignments,
     subjectsById, facultyById,
     createAssignment, createBulkAssignments, withdrawAssignment, checkCompatibility, submitToProgramHead,
     requestOverload,
@@ -856,11 +856,29 @@ export default function LoadAssignmentPage() {
     complete: sectionRows.filter(row => row.status === 'complete').length,
   }), [sectionRows])
 
-  const visibleRows = sectionRows.filter(row => {
-    if (viewMode === 'needsWork' && (row.status === 'pending' || row.status === 'complete' || row.status === 'approved')) return false
-    if (filterStatus !== 'ALL' && row.status !== filterStatus) return false
-    return true
-  })
+  const visibleRows = useMemo(() => {
+    function isSubmittedRow(row) {
+      return submittedSections.has(row.section) || row.activeAssignments.some(a => a.status === 'pending' || a.status === 'approved')
+    }
+
+    return sectionRows
+      .filter(row => {
+        if (viewMode === 'needsWork' && (row.status === 'pending' || row.status === 'complete' || row.status === 'approved')) return false
+        if (filterStatus !== 'ALL' && row.status !== filterStatus) return false
+        return true
+      })
+      .sort((a, b) => {
+        const aSubmitted = isSubmittedRow(a)
+        const bSubmitted = isSubmittedRow(b)
+        if (aSubmitted !== bSubmitted) return aSubmitted ? 1 : -1
+        const statusOrder = { replacement: 0, incomplete: 1, draft: 2, pending: 3, complete: 4 }
+        return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) || a.section.localeCompare(b.section)
+      })
+  }, [filterStatus, sectionRows, submittedSections, viewMode])
+
+  const firstSubmittedIndex = visibleRows.findIndex(row =>
+    submittedSections.has(row.section) || row.activeAssignments.some(a => a.status === 'pending' || a.status === 'approved'),
+  )
 
   const facultyOptions = useMemo(
     () => faculty.filter(f => canTeachProgram(f, selectedProgram)),
@@ -1174,23 +1192,33 @@ export default function LoadAssignmentPage() {
               <p style={{ margin: '8px 0 0', fontSize: 13, color: 'rgba(3,56,38,0.45)', fontWeight: 700 }}>No sections match the current filters.</p>
             </div>
           ) : (
-            visibleRows.map(row => (
-              <SectionCard
-                key={row.section}
-                row={row}
-                allAssignments={assignments}
-                allFaculty={facultyOptions}
-                onAssign={handleAssignSubject}
-                onWithdraw={handleWithdrawAssignment}
-                checkCompat={checkCompatibility}
-                subjectsById={subjectsById}
-                facultyById={facultyById}
-                finalized={finalized}
-                onSubmit={handleSubmitSection}
-                isSubmitted={submittedSections.has(row.section)}
-                requestOverload={requestOverload}
-                account={account}
-              />
+            visibleRows.map((row, index) => (
+              <div key={row.section} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {index === firstSubmittedIndex && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: index === 0 ? 0 : 4 }}>
+                    <div style={{ height: 1, flex: 1, background: 'rgba(3,56,38,0.10)' }} />
+                    <span style={{ borderRadius: 99, background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.22)', color: MID_GREEN, padding: '5px 10px', fontSize: 11, fontWeight: 900, whiteSpace: 'nowrap' }}>
+                      Submitted for review
+                    </span>
+                    <div style={{ height: 1, flex: 1, background: 'rgba(3,56,38,0.10)' }} />
+                  </div>
+                )}
+                <SectionCard
+                  row={row}
+                  allAssignments={assignments}
+                  allFaculty={facultyOptions}
+                  onAssign={handleAssignSubject}
+                  onWithdraw={handleWithdrawAssignment}
+                  checkCompat={checkCompatibility}
+                  subjectsById={subjectsById}
+                  facultyById={facultyById}
+                  finalized={finalized}
+                  onSubmit={handleSubmitSection}
+                  isSubmitted={submittedSections.has(row.section) || row.activeAssignments.some(a => a.status === 'pending' || a.status === 'approved')}
+                  requestOverload={requestOverload}
+                  account={account}
+                />
+              </div>
             ))
           )}
         </div>

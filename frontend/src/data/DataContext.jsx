@@ -32,6 +32,8 @@ export const DEFAULT_ROOMS = [
   { id: 11, name: 'B4-C1 COMPUTER LAB', type: 'Computer Lab', capacity: 35, prog: 'BTVTED-CP', status: 'Active' },
   { id: 12, name: 'B4-C2 SPEECH LAB', type: 'Speech Lab', capacity: 35, prog: '', status: 'Active' },
   { id: 13, name: 'SCIENCE LABORATORY', type: 'Science Lab', capacity: 32, prog: '', status: 'Active' },
+  { id: 14, name: 'PE CCD GYM', type: 'Gym', capacity: 200, prog: '', status: 'Active' },
+  { id: 15, name: 'SOCIAL HALL', type: 'Social Hall', capacity: 150, prog: '', status: 'Active' },
 ]
 
 const DEFAULT_SETTINGS = {
@@ -50,6 +52,33 @@ function load(key, fallback) {
   }
 }
 
+function loadFaculty() {
+  const stored = load(FACULTY_KEY, [])
+  const seedById = new Map(FACULTY_SEED.map((f) => [f.id, f]))
+  const storedIds = new Set(stored.map((f) => f.id))
+  return [
+    ...stored.map((f) => {
+      const seedRecord = seedById.get(f.id)
+      return seedRecord ? { ...f, spec: seedRecord.spec } : f
+    }),
+    ...FACULTY_SEED.filter((f) => !storedIds.has(f.id)),
+  ]
+}
+
+function loadRooms() {
+  const stored = load(ROOMS_KEY, [])
+  try {
+    const storedNames = new Set(stored.map((r) => r.name))
+    const merged = [...stored]
+    DEFAULT_ROOMS.forEach((r) => {
+      if (!storedNames.has(r.name)) merged.push(r)
+    })
+    return merged
+  } catch {
+    return DEFAULT_ROOMS
+  }
+}
+
 // NOTE: this whole file is a stand-in for a real backend. Everything here is
 // stored in the browser's localStorage so the approval workflow is demoable
 // without standing up a server/database. Swap the bodies of these functions
@@ -59,9 +88,9 @@ export function DataProvider({ children }) {
   const [assignments, setAssignments] = useState(() => load(ASSIGNMENTS_KEY, []))
   const [finalizedTerms, setFinalizedTerms] = useState(() => load(FINALIZED_KEY, []))
   const [term, setTerm] = useState(() => load(TERM_KEY, { ay: '2025-2026', sem: '1st' }))
-  const [faculty, setFaculty] = useState(() => load(FACULTY_KEY, FACULTY_SEED))
+  const [faculty, setFaculty] = useState(loadFaculty)
   const [subjects, setSubjects] = useState(() => load(SUBJECTS_KEY, SUBJECTS))
-  const [rooms, setRooms] = useState(() => load(ROOMS_KEY, DEFAULT_ROOMS))
+  const [rooms, setRooms] = useState(loadRooms)
   const [users, setUsers] = useState(() => load(USERS_KEY, []))
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
   const [activity, setActivity] = useState(() => load(ACTIVITY_KEY, []))
@@ -564,6 +593,7 @@ export function DataProvider({ children }) {
     settings,
     setSettings,
     assignments,
+    setAssignments,
     checkCompatibility,
     createAssignment,
     createBulkAssignments,
