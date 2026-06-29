@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Briefcase, CalendarDays, ClipboardCheck,
   ShieldCheck, GraduationCap, LogOut, ChevronRight, X,
-  BookOpen, Users, Building2,
+  BookOpen, Users, Building2, MapPin, AlertCircle,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { useData } from '../data/DataContext'
@@ -26,6 +26,8 @@ const NAV = {
     ] },
     { section: 'Scheduling', items: [
       { to: '/scheduler', label: 'Schedule Generator', icon: CalendarDays },
+      { to: '/admin/room-assignment', label: 'Room Assignment', icon: MapPin },
+      { to: '/admin/conflict-resolution', label: 'Conflict Resolution', icon: AlertCircle },
     ] },
   ],
   program_head: [

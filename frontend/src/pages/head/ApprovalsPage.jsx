@@ -498,6 +498,27 @@ export default function ApprovalsPage() {
     setRejectComment('')
   }
 
+  function handleSelectAll() {
+    if (pending.length === 0) return
+    setCleanSelection(new Set(pending.map(a => a.id)))
+  }
+
+  function handleDeselectAll() {
+    setSelectedIds(new Set())
+  }
+
+  function handleApproveAll() {
+    if (finalized || selectedIds.size === 0) return
+    pending.forEach(a => {
+      if (selectedIds.has(a.id)) {
+        approveAssignment(a.id, account)
+      }
+    })
+    setSelectedIds(new Set())
+    setRejectTarget(null)
+    setRejectComment('')
+  }
+
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{
@@ -564,11 +585,73 @@ export default function ApprovalsPage() {
             </div>
           ) : (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 12px', borderRadius: 10, background: 'rgba(3,56,38,0.04)', border: '1px solid rgba(3,56,38,0.09)' }}>
-                <Layers3 size={14} style={{ color: MID_GREEN, flexShrink: 0 }} />
-                <p style={{ margin: 0, fontSize: 12, color: 'rgba(3,56,38,0.58)', fontWeight: 600 }}>
-                  {sectionEntries.length} section{sectionEntries.length === 1 ? '' : 's'} grouped for bulk review.
-                </p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(3,56,38,0.04)', border: '1px solid rgba(3,56,38,0.09)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <Layers3 size={14} style={{ color: MID_GREEN, flexShrink: 0 }} />
+                  <p style={{ margin: 0, fontSize: 12, color: 'rgba(3,56,38,0.58)', fontWeight: 600 }}>
+                    {sectionEntries.length} section{sectionEntries.length === 1 ? '' : 's'} grouped for bulk review.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {selectedIds.size === 0 ? (
+                    <button
+                      type="button"
+                      onClick={handleSelectAll}
+                      disabled={finalized || pending.length === 0}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '6px 12px', borderRadius: 7,
+                        fontSize: 11, fontWeight: 700,
+                        cursor: finalized ? 'not-allowed' : 'pointer',
+                        background: '#fff',
+                        color: MID_GREEN,
+                        border: `1.5px solid ${MID_GREEN}`,
+                        opacity: finalized ? 0.5 : 1,
+                      }}
+                    >
+                      <CheckSquare size={12} /> Select All {pending.length}
+                    </button>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(3,56,38,0.58)' }}>
+                        {selectedIds.size} / {pending.length} selected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleDeselectAll}
+                        disabled={finalized}
+                        style={{
+                          padding: '6px 12px', borderRadius: 7,
+                          fontSize: 11, fontWeight: 700,
+                          cursor: finalized ? 'not-allowed' : 'pointer',
+                          background: '#fff',
+                          color: 'rgba(3,56,38,0.58)',
+                          border: '1px solid rgba(3,56,38,0.15)',
+                          opacity: finalized ? 0.5 : 1,
+                        }}
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApproveAll}
+                        disabled={finalized || selectedIds.size === 0}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '6px 12px', borderRadius: 7,
+                          fontSize: 11, fontWeight: 700,
+                          cursor: finalized ? 'not-allowed' : 'pointer',
+                          background: `linear-gradient(105deg, ${FOREST} 0%, ${MID_GREEN} 100%)`,
+                          color: '#fff',
+                          border: 'none',
+                          opacity: finalized ? 0.5 : 1,
+                        }}
+                      >
+                        <CheckCircle2 size={12} /> Approve All
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {rejectTarget && selectedForReject.length > 0 && (

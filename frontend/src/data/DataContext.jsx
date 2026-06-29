@@ -31,10 +31,12 @@ export const DEFAULT_ROOMS = [
   { id: 9, name: 'B1-C2 HVACRT LAB', type: 'HVAC Lab', capacity: 30, prog: 'BTVTED-HVACRT', status: 'Active' },
   { id: 10, name: 'WELDING LABORATORY', type: 'Welding Lab', capacity: 28, prog: 'BTVTED-HVACRT', status: 'Active' },
   { id: 11, name: 'B4-C1 COMPUTER LAB', type: 'Computer Lab', capacity: 35, prog: 'BTVTED-CP', status: 'Active' },
-  { id: 12, name: 'B4-C2 SPEECH LAB', type: 'Speech Lab', capacity: 35, prog: '', status: 'Active' },
+  { id: 12, name: 'B4-C2 SPEECH LAB', type: 'Classroom', capacity: 35, prog: '', status: 'Active' },
   { id: 13, name: 'SCIENCE LABORATORY', type: 'Science Lab', capacity: 32, prog: '', status: 'Active' },
   { id: 14, name: 'PE CCD GYM', type: 'Gym', capacity: 200, prog: '', status: 'Active' },
   { id: 15, name: 'SOCIAL HALL', type: 'Social Hall', capacity: 150, prog: '', status: 'Active' },
+  { id: 16, name: 'NEW ROOM 1', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
+  { id: 17, name: 'NEW ROOM 2', type: 'Classroom', capacity: 45, prog: '', status: 'Active' },
 ]
 
 const DEFAULT_SETTINGS = {
@@ -614,6 +616,189 @@ export function DataProvider({ children }) {
     logActivity('schedule_reopened', { ay, sem }, account?.id || 'system')
   }
 
+  // SCHEDULE STATUS TRACKING (Phase 9)
+  function getScheduleStatusForTerm(ay, sem) {
+    const schedule = schedules.find((s) => s.ay === ay && s.sem === sem)
+    return schedule?.status || 'draft'
+  }
+
+  function submitScheduleForApproval(ay, sem, account) {
+    const now = new Date().toISOString()
+    setSchedules((prev) => prev.map((schedule) => (
+      schedule.ay === ay && schedule.sem === sem
+        ? {
+            ...schedule,
+            status: 'pending_approval',
+            submittedBy: account?.id || 'system',
+            submittedAt: now,
+            reviewedBy: null,
+            reviewedAt: null,
+            rejectionReason: null,
+          }
+        : schedule
+    )))
+    logActivity('schedule_submitted_for_approval', { ay, sem }, account?.id || 'system')
+  }
+
+  function approveScheduleForTerm(ay, sem, account) {
+    const now = new Date().toISOString()
+    setSchedules((prev) => prev.map((schedule) => (
+      schedule.ay === ay && schedule.sem === sem
+        ? {
+            ...schedule,
+            status: 'approved',
+            reviewedBy: account?.id || 'system',
+            reviewedAt: now,
+            rejectionReason: null,
+          }
+        : schedule
+    )))
+    logActivity('schedule_approved', { ay, sem }, account?.id || 'system')
+  }
+
+  function rejectScheduleForTerm(ay, sem, account, rejectionReason) {
+    const now = new Date().toISOString()
+    setSchedules((prev) => prev.map((schedule) => (
+      schedule.ay === ay && schedule.sem === sem
+        ? {
+            ...schedule,
+            status: 'draft',
+            submittedBy: null,
+            submittedAt: null,
+            reviewedBy: account?.id || 'system',
+            reviewedAt: now,
+            rejectionReason,
+          }
+        : schedule
+    )))
+    logActivity('schedule_rejected', { ay, sem, reason: rejectionReason }, account?.id || 'system')
+  }
+
+  function assignRoomsToSchedule(ay, sem, roomAssignments, account) {
+    // roomAssignments: { [rowId]: { roomId, roomName } }
+    const now = new Date().toISOString()
+    setSchedules((prev) => prev.map((schedule) => (
+      schedule.ay === ay && schedule.sem === sem
+        ? {
+            ...schedule,
+            status: 'room_assigned',
+            roomAssignments,
+            roomsAssignedBy: account?.id || 'system',
+            roomsAssignedAt: now,
+          }
+        : schedule
+    )))
+    logActivity('schedule_rooms_assigned', { ay, sem, count: Object.keys(roomAssignments).length }, account?.id || 'system')
+  }
+
+  function getPendingSchedulesForPH(account) {
+    const programs = account.programs || []
+    return schedules
+      .filter((s) => s.status === 'pending_approval' && s.ay === term.ay && s.sem === term.sem)
+      .map((schedule) => ({
+        ...schedule,
+        relevantPrograms: programs,
+      }))
+  }
+
+  // ✅ Phase 10: Room Conflict Detection & Auto-Fix Support
+  function detectRoomConflicts(schedule) {
+    if (!schedule?.scheduled) return []
+    
+    const conflicts = []
+    const scheduled = schedule.scheduled
+    
+    // Check for double-booked rooms (same room, overlapping times)
+    for (let i = 0; i < scheduled.length; i++) {
+      for (let j = i + 1; j < scheduled.length; j++) {
+        const row1 = scheduled[i]
+        const row2 = scheduled[j]
+        
+        // Same room, same day, overlapping times
+        if (
+          row1.room?.id === row2.room?.id &&
+          row1.day === row2.day &&
+          row1.start < row2.end &&
+          row2.start < row1.end
+        ) {
+          conflicts.push({
+            id: `conflict-${i}-${j}`,
+            type: 'double-booked',
+            rows: [row1, row2],
+            room: row1.room,
+            suggestion: 'Move one class to alternative time slot',
+          })
+        }
+      }
+    }
+    
+    return conflicts
+  }
+
+  function markRoomsAsTBA(ay, sem, account) {
+    // When PH approves, mark all unassigned rooms as TBA
+    setSchedules((prev) => prev.map((schedule) => {
+      if (schedule.ay === ay && schedule.sem === sem && schedule.status === 'approved') {
+        const updatedScheduled = (schedule.scheduled || []).map(row => ({
+          ...row,
+          room: row.room?.id ? row.room : { id: null, name: 'TBA', type: 'TBA' },
+        }))
+        return {
+          ...schedule,
+          scheduled: updatedScheduled,
+          roomsMarkedTBABy: account?.id || 'system',
+          roomsMarkedTBAAt: new Date().toISOString(),
+        }
+      }
+      return schedule
+    }))
+    logActivity('rooms_marked_tba', { ay, sem }, account?.id || 'system')
+  }
+
+  function getScheduleConflicts(ay, sem) {
+    const schedule = savedScheduleForTerm(ay, sem)
+    if (!schedule) return []
+    return detectRoomConflicts(schedule)
+  }
+
+  function suggestAlternativeTimeSlots(conflictRow, schedule, occupiedTimes = {}) {
+    // Returns list of alternative time slots that don't conflict
+    if (!schedule?.scheduled) return []
+    
+    const alternatives = []
+    const CLASS_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    const SLOT_DURATION = 30 // minutes
+    const OPEN = 450 // 7:30 AM
+    const CLOSE = 1290 // 9:30 PM
+    
+    // Try all possible time slots
+    for (const day of CLASS_DAYS) {
+      for (let start = OPEN; start + (conflictRow.duration || 60) <= CLOSE; start += SLOT_DURATION) {
+        const end = start + (conflictRow.duration || 60)
+        
+        // Check if this slot conflicts with existing classes
+        const hasConflict = schedule.scheduled.some(row => 
+          row.room?.id === conflictRow.room?.id &&
+          row.day === day &&
+          row.start < end &&
+          start < row.end &&
+          row.id !== conflictRow.id
+        )
+        
+        if (!hasConflict) {
+          alternatives.push({
+            day,
+            start,
+            end,
+            label: `${day}, ${Math.floor(start/60)}:${String(start%60).padStart(2,'0')} - ${Math.floor(end/60)}:${String(end%60).padStart(2,'0')}`,
+          })
+        }
+      }
+    }
+    
+    return alternatives
+  }
+
   const value = {
     term,
     setTerm,
@@ -639,6 +824,16 @@ export function DataProvider({ children }) {
     saveScheduleForTerm,
     finalizeScheduleForTerm,
     reopenScheduleForTerm,
+    getScheduleStatusForTerm,
+    submitScheduleForApproval,
+    approveScheduleForTerm,
+    rejectScheduleForTerm,
+    assignRoomsToSchedule,
+    getPendingSchedulesForPH,
+    detectRoomConflicts,
+    markRoomsAsTBA,
+    getScheduleConflicts,
+    suggestAlternativeTimeSlots,
     assignments,
     setAssignments,
     checkCompatibility,

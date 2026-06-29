@@ -6,11 +6,15 @@ import { PROGRAMS, programLabel } from '../../data/programs'
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
 const GOLD = '#D9B44A'
+const OPEN = 450
+const CLOSE = 1290
+const SLOT = 30
+const CLASS_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
 const EMPTY = { name: '', type: 'Classroom', capacity: 45, prog: '', status: 'Active', features: '' }
 
 export default function RoomsLabsPage() {
-  const { rooms, upsertRoom, subjects } = useData()
+  const { rooms, upsertRoom, subjects, term, savedScheduleForTerm } = useData()
   const [query, setQuery] = useState('')
   const [type, setType] = useState('ALL')
   const [program, setProgram] = useState('ALL')
@@ -35,6 +39,34 @@ export default function RoomsLabsPage() {
   const missingTypes = roomTypes.filter(t => (requiredTypes.get(t) || 0) > 0 && !rooms.some(r => r.type === t && r.status !== 'Inactive'))
   const labs = rooms.filter(r => /lab/i.test(r.type)).length
   const totalCapacity = rooms.reduce((sum, r) => sum + Number(r.capacity || 0), 0)
+  const savedSchedule = savedScheduleForTerm(term.ay, term.sem)
+  const scheduleRows = savedSchedule?.scheduled || []
+
+  const occupancyMap = useMemo(() => {
+    const activeDays = Array.from(new Set(scheduleRows.map((row) => row.day))).filter(Boolean)
+    const days = activeDays.length ? activeDays : CLASS_DAYS
+    const totalSlots = days.length * ((CLOSE - OPEN) / SLOT)
+
+    return rooms.reduce((acc, room) => {
+      const roomRows = scheduleRows.filter((row) => String(row.room?.id) === String(room.id))
+      const usedSlots = roomRows.reduce((sum, row) => sum + (row.end - row.start) / SLOT, 0)
+      const rate = totalSlots ? usedSlots / totalSlots : 0
+      let state = 'vacant'
+      if (usedSlots > 0 && rate >= 0.75) state = 'fully-occupied'
+      else if (usedSlots > 0) state = 'occupied'
+      acc[room.id] = { state, rate, usedSlots, totalSlots }
+      return acc
+    }, {})
+  }, [rooms, scheduleRows])
+
+  const occupancySummary = useMemo(() => {
+    return Object.values(occupancyMap).reduce((acc, item) => {
+      if (item.state === 'fully-occupied') acc.fullyOccupied += 1
+      else if (item.state === 'occupied') acc.occupied += 1
+      else acc.vacant += 1
+      return acc
+    }, { vacant: 0, occupied: 0, fullyOccupied: 0 })
+  }, [occupancyMap])
 
   function submit(e) {
     e.preventDefault()
@@ -86,9 +118,34 @@ export default function RoomsLabsPage() {
           </div>
         )}
 
+        <div className="rounded-2xl border border-emerald-900/10 bg-emerald-950/[0.02] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-black text-emerald-950">Current term occupancy</p>
+              <p className="text-xs font-semibold text-emerald-950/55">Vacant rooms are easy to spot, while heavily used spaces show as fully occupied.</p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[11px] font-black">
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">Vacant: {occupancySummary.vacant}</span>
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">Occupied: {occupancySummary.occupied}</span>
+              <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-red-800">Fully occupied: {occupancySummary.fullyOccupied}</span>
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
           {visible.map(room => {
             const demand = requiredTypes.get(room.type) || 0
+            const occupancy = occupancyMap[room.id] || { state: 'vacant', rate: 0, usedSlots: 0, totalSlots: 0 }
+            const statusTone = occupancy.state === 'fully-occupied'
+              ? 'bg-red-100 text-red-800'
+              : occupancy.state === 'occupied'
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-emerald-100 text-emerald-800'
+            const statusLabel = occupancy.state === 'fully-occupied'
+              ? 'Fully occupied'
+              : occupancy.state === 'occupied'
+                ? 'Occupied'
+                : 'Vacant'
             return (
               <article key={room.id} className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
                 <div className="flex items-start gap-3">
@@ -102,8 +159,14 @@ export default function RoomsLabsPage() {
                   <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${room.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>{room.status}</span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1.5">
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${statusTone}`}>{statusLabel}</span>
+                  <span className="rounded-full bg-emerald-950/[0.06] px-2.5 py-1 text-[10px] font-black text-emerald-950/65">{occupancy.usedSlots > 0 ? `${Math.round(occupancy.rate * 100)}% booked` : 'No classes yet'}</span>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-emerald-950/[0.08]">
+                  <div className={`h-full rounded-full ${occupancy.state === 'fully-occupied' ? 'bg-red-500' : occupancy.state === 'occupied' ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, Math.max(6, occupancy.rate * 100))}%` }} />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
                   <span className="rounded-full bg-emerald-950/[0.06] px-2.5 py-1 text-[10px] font-black text-emerald-950/65">{room.prog ? programLabel(room.prog) : 'Shared'}</span>
-                  <span className="rounded-full bg-emerald-950/[0.06] px-2.5 py-1 text-[10px] font-black text-emerald-950/65">{demand} subject requirements</span>
                 </div>
                 <p className="mt-3 min-h-8 text-xs font-semibold text-emerald-950/50">{room.features || 'No equipment notes yet.'}</p>
               </article>
