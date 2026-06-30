@@ -165,15 +165,16 @@ function roomMatches(room, roomType, program, subject, allowCrossProgramFallback
   // regardless of whether cross-program fallback is active.
   if (isComputerLab(room) && program !== 'BTVTED-CP') return false
 
-  // For HVAC / Welding labs: HVACRT has priority. Other programs can use them only
-  // when the slot is currently vacant (allowCrossProgramFallback=true acts as the
-  // "second pass" signal that we already tried program-owned rooms first).
+  // For HVAC / Welding labs: HVACRT has priority in pass 1.
+  // In pass 2 (allowCrossProgramFallback=true), other programs may use them
+  // when the specific time slot is free. Actual slot-level vacancy is already
+  // enforced by isFree() in placeTask/placeMultiDayTask — no need to re-check
+  // global booking count here (that incorrectly blocks rooms that are busy at
+  // 8am but completely free at 2pm).
   const isSpecialistLab = ['HVAC Lab', 'Welding Lab'].includes(room.type)
   if (isSpecialistLab && room.prog && room.prog !== program) {
-    if (!allowCrossProgramFallback) return false   // first pass: HVACRT-owned slots only for HVACRT
-    // second pass: allow other programs only if room is genuinely vacant right now
-    const currentlyVacant = (roomUse.get(room.id) || []).length === 0
-    if (!currentlyVacant) return false
+    if (!allowCrossProgramFallback) return false   // first pass: owner-program only
+    // second pass: eligible — isFree() will confirm the slot is open
   }
 
   // General ownership: rooms with a prog tag go to their owner first;
@@ -446,10 +447,12 @@ function roomScore(room, task, settings, roomUse = new Map()) {
   // Capacity bonus (smaller capacity for better fit)
   score += Number(room.capacity || 0) / 10
   
-  // Utilization penalty: prefer less-used rooms to spread load, but keep
-  // the penalty modest so type/program fit still dominates the decision.
+  // Utilization tiebreaker: lightly prefer less-used rooms to spread load,
+  // but keep the penalty tiny so type/program ownership always dominates.
+  // *10 was too high — a room with 3 bookings (+30) outweighed its own program
+  // ownership bonus (-25), causing the scheduler to abandon valid rooms.
   const roomBookings = roomUse.get(room.id) || []
-  score += roomBookings.length * 10
+  score += roomBookings.length * 2
 
   return score
 }
