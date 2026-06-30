@@ -137,6 +137,10 @@ function isNSTPSubject(subject) {
   return /^NSTP\b/i.test(subject?.code || '') || /National Service Training Program/i.test(subject?.title || '')
 }
 
+function isComputerLab(room) {
+  return room?.type === 'Computer Lab' || /computer lab/i.test(room?.name || '')
+}
+
 function isActivityVenue(room) {
   return /gym|social hall/i.test(`${room?.name || ''} ${room?.type || ''}`)
 }
@@ -157,8 +161,27 @@ function roomMatches(room, roomType, program, subject, allowCrossProgramFallback
   if (isPESubject(subject) && isActivityVenue(room)) return true
   const typeOk = room.type === roomType || (roomType === 'Classroom' && isRegularClassroom(room))
 
-  const isSharedVacantLab = ['HVAC Lab', 'Welding Lab'].includes(room.type) && ((roomUse.get(room.id) || []).length === 0)
-  const ownerOk = isNSTPSubject(subject) || allowCrossProgramFallback ? true : (!room.prog || room.prog === program || isSharedVacantLab)
+  // Computer Lab is EXCLUSIVELY for CP students — never share it with any other program,
+  // regardless of whether cross-program fallback is active.
+  if (isComputerLab(room) && program !== 'BTVTED-CP') return false
+
+  // For HVAC / Welding labs: HVACRT has priority. Other programs can use them only
+  // when the slot is currently vacant (allowCrossProgramFallback=true acts as the
+  // "second pass" signal that we already tried program-owned rooms first).
+  const isSpecialistLab = ['HVAC Lab', 'Welding Lab'].includes(room.type)
+  if (isSpecialistLab && room.prog && room.prog !== program) {
+    if (!allowCrossProgramFallback) return false   // first pass: HVACRT-owned slots only for HVACRT
+    // second pass: allow other programs only if room is genuinely vacant right now
+    const currentlyVacant = (roomUse.get(room.id) || []).length === 0
+    if (!currentlyVacant) return false
+  }
+
+  // General ownership: rooms with a prog tag go to their owner first;
+  // in second pass they're opened up (except Computer Lab & specialist labs handled above).
+  const ownerOk = isNSTPSubject(subject) ||
+    !room.prog ||
+    room.prog === program ||
+    allowCrossProgramFallback
   return typeOk && ownerOk
 }
 
@@ -423,12 +446,11 @@ function roomScore(room, task, settings, roomUse = new Map()) {
   // Capacity bonus (smaller capacity for better fit)
   score += Number(room.capacity || 0) / 10
   
-  // UTILIZATION PENALTY: Heavily penalize already-used rooms to spread load
-  // Count how many times this room is already booked
+  // Utilization penalty: prefer less-used rooms to spread load, but keep
+  // the penalty modest so type/program fit still dominates the decision.
   const roomBookings = roomUse.get(room.id) || []
-  const utilizationPenalty = roomBookings.length * 100
-  score += utilizationPenalty
-  
+  score += roomBookings.length * 10
+
   return score
 }
 
@@ -580,23 +602,35 @@ function makeSchedule({ approved, subjectsById, facultyById, rooms, yearBlocks, 
     if (group.lectureOptions.length) {
       let lastError = null
       for (const option of group.lectureOptions) {
-        const optionPlaced = []
-        let failed = null
-        for (const task of option) {
-          const { placed, error } = placeTask(task, context, false)
-          if (!placed) {
-            failed = error
+        // Multi-day options (MWF, TTH, etc.) are placed atomically so the same
+        // room is guaranteed on every meeting day — avoids phantom room waste.
+        const optionDays = option.map(t => t.days[0])
+        const isMultiDay = optionDays.length > 1 && new Set(optionDays).size === optionDays.length
+        
+        if (isMultiDay) {
+          // Use placeMultiDayTask for atomic room+time lock across all days
+          const representativeTask = { ...option[0], days: optionDays }
+          const { placed: multiPlaced, error } = placeMultiDayTask(representativeTask, optionDays, context, false)
+          if (multiPlaced) {
+            multiPlaced.forEach(p => commitPlaced(p, maps, scheduled))
+            lecturePlaced = multiPlaced
             break
           }
-          commitPlaced(placed, maps, scheduled)
-          optionPlaced.push(placed)
+          lastError = error
+        } else {
+          // Single-day or already-split tasks: place each session individually
+          const optionPlaced = []
+          let failed = null
+          for (const task of option) {
+            const { placed, error } = placeTask(task, context, false)
+            if (!placed) { failed = error; break }
+            commitPlaced(placed, maps, scheduled)
+            optionPlaced.push(placed)
+          }
+          if (!failed) { lecturePlaced = optionPlaced; break }
+          rollbackPlaced(optionPlaced, maps, scheduled)
+          lastError = failed
         }
-        if (!failed) {
-          lecturePlaced = optionPlaced
-          break
-        }
-        rollbackPlaced(optionPlaced, maps, scheduled)
-        lastError = failed
       }
       if (!lecturePlaced.length) {
         unscheduled.push(lastError || { task: group.lectureOptions[0][0], type: 'no-slot', reason: 'No lecture pattern could be placed.' })
@@ -627,15 +661,27 @@ function makeSchedule({ approved, subjectsById, facultyById, rooms, yearBlocks, 
 
   const retried = new Set()
   for (const task of retryTasks) {
-    const { placed, error } = placeTask(task, context, true)
+    // Try multi-day atomic placement first for lecture tasks that had multiple days
+    if (task.kind === 'Lecture' && task.days && task.days.length > 1) {
+      const { placed: multiPlaced } = placeMultiDayTask(task, task.days, context, true)
+      if (multiPlaced) {
+        multiPlaced.forEach(p => commitPlaced(p, maps, scheduled))
+        retried.add(`${task.assignment.id}-${task.kind}`)
+        continue
+      }
+    }
+    const { placed } = placeTask(task, context, true)
     if (placed) {
       commitPlaced(placed, maps, scheduled)
-      retried.add(task.assignment.id)
+      retried.add(`${task.assignment.id}-${task.kind}`)
     }
   }
 
   // Update unscheduled list to remove successfully retried items
-  unscheduled.splice(0, unscheduled.length, ...unscheduled.filter(item => !retried.has(item.task.assignment.id)))
+  unscheduled.splice(0, unscheduled.length, ...unscheduled.filter(item => {
+    const key = `${item.task.assignment.id}-${item.task.kind}`
+    return !retried.has(key)
+  }))
 
   return { scheduled, unscheduled, offCampus }
 }
