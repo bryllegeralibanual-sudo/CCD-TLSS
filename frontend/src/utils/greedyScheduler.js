@@ -29,7 +29,7 @@ export function runGreedySchedule({ approved, subjectsById, facultyById, rooms, 
   }
 
   function isRegularClassroom(room) {
-    return room?.type === 'Classroom' || room?.type === 'Speech Lab'
+    return room?.type === 'Classroom' || room?.type === 'Speech Lab' || room?.type === 'Science Lab'
   }
 
   function effectiveLabRoomType(subject) {
@@ -87,7 +87,8 @@ export function runGreedySchedule({ approved, subjectsById, facultyById, rooms, 
     if (isActivityVenue(room) && !isPESubject(subject) && !(isGym && isNSTPSubject(subject) && day === 'Saturday')) return false
     if (isPESubject(subject) && isActivityVenue(room)) return true
 
-    const typeOk = room.type === roomType || (roomType === 'Classroom' && isRegularClassroom(room))
+    const hvacrtWeldingOk = program === 'BTVTED-HVACRT' && room.type === 'Welding Lab' && ['Classroom', 'HVAC Lab', 'Welding Lab'].includes(roomType)
+    const typeOk = room.type === roomType || (roomType === 'Classroom' && isRegularClassroom(room)) || hvacrtWeldingOk
     if (!typeOk) return false
     if (isComputerLab(room) && program !== 'BTVTED-CP') return false
 
@@ -111,14 +112,28 @@ export function runGreedySchedule({ approved, subjectsById, facultyById, rooms, 
     if (hours === 2) return [
       { days: ['Tuesday', 'Thursday'], minutes: 60 },
       { days: ['Monday', 'Wednesday'], minutes: 60 },
+      { days: ['Wednesday', 'Friday'], minutes: 60 },
+      { days: ['Monday', 'Friday'], minutes: 60 },
       { days: ['Monday'], minutes: 120 },
+      { days: ['Tuesday'], minutes: 120 },
+      { days: ['Wednesday'], minutes: 120 },
+      { days: ['Thursday'], minutes: 120 },
       { days: ['Friday'], minutes: 120 },
     ]
     if (hours === 3) return [
       { days: ['Monday', 'Wednesday', 'Friday'], minutes: 60 },
+      { days: ['Monday', 'Tuesday', 'Wednesday'], minutes: 60 },
+      { days: ['Tuesday', 'Wednesday', 'Thursday'], minutes: 60 },
+      { days: ['Wednesday', 'Thursday', 'Friday'], minutes: 60 },
       { days: ['Tuesday', 'Thursday'], minutes: 90 },
       { days: ['Monday', 'Wednesday'], minutes: 90 },
+      { days: ['Monday', 'Friday'], minutes: 90 },
+      { days: ['Wednesday', 'Friday'], minutes: 90 },
       { days: ['Monday'], minutes: 180 },
+      { days: ['Tuesday'], minutes: 180 },
+      { days: ['Wednesday'], minutes: 180 },
+      { days: ['Thursday'], minutes: 180 },
+      { days: ['Friday'], minutes: 180 },
     ]
     return [
       { days: ['Monday', 'Wednesday', 'Friday'], minutes: Math.ceil((hours * 60) / 3) },
@@ -146,6 +161,72 @@ export function runGreedySchedule({ approved, subjectsById, facultyById, rooms, 
       window.start < window.end &&
       source.findIndex(item => item.start === window.start && item.end === window.end) === index
     ))
+  }
+
+  function timeLabel(minutes) {
+    const hour24 = Math.floor(minutes / 60)
+    const minute = minutes % 60
+    const suffix = hour24 >= 12 ? 'PM' : 'AM'
+    const hour = hour24 % 12 || 12
+    return `${hour}:${String(minute).padStart(2, '0')} ${suffix}`
+  }
+
+  function placementFailureReason(task, allowCrossProgramFallback = true, allowFullDayFallback = true) {
+    const block = yearBlocks?.[task.subject.yr] || { start: OPEN, end: CLOSE, label: 'Flexible' }
+    const windows = candidateWindows(task, allowFullDayFallback)
+    const facultyRules = unavailableForFaculty(task.assignment.facultyId)
+    const counts = {
+      starts: 0,
+      break: 0,
+      facultyUnavailable: 0,
+      facultyConflict: 0,
+      sectionConflict: 0,
+      noRoom: 0,
+    }
+    const matchingRooms = activeRooms.filter(room => roomMatches(room, task.roomType, task.subject.prog, task.subject, allowCrossProgramFallback, task.days[0]))
+
+    if (!matchingRooms.length) {
+      return `No active ${task.roomType} matches ${task.subject.prog}${allowCrossProgramFallback ? '' : ' room ownership rules'}.`
+    }
+
+    for (const window of windows) {
+      for (const start of startCandidates(window, task.duration)) {
+        counts.starts += 1
+        const candidates = task.days.map(day => ({ day, start, end: start + task.duration }))
+        if (candidates.some(candidate => violatesBreaks(candidate))) {
+          counts.break += 1
+          continue
+        }
+        if (candidates.some(candidate => facultyRules.some(rule => ruleOverlaps(rule, candidate)))) {
+          counts.facultyUnavailable += 1
+          continue
+        }
+        if (!candidates.every(candidate => isFree(facultyUse, task.assignment.facultyId, candidate))) {
+          counts.facultyConflict += 1
+          continue
+        }
+        if (!candidates.every(candidate => isFree(sectionUse, task.assignment.section, candidate))) {
+          counts.sectionConflict += 1
+          continue
+        }
+        if (!matchingRooms.some(room => candidates.every(slot => isFree(roomUse, room.id, slot)))) {
+          counts.noRoom += 1
+        }
+      }
+    }
+
+    const parts = []
+    if (counts.sectionConflict) parts.push('section already has a class')
+    if (counts.facultyConflict) parts.push('faculty already has a class')
+    if (counts.facultyUnavailable) parts.push('faculty unavailable rule')
+    if (counts.noRoom) parts.push(`no free ${task.roomType}`)
+    if (counts.break) parts.push('blocked break period')
+    const scope = `within Year ${task.subject.yr} ${block.label || 'block'} (${timeLabel(block.start)}-${timeLabel(block.end)})`
+
+    if (!counts.starts) return `No ${task.duration / 60}h start time fits ${scope}.`
+    return parts.length
+      ? `No ${task.kind.toLowerCase()} slot fits ${scope}; checked ${counts.starts} start time(s), blocked by ${parts.join(', ')}.`
+      : `No ${task.kind.toLowerCase()} slot fits ${scope}.`
   }
 
   function findPlacement(task, allowCrossProgramFallback = false, allowFullDayFallback = false) {
@@ -275,7 +356,8 @@ export function runGreedySchedule({ approved, subjectsById, facultyById, rooms, 
         }
       }
       if (!placedLecture) {
-        failed = { task: group.lectureOptions[0][0], type: 'no-slot', reason: 'No lecture pattern could be placed without room, faculty, or section conflict.' }
+        const task = group.lectureOptions[0][0]
+        failed = { task, type: 'no-slot', reason: placementFailureReason(task) }
       } else {
         commit(placedLecture)
         groupRows.push(...placedLecture)
@@ -297,7 +379,7 @@ export function runGreedySchedule({ approved, subjectsById, facultyById, rooms, 
         }
         if (!placedLab) {
           const task = group.labOptions[0][0]
-          failed = { task, type: 'no-slot', reason: `No available ${task.roomType} block could be placed without room, faculty, or section conflict.` }
+          failed = { task, type: 'no-slot', reason: placementFailureReason(task) }
         } else {
           commit(placedLab)
           groupRows.push(...placedLab)

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle, BookOpen, CalendarDays, CheckCircle2, Clock3, DoorOpen, Download,
   FlaskConical, Lock, Pencil, Play, Printer, RefreshCw, Save, Settings2, Unlock,
@@ -147,7 +147,7 @@ function isActivityVenue(room) {
 }
 
 function isRegularClassroom(room) {
-  return room?.type === 'Classroom' || room?.type === 'Speech Lab'
+  return room?.type === 'Classroom' || room?.type === 'Speech Lab' || room?.type === 'Science Lab'
 }
 
 function roomMatches(room, roomType, program, subject, allowCrossProgramFallback = false, day = null, roomUse = new Map()) {
@@ -160,7 +160,8 @@ function roomMatches(room, roomType, program, subject, allowCrossProgramFallback
   // Activity venues are reserved for PE, except NSTP in the gym on Saturday
   if (isActivityVenue(room) && !isPESubject(subject) && !(isGym && isNSTPSubject(subject) && day === 'Saturday')) return false
   if (isPESubject(subject) && isActivityVenue(room)) return true
-  const typeOk = room.type === roomType || (roomType === 'Classroom' && isRegularClassroom(room))
+  const hvacrtWeldingOk = program === 'BTVTED-HVACRT' && room.type === 'Welding Lab' && ['Classroom', 'HVAC Lab', 'Welding Lab'].includes(roomType)
+  const typeOk = room.type === roomType || (roomType === 'Classroom' && isRegularClassroom(room)) || hvacrtWeldingOk
 
   // Computer Lab is EXCLUSIVELY for CP students — never share it with any other program,
   // regardless of whether cross-program fallback is active.
@@ -299,6 +300,20 @@ function meetingPatterns(hours) {
     { days: ['Tuesday', 'Thursday'], minutes: Math.ceil((hours * 60) / 2) },
     { days: ['Monday', 'Wednesday'], minutes: Math.ceil((hours * 60) / 2) },
   ]
+}
+
+function getOverrideDayPatterns(task) {
+  if (!task) return []
+  if (isNSTPSubject(task.subject)) return [['Saturday']]
+  if (task.kind === 'Laboratory') return CLASS_DAYS.map(day => [day])
+  const hours = Math.max(1, Math.round((task.duration / 60) * (task.days?.length || 1)))
+  const patterns = meetingPatterns(hours).map(pattern => pattern.days)
+  const current = task.days?.length ? [task.days] : []
+  const unique = [...current, ...patterns, ...CLASS_DAYS.map(day => [day])]
+  return unique.filter((days, index, source) => (
+    days.every(day => ALL_DAYS.includes(day)) &&
+    source.findIndex(item => item.join('|') === days.join('|')) === index
+  ))
 }
 
 function sectionSortValue(section = '') {
@@ -1018,6 +1033,10 @@ export default function SchedulerPage() {
   const [editingRow, setEditingRow] = useState(null)
   const [editDraft, setEditDraft] = useState(null)
   const [editErrors, setEditErrors] = useState([])
+  const [overrideItem, setOverrideItem] = useState(null)
+  const [overrideDraft, setOverrideDraft] = useState(null)
+  const scheduleResolveRef = useRef(null)
+  const rulesResolveRef = useRef(null)
 
   const yearBlocks = useMemo(() => normalizeBlocks(settings.scheduleYearBlocks), [settings.scheduleYearBlocks])
   const editableByAdmin = account?.role === 'admin'
@@ -1140,6 +1159,197 @@ export default function SchedulerPage() {
     if (!reason) return
     rejectScheduleForTerm(term.ay, term.sem, account, reason)
     setResult(prev => prev ? { ...prev, status: 'draft', rejectionReason: reason, reviewedBy: account?.id, reviewedAt: new Date().toISOString() } : prev)
+  }
+
+  function goToConflictResolution(item) {
+    const task = item?.task
+    if (!task) return
+    const sameAssignmentRows = (result?.scheduled || []).filter(row => row.assignment.id === task.assignment.id)
+    const fallbackSectionRows = (result?.scheduled || []).filter(row => row.assignment.section === task.assignment.section)
+    const firstRelatedRow = sameAssignmentRows[0] || fallbackSectionRows[0]
+
+    setProgram(task.subject?.prog || 'ALL')
+    setView('section')
+    setDisplayMode('table')
+    setShowAllRows(true)
+    setFocusValue(task.assignment.section)
+    setQuery(task.subject?.code || '')
+
+    if (['no-slot', 'policy-violation', 'missing-room', 'missing-lab'].includes(item.type)) {
+      setDraftBlocks(yearBlocks)
+      setEditingRules(true)
+    }
+
+    window.setTimeout(() => {
+      if (firstRelatedRow && editableByAdmin && !scheduleLocked) {
+        scheduleResolveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else {
+        rulesResolveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 0)
+  }
+
+  function buildOverrideRows(item = overrideItem, draft = overrideDraft) {
+    const task = item?.task
+    if (!task || !draft) return []
+    const room = rooms.find(roomItem => String(roomItem.id) === String(draft.roomId)) || createTbaRoom()
+    const days = draft.days?.length ? draft.days : [draft.day]
+    const originalMeetings = Math.max(1, task.days?.length || 1)
+    const totalMinutes = task.duration * originalMeetings
+    const sessionDuration = Math.ceil(totalMinutes / days.length)
+    return days.map(day => ({
+      ...task,
+      day,
+      start: draft.start,
+      end: draft.start + sessionDuration,
+      duration: sessionDuration,
+      days,
+      room,
+      faculty: facultyById[task.assignment.facultyId] || null,
+      manualOverride: true,
+    }))
+  }
+
+  function getOverrideWarnings(item = overrideItem, draft = overrideDraft) {
+    const rows = buildOverrideRows(item, draft)
+    if (!rows.length) return ['Select a day, time, and room.']
+    const task = item.task
+    const room = rows[0].room
+    const block = yearBlocks[task.subject.yr] || { start: OPEN, end: CLOSE }
+    const warnings = []
+    rows.forEach(row => {
+      if (row.start < OPEN || row.end > CLOSE) warnings.push(`${row.day}: outside operating hours.`)
+      if (row.start < block.start || row.end > block.end) warnings.push(`${row.day}: outside Year ${task.subject.yr} ${block.label} block.`)
+      const policyError = policyViolation(row)
+      if (policyError) warnings.push(`${row.day}: ${policyError}`)
+      if (violatesBreaks(settings, row)) warnings.push(`${row.day}: overlaps a blocked break period.`)
+      if (unavailableForFaculty(settings, task.assignment.facultyId).some(rule => ruleOverlaps(rule, row))) warnings.push(`${row.day}: faculty is marked unavailable.`)
+      ;(result?.scheduled || []).forEach(existing => {
+        if (!overlaps(existing, row)) return
+        if (existing.assignment.facultyId === task.assignment.facultyId) warnings.push(`${row.day}: faculty conflict with ${existing.assignment.section} - ${existing.subject.code}.`)
+        if (existing.assignment.section === task.assignment.section) warnings.push(`${row.day}: section conflict with ${existing.subject.code}.`)
+        if (existing.room?.id && room.id && String(existing.room.id) === String(room.id)) warnings.push(`${row.day}: room conflict with ${existing.assignment.section} - ${existing.subject.code}.`)
+      })
+    })
+    if (room.id && !roomMatches(room, task.roomType, task.subject.prog, task.subject, true, rows[0].day)) {
+      warnings.push(`${room.name} does not match the required ${task.roomType} rules.`)
+    }
+    return Array.from(new Set(warnings))
+  }
+
+  function getVacantSuggestions(item = overrideItem, limit = 10) {
+    const task = item?.task
+    if (!task) return []
+    const block = yearBlocks[task.subject.yr] || { start: OPEN, end: CLOSE, label: 'Flexible' }
+    const daySets = getOverrideDayPatterns(task)
+    const matchingRooms = rooms
+      .filter(room => room.status !== 'Inactive')
+      .filter(room => roomMatches(room, task.roomType, task.subject.prog, task.subject, true, daySets[0]?.[0]))
+      .sort((a, b) => {
+        const ownedA = a.prog === task.subject.prog ? 0 : 1
+        const ownedB = b.prog === task.subject.prog ? 0 : 1
+        return ownedA - ownedB || Number(a.capacity || 0) - Number(b.capacity || 0) || a.name.localeCompare(b.name)
+      })
+
+    function isClean(rows) {
+      return rows.every(row => (
+        row.start >= OPEN &&
+        row.end <= CLOSE &&
+        !policyViolation(row) &&
+        !violatesBreaks(settings, row) &&
+        !unavailableForFaculty(settings, task.assignment.facultyId).some(rule => ruleOverlaps(rule, row)) &&
+        !(result?.scheduled || []).some(existing => overlaps(existing, row) && (
+          existing.assignment.facultyId === task.assignment.facultyId ||
+          existing.assignment.section === task.assignment.section ||
+          (existing.room?.id && row.room?.id && String(existing.room.id) === String(row.room.id))
+        ))
+      ))
+    }
+
+    function collectSuggestions(window, tier) {
+      const suggestions = []
+      for (const days of daySets) {
+        const originalMeetings = Math.max(1, task.days?.length || 1)
+        const sessionDuration = Math.ceil((task.duration * originalMeetings) / days.length)
+        for (const start of TIME_OPTIONS.filter(value => value >= window.start && value + sessionDuration <= window.end)) {
+          for (const room of matchingRooms) {
+            const rows = days.map(day => ({
+              ...task,
+              day,
+              start,
+              end: start + sessionDuration,
+              duration: sessionDuration,
+              days,
+              room,
+              faculty: facultyById[task.assignment.facultyId] || null,
+            }))
+            if (!isClean(rows)) continue
+            suggestions.push({
+              day: days[0],
+              days,
+              start,
+              end: start + sessionDuration,
+              room,
+              tier,
+              label: `${days.join('/')} ${timeLabel(start)}-${timeLabel(start + sessionDuration)} - ${room.name}`,
+            })
+          }
+        }
+      }
+      return suggestions
+    }
+
+    const strict = collectSuggestions(block, 'Within year block')
+    const relaxed = strict.length ? [] : collectSuggestions({ start: OPEN, end: CLOSE }, 'Vacant outside year block')
+      .filter(item => item.start < block.start || item.end > block.end)
+
+    return [...strict, ...relaxed].slice(0, limit)
+  }
+
+  function openManualOverride(item) {
+    const task = item?.task
+    if (!task) return
+    const suggestions = getVacantSuggestions(item, 1)
+    const block = yearBlocks[task.subject.yr] || { start: OPEN, end: CLOSE }
+    const days = suggestions[0]?.days || task.days || [isNSTPSubject(task.subject) ? 'Saturday' : 'Monday']
+    const day = days[0]
+    const room = rooms.find(roomItem => roomMatches(roomItem, task.roomType, task.subject.prog, task.subject, true, day)) || rooms.find(roomItem => roomItem.status !== 'Inactive')
+    setOverrideItem(item)
+    setOverrideDraft({
+      day: suggestions[0]?.day || day,
+      days,
+      start: suggestions[0]?.start || Math.min(block.start, CLOSE - task.duration),
+      roomId: suggestions[0]?.room?.id || room?.id || '',
+    })
+  }
+
+  function applyManualOverride() {
+    const rows = buildOverrideRows()
+    if (!rows.length) return
+    const task = overrideItem.task
+    setResult(prev => ({
+      ...prev,
+      scheduled: [...(prev?.scheduled || []), ...rows],
+      unscheduled: (prev?.unscheduled || []).filter(item => item !== overrideItem && !(item.task?.assignment.id === task.assignment.id && item.task?.kind === task.kind)),
+      savedAt: null,
+      finalized: false,
+    }))
+    setProgram(task.subject?.prog || 'ALL')
+    setView('section')
+    setDisplayMode('table')
+    setShowAllRows(true)
+    setFocusValue(task.assignment.section)
+    setQuery(task.subject?.code || '')
+    setOverrideItem(null)
+    setOverrideDraft(null)
+    window.setTimeout(() => scheduleResolveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+  }
+
+  function overrideSessionDuration(task = overrideItem?.task, draft = overrideDraft) {
+    if (!task || !draft) return 0
+    const days = draft.days?.length ? draft.days : [draft.day]
+    const originalMeetings = Math.max(1, task.days?.length || 1)
+    return Math.ceil((task.duration * originalMeetings) / days.length)
   }
 
   const scheduleStatus = savedSchedule?.status || 'draft'
@@ -1311,7 +1521,7 @@ export default function SchedulerPage() {
         </section>
 
         <section className="grid gap-3 lg:grid-cols-[1fr_340px]">
-          <div className="rounded-2xl border border-emerald-950/10 bg-white shadow-sm">
+          <div ref={scheduleResolveRef} className="rounded-2xl border border-emerald-950/10 bg-white shadow-sm">
             <div className="flex flex-wrap items-center gap-3 border-b border-emerald-950/10 p-4">
               <div className="flex overflow-hidden rounded-lg border border-emerald-950/10 bg-emerald-950/[0.03]">
                 {VIEW_OPTIONS.map(({ value, label, icon: Icon }) => (
@@ -1365,7 +1575,7 @@ export default function SchedulerPage() {
               {savedSchedule ? <><p className="mt-2 text-xs font-semibold text-emerald-950/55">Last saved {new Date(savedSchedule.savedAt).toLocaleString()}</p><p className="mt-1 text-xs font-semibold text-emerald-950/55">{savedSchedule.scheduled?.length || 0} row(s), {savedSchedule.unscheduled?.length || 0} exception(s)</p><p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black ${savedSchedule.finalized ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{savedSchedule.finalized ? 'Finalized' : 'Editable'}</p></> : <p className="mt-2 text-xs font-semibold text-emerald-950/55">No saved schedule yet.</p>}
             </div>
 
-            <div className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm">
+            <div ref={rulesResolveRef} className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Rules</p>{editableByAdmin && !editingRules && <button type="button" onClick={() => { setDraftBlocks(yearBlocks); setEditingRules(true) }} className="flex items-center gap-1.5 rounded-lg border border-emerald-950/15 px-2.5 py-1.5 text-[11px] font-black text-emerald-950"><Settings2 size={12} /> Edit</button>}</div>
               {editingRules ? (
                 <>
@@ -1437,12 +1647,109 @@ export default function SchedulerPage() {
               )
             })}</div></div>}
 
-            {result && <div className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm"><p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Conflict Report</p><p className="mt-2 text-xs font-semibold text-emerald-950/55">{result.offCampus.length} off-campus load(s) excluded. {scheduledSections.size}/{requiredSections.length} sections scheduled.</p>{conflictGroups.map(group => <div key={group.key} className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3"><p className="text-xs font-black text-red-800">{group.label} · {group.items.length}</p>{group.items.slice(0, 4).map((item, index) => <p key={index} className="mt-1 text-xs font-semibold text-red-700/75">{item.task.assignment.section} - {item.task.subject.code}: {item.reason}</p>)}</div>)}</div>}
+            {result && <div className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm"><p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Conflict Report</p><p className="mt-2 text-xs font-semibold text-emerald-950/55">{result.offCampus.length} off-campus load(s) excluded. {scheduledSections.size}/{requiredSections.length} sections scheduled.</p>{conflictGroups.map(group => <div key={group.key} className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3"><p className="text-xs font-black text-red-800">{group.label} · {group.items.length}</p>{group.items.slice(0, 4).map((item, index) => <button key={index} type="button" onClick={() => { goToConflictResolution(item); openManualOverride(item) }} className="mt-1 block w-full rounded-md px-1.5 py-1 text-left text-xs font-semibold text-red-700/75 transition hover:bg-red-100 hover:text-red-900 focus:outline-none focus:ring-2 focus:ring-red-300"><span className="font-black underline decoration-red-300 underline-offset-2">{item.task.assignment.section} - {item.task.subject.code}</span>: {item.reason}</button>)}</div>)}</div>}
 
             <div className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm"><p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Programs</p>{PROGRAMS.map(item => <p key={item.code} className="mt-2 text-xs font-bold text-emerald-950/60">{programLabel(item.code)}</p>)}</div>
           </aside>
         </section>
       </div>
+
+      {overrideItem && overrideDraft && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Manual Conflict Override</p>
+              <button type="button" onClick={() => { setOverrideItem(null); setOverrideDraft(null) }}><X size={16} /></button>
+            </div>
+            <p className="mt-2 text-xs font-semibold text-emerald-950/60">
+              {overrideItem.task.assignment.section} - {overrideItem.task.subject.code} - {overrideItem.task.kind} - {overrideSessionDuration() / 60} hr per meeting
+            </p>
+            <p className="mt-1 text-xs font-semibold text-red-700">{overrideItem.reason}</p>
+
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <p className="text-xs font-black text-emerald-900">Suggested vacant room/time</p>
+              {getVacantSuggestions().length ? (
+                <div className="mt-2 grid gap-2">
+                  {getVacantSuggestions().map(suggestion => (
+                    <button
+                      key={`${suggestion.days.join('-')}-${suggestion.start}-${suggestion.room.id}`}
+                      type="button"
+                      onClick={() => setOverrideDraft(prev => ({
+                        ...prev,
+                        day: suggestion.day,
+                        days: suggestion.days,
+                        start: suggestion.start,
+                        roomId: suggestion.room.id,
+                      }))}
+                      className={`rounded-lg border p-2 text-left text-xs transition ${String(overrideDraft.roomId) === String(suggestion.room.id) && overrideDraft.start === suggestion.start && overrideDraft.day === suggestion.day ? 'border-emerald-600 bg-white text-emerald-950' : 'border-emerald-200 bg-white/70 text-emerald-900 hover:bg-white'}`}
+                    >
+                      <span className="block font-black">{suggestion.label}</span>
+                      <span className="mt-0.5 block font-semibold text-emerald-700/70">{suggestion.tier}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-1 text-xs font-semibold text-amber-800">
+                  No fully vacant option found. Use the manual fields below to override with warnings.
+                </p>
+              )}
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <select
+                value={(overrideDraft.days || [overrideDraft.day]).join('|')}
+                onChange={e => {
+                  const days = e.target.value.split('|')
+                  setOverrideDraft(prev => {
+                    const originalMeetings = Math.max(1, overrideItem.task.days?.length || 1)
+                    const sessionDuration = Math.ceil((overrideItem.task.duration * originalMeetings) / days.length)
+                    return { ...prev, day: days[0], days, start: Math.min(prev.start, CLOSE - sessionDuration) }
+                  })
+                }}
+                className="rounded-lg border px-3 py-2 text-sm font-bold"
+              >
+                {getOverrideDayPatterns(overrideItem.task).map(days => (
+                  <option key={days.join('|')} value={days.join('|')}>{days.join(' / ')}</option>
+                ))}
+              </select>
+              <select
+                value={minutesToInput(overrideDraft.start)}
+                onChange={e => setOverrideDraft(prev => ({ ...prev, start: inputToMinutes(e.target.value) }))}
+                className="rounded-lg border px-3 py-2 text-sm font-bold"
+              >
+                {TIME_OPTIONS.filter(value => value + overrideSessionDuration() <= CLOSE).map(value => <option key={value} value={minutesToInput(value)}>{timeLabel(value)}</option>)}
+              </select>
+              <select
+                value={overrideDraft.roomId}
+                onChange={e => setOverrideDraft(prev => ({ ...prev, roomId: e.target.value }))}
+                className="rounded-lg border px-3 py-2 text-sm font-bold"
+              >
+                {rooms.filter(room => room.status !== 'Inactive').map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
+              </select>
+            </div>
+
+            {overrideDraft.days?.length > 1 && (
+              <p className="mt-2 text-xs font-semibold text-emerald-950/55">
+                Applies to: {overrideDraft.days.join(', ')} at the selected start time.
+              </p>
+            )}
+
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs font-black text-amber-900">Override warnings</p>
+              {getOverrideWarnings().length ? getOverrideWarnings().map(warning => (
+                <p key={warning} className="mt-1 text-xs font-semibold text-amber-800">{warning}</p>
+              )) : (
+                <p className="mt-1 text-xs font-semibold text-emerald-800">No direct conflict detected for this override.</p>
+              )}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => { setOverrideItem(null); setOverrideDraft(null) }} className="rounded-lg border px-3 py-2 text-xs font-black">Cancel</button>
+              <button type="button" onClick={applyManualOverride} className="rounded-lg px-3 py-2 text-xs font-black text-white" style={{ background: MID_GREEN }}>Apply Override</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingRow && editDraft && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

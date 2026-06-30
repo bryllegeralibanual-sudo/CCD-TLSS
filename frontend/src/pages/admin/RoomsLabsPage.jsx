@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Building2, DoorOpen, FlaskConical, Plus, Search } from 'lucide-react'
+import { AlertTriangle, Building2, Clock3, DoorOpen, FlaskConical, Plus, Search } from 'lucide-react'
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, programLabel } from '../../data/programs'
 
@@ -10,14 +10,30 @@ const OPEN = 450
 const CLOSE = 1290
 const SLOT = 30
 const CLASS_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+const ALL_DAYS = [...CLASS_DAYS, 'Saturday']
+const HOUR_OPTIONS = Array.from({ length: ((CLOSE - OPEN) / 60) }, (_, index) => OPEN + (index * 60))
 
 const EMPTY = { name: '', type: 'Classroom', capacity: 45, prog: '', status: 'Active', features: '' }
+
+function timeLabel(minutes) {
+  const hour24 = Math.floor(minutes / 60)
+  const minute = minutes % 60
+  const suffix = hour24 >= 12 ? 'PM' : 'AM'
+  const hour = hour24 % 12 || 12
+  return `${hour}:${String(minute).padStart(2, '0')} ${suffix}`
+}
+
+function overlaps(a, b) {
+  return a.day === b.day && a.start < b.end && b.start < a.end
+}
 
 export default function RoomsLabsPage() {
   const { rooms, upsertRoom, subjects, term, savedScheduleForTerm } = useData()
   const [query, setQuery] = useState('')
   const [type, setType] = useState('ALL')
   const [program, setProgram] = useState('ALL')
+  const [occupancyDay, setOccupancyDay] = useState('Monday')
+  const [occupancyRoom, setOccupancyRoom] = useState('ALL')
   const [form, setForm] = useState(EMPTY)
 
   const roomTypes = useMemo(() => Array.from(new Set([...rooms.map(r => r.type), ...subjects.flatMap(s => [s.lecRoomType, s.labRoomType]).filter(Boolean)])).sort(), [rooms, subjects])
@@ -67,6 +83,31 @@ export default function RoomsLabsPage() {
       return acc
     }, { vacant: 0, occupied: 0, fullyOccupied: 0 })
   }, [occupancyMap])
+
+  const occupancyRooms = useMemo(() => {
+    return visible
+      .filter(room => room.status !== 'Inactive')
+      .filter(room => occupancyRoom === 'ALL' || String(room.id) === String(occupancyRoom))
+  }, [occupancyRoom, visible])
+
+  const vacancySuggestions = useMemo(() => {
+    return occupancyRooms.flatMap(room => {
+      const roomRows = scheduleRows.filter(row => String(row.room?.id) === String(room.id))
+      const blocks = []
+      let blockStart = null
+      HOUR_OPTIONS.forEach(start => {
+        const candidate = { day: occupancyDay, start, end: start + 60 }
+        const isVacant = !roomRows.some(row => overlaps(row, candidate))
+        if (isVacant && blockStart === null) blockStart = start
+        if ((!isVacant || start === HOUR_OPTIONS[HOUR_OPTIONS.length - 1]) && blockStart !== null) {
+          const blockEnd = isVacant && start === HOUR_OPTIONS[HOUR_OPTIONS.length - 1] ? start + 60 : start
+          if (blockEnd - blockStart >= 120) blocks.push({ room, start: blockStart, end: blockEnd })
+          blockStart = null
+        }
+      })
+      return blocks
+    }).sort((a, b) => (b.end - b.start) - (a.end - a.start) || a.room.name.localeCompare(b.room.name)).slice(0, 6)
+  }, [occupancyDay, occupancyRooms, scheduleRows])
 
   function submit(e) {
     e.preventDefault()
@@ -128,6 +169,82 @@ export default function RoomsLabsPage() {
               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">Vacant: {occupancySummary.vacant}</span>
               <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">Occupied: {occupancySummary.occupied}</span>
               <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-red-800">Fully occupied: {occupancySummary.fullyOccupied}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-950/10 p-4">
+            <div>
+              <p className="flex items-center gap-2 text-sm font-black text-emerald-950"><Clock3 size={15} /> Occupancy by day and hour</p>
+              <p className="mt-1 text-xs font-semibold text-emerald-950/55">Green cells are vacant. Red cells show the class using the room.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <select value={occupancyDay} onChange={e => setOccupancyDay(e.target.value)} className="rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-950">
+                {ALL_DAYS.map(day => <option key={day}>{day}</option>)}
+              </select>
+              <select value={occupancyRoom} onChange={e => setOccupancyRoom(e.target.value)} className="rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-950">
+                <option value="ALL">All visible rooms</option>
+                {visible.filter(room => room.status !== 'Inactive').map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
+              <thead className="bg-emerald-950/[0.04] text-[10px] uppercase text-emerald-950/50">
+                <tr>
+                  <th className="sticky left-0 z-10 min-w-44 border-b border-r border-emerald-950/10 bg-emerald-50 px-3 py-2">Room</th>
+                  {HOUR_OPTIONS.map(hour => <th key={hour} className="min-w-28 border-b border-r border-emerald-950/10 px-2 py-2">{timeLabel(hour)}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {occupancyRooms.map(room => {
+                  const roomRows = scheduleRows.filter(row => String(row.room?.id) === String(room.id))
+                  return (
+                    <tr key={room.id}>
+                      <td className="sticky left-0 z-10 border-b border-r border-emerald-950/10 bg-white px-3 py-2">
+                        <p className="font-black text-emerald-950">{room.name}</p>
+                        <p className="mt-0.5 font-semibold text-emerald-950/45">{room.type}</p>
+                      </td>
+                      {HOUR_OPTIONS.map(hour => {
+                        const cell = { day: occupancyDay, start: hour, end: hour + 60 }
+                        const booking = roomRows.find(row => overlaps(row, cell))
+                        return (
+                          <td key={hour} className="border-b border-r border-emerald-950/10 p-1.5 align-top">
+                            {booking ? (
+                              <div className="min-h-12 rounded-md border border-red-200 bg-red-50 p-2 text-red-800">
+                                <p className="truncate font-black">{booking.subject?.code}</p>
+                                <p className="mt-0.5 truncate font-semibold">{booking.assignment?.section}</p>
+                                <p className="mt-0.5 font-semibold opacity-75">{timeLabel(booking.start)}-{timeLabel(booking.end)}</p>
+                              </div>
+                            ) : (
+                              <div className="flex min-h-12 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 font-black text-emerald-700">Vacant</div>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  )
+                })}
+                {occupancyRooms.length === 0 && (
+                  <tr><td colSpan={HOUR_OPTIONS.length + 1} className="px-4 py-8 text-center text-sm font-bold text-emerald-950/45">No active rooms match the current filters.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="border-t border-emerald-950/10 p-4">
+            <p className="text-xs font-black uppercase text-emerald-950/45">Best vacancy blocks on {occupancyDay}</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {vacancySuggestions.map(item => (
+                <div key={`${item.room.id}-${item.start}-${item.end}`} className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                  <p className="text-xs font-black text-emerald-950">{item.room.name}</p>
+                  <p className="mt-1 text-xs font-semibold text-emerald-800">{timeLabel(item.start)} - {timeLabel(item.end)}</p>
+                  <p className="mt-1 text-[10px] font-black uppercase text-emerald-700/60">{Math.round((item.end - item.start) / 60)} hr open block</p>
+                </div>
+              ))}
+              {vacancySuggestions.length === 0 && <p className="text-xs font-semibold text-emerald-950/50">No 2-hour vacant block found for the current filters.</p>}
             </div>
           </div>
         </div>

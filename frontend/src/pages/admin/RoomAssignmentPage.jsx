@@ -21,7 +21,9 @@ function getRoomSuitability(room, scheduleRow) {
 
   const isLab = scheduleRow.kind === 'Laboratory'
   const needsType = scheduleRow.roomType
-  const typeMatch = room.type === needsType || (needsType === 'Classroom' && /classroom|speech/i.test(room.type))
+  const isRegularClassroom = /classroom|speech|science lab/i.test(room.type)
+  const hvacrtWeldingOk = scheduleRow.subject?.prog === 'BTVTED-HVACRT' && room.type === 'Welding Lab' && ['Classroom', 'HVAC Lab', 'Welding Lab'].includes(needsType)
+  const typeMatch = room.type === needsType || (needsType === 'Classroom' && isRegularClassroom) || hvacrtWeldingOk
 
   if (!typeMatch) return { suitable: false, reason: `Requires ${needsType}` }
 
