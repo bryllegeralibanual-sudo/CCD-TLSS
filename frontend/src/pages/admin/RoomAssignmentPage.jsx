@@ -11,6 +11,10 @@ const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
 const GOLD = '#D9B44A'
 
+function getRowKey(assignmentId, kind, day) {
+  return `${assignmentId}-${kind}-${day}`
+}
+
 // Helper function to get available rooms based on schedule constraints
 function getRoomSuitability(room, scheduleRow) {
   if (room.status === 'Inactive') return { suitable: false, reason: 'Room is inactive' }
@@ -34,12 +38,21 @@ function RoomAssignmentCard({ schedule, room, scheduleRows, onAssign, onUnassign
   const [selectedRoom, setSelectedRoom] = useState(null)
   const [showConflicts, setShowConflicts] = useState(false)
 
-  const unassignedRows = (schedule.scheduled || []).filter(row => !row.room || row.room.id === null)
+  function getAssignedRoomId(row) {
+    const rowKey = getRowKey(row.assignment.id, row.kind, row.day)
+    return assignments?.[rowKey] || row.room?.id || null
+  }
+
+  const assignedRows = (scheduleRows || []).filter(row => getAssignedRoomId(row) === room.id)
+  const unassignedRows = (scheduleRows || []).filter(row => !getAssignedRoomId(row))
 
   // Check for conflicts: same room, overlapping times, same day
   function findConflicts(row, room) {
-    return (schedule.scheduled || [])
-      .filter(r => r.room?.id === room.id && r.day === row.day && r.start < row.end && row.start < r.end)
+    return (scheduleRows || [])
+      .filter(r => {
+        const assignedRoomId = getAssignedRoomId(r)
+        return assignedRoomId === room.id && r.day === row.day && r.start < row.end && row.start < r.end && r.assignment.id !== row.assignment.id
+      })
       .length > 0
   }
 
@@ -58,8 +71,8 @@ function RoomAssignmentCard({ schedule, room, scheduleRows, onAssign, onUnassign
       </div>
 
       <div className="space-y-2 border-t border-emerald-900/10 pt-4">
-        <p className="text-xs font-bold uppercase text-emerald-950/45">Schedule assignments ({scheduleRows.filter(r => r.room?.id === room.id).length})</p>
-        {scheduleRows.filter(r => r.room?.id === room.id).map(row => (
+        <p className="text-xs font-bold uppercase text-emerald-950/45">Schedule assignments ({assignedRows.length})</p>
+        {assignedRows.map(row => (
           <div key={`${row.assignment.id}-${row.kind}-${row.day}`} className="flex items-center justify-between rounded-lg bg-emerald-50 p-3">
             <div className="text-sm">
               <p className="font-bold text-emerald-950">{row.subject.code}</p>
@@ -123,6 +136,7 @@ export default function RoomAssignmentPage() {
   const { term, rooms, savedScheduleForTerm, assignRoomsToSchedule } = useData()
   const [filterType, setFilterType] = useState('ALL')
   const [sortBy, setSortBy] = useState('name')
+  const [autoStrategy, setAutoStrategy] = useState('maximize_classrooms')
   const [showConflictWarnings, setShowConflictWarnings] = useState(true)
   const [pendingAssignments, setPendingAssignments] = useState({})
 
@@ -156,8 +170,13 @@ export default function RoomAssignmentPage() {
       })
   }, [rooms, filterType, sortBy, scheduleRows])
 
-  const unassignedCount = scheduleRows.filter(r => !r.room || r.room.id === null).length
-  const assignedCount = scheduleRows.filter(r => r.room && r.room.id).length
+  function getResolvedRoomId(row, assignmentsMap = pendingAssignments) {
+    const rowKey = getRowKey(row.assignment.id, row.kind, row.day)
+    return assignmentsMap?.[rowKey] || row.room?.id || null
+  }
+
+  const unassignedCount = scheduleRows.filter(r => !getResolvedRoomId(r)).length
+  const assignedCount = scheduleRows.filter(r => getResolvedRoomId(r)).length
   const totalCount = scheduleRows.length
 
   function handleAssign(assignmentId, kind, day, roomId) {
@@ -178,6 +197,64 @@ export default function RoomAssignmentPage() {
       delete next[rowKey]
       return next
     })
+  }
+
+  function handleAutoAssign() {
+    if (!scheduleRows.length) return
+
+    const nextAssignments = { ...pendingAssignments }
+    const assignmentCounts = {}
+    const unassignedRows = scheduleRows.filter(row => !getResolvedRoomId(row, nextAssignments))
+    const sortedRows = [...unassignedRows].sort((a, b) => {
+      if (a.kind === 'Laboratory' && b.kind !== 'Laboratory') return -1
+      if (a.kind !== 'Laboratory' && b.kind === 'Laboratory') return 1
+      return (b.duration || 60) - (a.duration || 60)
+    })
+
+    const activeRooms = rooms.filter(room => room.status === 'Active')
+    const targetUsage = activeRooms.length > 0 ? Math.ceil(sortedRows.length / activeRooms.length) : 0
+
+    sortedRows.forEach(row => {
+      const rowKey = getRowKey(row.assignment.id, row.kind, row.day)
+      const candidates = activeRooms.filter(room => {
+        const suitability = getRoomSuitability(room, row)
+        if (!suitability.suitable) return false
+
+        const hasConflict = scheduleRows.some(otherRow => {
+          if (otherRow.assignment.id === row.assignment.id && otherRow.kind === row.kind && otherRow.day === row.day) return false
+          const otherRoomId = nextAssignments[getRowKey(otherRow.assignment.id, otherRow.kind, otherRow.day)] || otherRow.room?.id || null
+          return otherRoomId === room.id && otherRow.day === row.day && otherRow.start < row.end && row.start < otherRow.end
+        })
+
+        return !hasConflict
+      })
+
+      if (!candidates.length) return
+
+      const bestRoom = [...candidates].sort((a, b) => {
+        const aUsage = assignmentCounts[a.id] || 0
+        const bUsage = assignmentCounts[b.id] || 0
+
+        if (autoStrategy === 'balanced') {
+          const aScore = Math.abs((aUsage + 1) - targetUsage)
+          const bScore = Math.abs((bUsage + 1) - targetUsage)
+          if (aScore !== bScore) return aScore - bScore
+        } else if (autoStrategy === 'best_fit') {
+          if (a.capacity !== b.capacity) return a.capacity - b.capacity
+        } else {
+          if (aUsage !== bUsage) return aUsage - bUsage
+        }
+
+        return a.capacity - b.capacity
+      })[0]
+
+      if (bestRoom) {
+        nextAssignments[rowKey] = bestRoom.id
+        assignmentCounts[bestRoom.id] = (assignmentCounts[bestRoom.id] || 0) + 1
+      }
+    })
+
+    setPendingAssignments(nextAssignments)
   }
 
   function handleSaveAssignments() {
@@ -294,27 +371,36 @@ export default function RoomAssignmentPage() {
                 <AlertCircle size={16} /> {unassignedCount} classes still need rooms
               </p>
               <p className="mt-1 text-xs text-amber-800/75">
-                Scroll down to find available rooms for these classes.
+                Use the auto assignment tool to spread classes across rooms while avoiding time conflicts.
               </p>
             </div>
 
-            {Object.keys(pendingAssignments).length > 0 && (
-              <div className="mx-4 mb-4 flex gap-2">
-                <button
-                  onClick={handleSaveAssignments}
-                  className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-black text-white hover:opacity-90"
-                  style={{ background: MID_GREEN }}
-                >
-                  <Save size={14} /> Save {Object.keys(pendingAssignments).length} Assignment{Object.keys(pendingAssignments).length !== 1 ? 's' : ''}
-                </button>
-                <button
-                  onClick={() => setPendingAssignments({})}
-                  className="rounded-lg border border-emerald-950/15 px-4 py-2 text-sm font-black text-emerald-950 hover:bg-emerald-50"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
+            <div className="mx-4 mb-4 flex flex-wrap gap-2">
+              <button
+                onClick={handleAutoAssign}
+                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-black text-white hover:opacity-90"
+                style={{ background: MID_GREEN }}
+              >
+                <RefreshCw size={14} /> Auto Assign
+              </button>
+              {Object.keys(pendingAssignments).length > 0 && (
+                <>
+                  <button
+                    onClick={handleSaveAssignments}
+                    className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-black text-white hover:opacity-90"
+                    style={{ background: MID_GREEN }}
+                  >
+                    <Save size={14} /> Save {Object.keys(pendingAssignments).length} Assignment{Object.keys(pendingAssignments).length !== 1 ? 's' : ''}
+                  </button>
+                  <button
+                    onClick={() => setPendingAssignments({})}
+                    className="rounded-lg border border-emerald-950/15 px-4 py-2 text-sm font-black text-emerald-950 hover:bg-emerald-50"
+                  >
+                    Clear
+                  </button>
+                </>
+              )}
+            </div>
           </>
         )}
 
@@ -333,6 +419,18 @@ export default function RoomAssignmentPage() {
                     {t}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase text-emerald-950/45">Auto Strategy</label>
+              <select
+                value={autoStrategy}
+                onChange={e => setAutoStrategy(e.target.value)}
+                className="mt-1 rounded-lg border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold text-emerald-950 outline-none"
+              >
+                <option value="maximize_classrooms">Maximize classrooms</option>
+                <option value="balanced">Balanced utilization</option>
+                <option value="best_fit">Best fit capacity</option>
               </select>
             </div>
             <div>

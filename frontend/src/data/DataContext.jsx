@@ -677,17 +677,40 @@ export function DataProvider({ children }) {
   function assignRoomsToSchedule(ay, sem, roomAssignments, account) {
     // roomAssignments: { [rowId]: { roomId, roomName } }
     const now = new Date().toISOString()
-    setSchedules((prev) => prev.map((schedule) => (
-      schedule.ay === ay && schedule.sem === sem
-        ? {
-            ...schedule,
-            status: 'room_assigned',
-            roomAssignments,
-            roomsAssignedBy: account?.id || 'system',
-            roomsAssignedAt: now,
-          }
-        : schedule
-    )))
+    setSchedules((prev) => prev.map((schedule) => {
+      if (schedule.ay !== ay || schedule.sem !== sem) return schedule
+
+      const updatedScheduled = (schedule.scheduled || []).map((row) => {
+        const rowKey = `${row.assignment?.id || row.assignmentId || ''}-${row.kind || ''}-${row.day || ''}`
+        const assignment = roomAssignments?.[rowKey]
+
+        if (!assignment?.roomId) return row
+
+        const matchedRoom = rooms.find((room) => room.id === assignment.roomId)
+        return {
+          ...row,
+          room: matchedRoom
+            ? {
+                id: matchedRoom.id,
+                name: matchedRoom.name,
+                type: matchedRoom.type,
+                status: matchedRoom.status,
+                capacity: matchedRoom.capacity,
+                prog: matchedRoom.prog,
+              }
+            : { id: null, name: 'TBA', type: 'TBA' },
+        }
+      })
+
+      return {
+        ...schedule,
+        status: 'room_assigned',
+        scheduled: updatedScheduled,
+        roomAssignments,
+        roomsAssignedBy: account?.id || 'system',
+        roomsAssignedAt: now,
+      }
+    }))
     logActivity('schedule_rooms_assigned', { ay, sem, count: Object.keys(roomAssignments).length }, account?.id || 'system')
   }
 
