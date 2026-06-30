@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { programLabel } from '../../data/programs'
+import { specMatchLabel } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
 
 const FOREST = '#033826'
@@ -123,9 +124,19 @@ function PendingRow({ a, subj, fac, check, selected, onToggle }) {
             <span style={{ fontSize: 12, fontWeight: 700, color: FOREST }}>
               {fac?.fn} {fac?.ln}
             </span>
-            <span style={{ fontSize: 11, color: 'rgba(3,56,38,0.42)' }}>
-              {fac?.spec || 'No specialization on file'}
-            </span>
+            {(() => {
+              if (!fac || !subj) return <span style={{ fontSize: 11, color: 'rgba(3,56,38,0.42)' }}>No specialization on file</span>
+              const { level, message } = specMatchLabel(fac, subj)
+              const color = level === 'strong' ? '#0F6B3C' : level === 'mismatch' ? '#991B1B' : '#92400E'
+              const bg = level === 'strong' ? 'rgba(16,185,129,0.08)' : level === 'mismatch' ? 'rgba(220,38,38,0.07)' : 'rgba(217,180,74,0.12)'
+              const border = level === 'strong' ? 'rgba(16,185,129,0.20)' : level === 'mismatch' ? 'rgba(220,38,38,0.18)' : 'rgba(217,180,74,0.25)'
+              const icon = level === 'strong' ? '✓' : level === 'mismatch' ? '✗' : '⚠'
+              return (
+                <span title={message} style={{ fontSize: 11, fontWeight: 700, color, background: bg, border: `1px solid ${border}`, borderRadius: 99, padding: '2px 7px', cursor: 'help' }}>
+                  {icon} {fac.spec ? fac.spec.split(',')[0] : 'No specialization'}
+                </span>
+              )
+            })()}
           </div>
         </div>
 

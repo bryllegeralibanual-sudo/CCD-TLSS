@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { FACULTY_SEED } from './facultySeed'
 import { SUBJECTS } from './subjects'
 import { PROGRAM_BY_CODE } from './programs'
-import { checkAssignmentCompatibility, getFacultyUnits, getFacultyMaxUnits, canTeachProgram } from './validation'
+import { checkAssignmentCompatibility, getFacultyUnits, getFacultyMaxUnits, canTeachProgram, specMatchScore } from './validation'
 
 const DataContext = createContext(null)
 
@@ -510,14 +510,8 @@ export function DataProvider({ children }) {
         const availableUnits = maxUnits - currentUnits
         const wouldFit = availableUnits >= subject.lec + subject.lab
 
-        // Specialization match score (0-100)
-        let specScore = 0
-        if (fac.spec) {
-          const subjCodePrefix = subject.code.slice(0, 2).toLowerCase()
-          if (fac.spec.toLowerCase().includes(subjCodePrefix)) specScore = 100
-          else if (fac.spec.toLowerCase().includes(subject.prog.slice(0, 4).toLowerCase())) specScore = 50
-          else specScore = 20
-        }
+        // Specialization match score (0-100) — uses the proper specKey system
+        const specScore = specMatchScore(fac, subject)
 
         // Workload score (prefer less loaded, 0-100)
         const workloadScore = ((maxUnits - currentUnits) / maxUnits) * 100

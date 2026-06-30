@@ -1,14 +1,19 @@
-// Faculty/subject compatibility checks — ported from checkAssignCompat() in
-// public/ccd-scheduling.html so both systems enforce the same rules.
-// NOTE: the specialization check is the same coarse heuristic as the legacy
-// app (matches the subject code's 2-letter prefix against the spec text).
-// That's flagged as a known limitation to revisit later, not a fix made here.
+// validation.js
+// Faculty/subject compatibility checks.
+// Replaces the old coarse 2-letter code prefix heuristic with a proper
+// specKey system. See specCategories.js for the full mapping.
+
+import { specMatchLevel, specMatchLabel, specMatchScore } from './specCategories'
+
+export { specMatchLevel, specMatchLabel, specMatchScore }
 
 export function facultyPrograms(fac) {
   return [fac.prog, ...(fac.shared || [])].filter((p, i, a) => p && a.indexOf(p) === i)
 }
 
 export function canTeachProgram(fac, progCode) {
+  // Faculty with no program (e.g. PE/NSTP staff) can teach cross-program subjects
+  if (!fac.prog && (!fac.shared || fac.shared.length === 0)) return true
   return facultyPrograms(fac).includes(progCode)
 }
 
@@ -47,28 +52,35 @@ export function checkAssignmentCompatibility({ faculty, subject, section, assign
     return { ok: false, blockers: ['Select a faculty member and a subject.'], notes: [] }
   }
 
+  // ── Program eligibility ───────────────────────────────────────────────────
   if (!canTeachProgram(faculty, subject.prog)) {
-    blockers.push(`${faculty.ln} is not registered under ${subject.prog}, so they can't be assigned this subject.`)
+    blockers.push(`${faculty.ln} is not registered under ${subject.prog} and cannot be assigned this subject.`)
   }
 
-  const specMatch = faculty.spec && subject.code && faculty.spec.toLowerCase().includes(subject.code.slice(0, 2).toLowerCase())
-  if (faculty.spec && !specMatch) {
-    notes.push(`Specialization mismatch: ${faculty.ln} lists "${faculty.spec}" — not an exact match for ${subject.title}. Allowed, but flagged for the Program Head.`)
-  } else if (specMatch) {
-    notes.push(`Specialization match: ${faculty.spec}.`)
+  // ── Specialisation match (replaces the old 2-letter heuristic) ────────────
+  const { level, message } = specMatchLabel(faculty, subject)
+  if (level === 'strong') {
+    notes.push(`✓ Specialisation match: ${message}`)
+  } else if (level === 'acceptable') {
+    notes.push(`⚠ ${message}`)
+  } else {
+    // 'mismatch' — not a hard blocker but Program Head must see it
+    notes.push(`✗ ${message}`)
   }
 
+  // ── Unit load ─────────────────────────────────────────────────────────────
   const curUnits = getFacultyUnits(assignments, subjectsById, faculty.id, subject.sem, excludeId)
   const max = getFacultyMaxUnits(faculty)
   const afterUnits = curUnits + subject.lec + subject.lab
   if (afterUnits > max) {
-    notes.push(`Exceeds unit cap: ${afterUnits}/${max} units in ${subject.sem === '2nd' ? '2nd' : subject.sem} semester. Adjust existing teaching loads before assigning this subject.`)
+    notes.push(`Exceeds unit cap: ${afterUnits}/${max} units in ${subject.sem} semester. Adjust existing loads before assigning this subject.`)
   } else if (afterUnits > max * 0.85) {
     notes.push(`Near the unit limit: ${afterUnits}/${max} units after this assignment.`)
   } else {
     notes.push(`Units OK: ${afterUnits}/${max}.`)
   }
 
+  // ── Subject-code diversity (max 3 different codes per faculty) ────────────
   const currentCodes = getTeacherSubjectCodes(assignments, subjectsById, faculty.id, excludeId)
   const isNewCode = !currentCodes.has(subject.code)
   const wouldHave = isNewCode ? currentCodes.size + 1 : currentCodes.size
@@ -78,6 +90,7 @@ export function checkAssignmentCompatibility({ faculty, subject, section, assign
     notes.push(`Subject diversity OK: ${wouldHave}/3 codes.`)
   }
 
+  // ── Duplicate guard ───────────────────────────────────────────────────────
   const duplicate = assignments.find(
     (a) => a.id !== excludeId && a.facultyId === faculty.id && a.subjectId === subject.id && a.section === section && a.status !== 'rejected' && a.status !== 'withdrawn',
   )

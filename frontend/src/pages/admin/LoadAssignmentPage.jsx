@@ -6,7 +6,7 @@ import {
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, getSections } from '../../data/programs'
-import { canTeachProgram, getFacultyMaxUnits, getFacultyUnits } from '../../data/validation'
+import { canTeachProgram, getFacultyMaxUnits, getFacultyUnits, specMatchScore, specMatchLabel } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
 
 const FOREST = '#033826'
@@ -778,36 +778,10 @@ export default function LoadAssignmentPage() {
     return (subject?.lec || 0) + (subject?.lab || 0)
   }
 
+  // Uses the canonical specMatchScore from specCategories.js via validation.js
+  // (replaces the old coarse 2-letter code prefix heuristic)
   function specScore(facultyRecord, subject) {
-    const spec = (facultyRecord.spec || '').toLowerCase()
-    const codePrefix = (subject.code || '').slice(0, 2).toLowerCase()
-    const progCode = (subject.prog || '').slice(0, 4).toLowerCase()
-    const fullTitle = (subject.title || '').toLowerCase()
-    const titleWords = fullTitle.split(/\W+/).filter(word => word.length > 3)
-    
-    // Exact code match (e.g., "CP" in Computer Programming specialization)
-    if (codePrefix && spec.includes(codePrefix)) return 100
-    
-    // Program code match (e.g., "BTVT" from BTVTED-CP)
-    if (progCode && spec.includes(progCode)) return 85
-    
-    // Strong keyword matches from title
-    const keywordMatches = titleWords.filter(word => spec.includes(word)).length
-    if (keywordMatches >= 2) return 75
-    if (keywordMatches === 1) return 60
-    
-    // Check for related technical terms in specialization
-    const techTerms = titleWords.filter(word => 
-      spec.includes(word) || 
-      (word.length > 4 && spec.includes(word.slice(0, -1))) // "networking" → "network"
-    )
-    if (techTerms.length > 0) return 50
-    
-    // Faculty has any specialization (even if not matching)
-    if (spec.length > 0) return 20
-    
-    // No specialization info
-    return 5
+    return specMatchScore(facultyRecord, subject)
   }
 
   function handleAutoAssignProgram() {
@@ -853,7 +827,7 @@ export default function LoadAssignmentPage() {
             specScoreVal,
             yearScoreVal,
             canFit,
-            hasSpecMatch: specScoreVal >= 50,
+            hasSpecMatch: specScoreVal >= 100, // strong match only (specMatchScore: strong=100, acceptable=45, mismatch=5)
           }
         })
         .filter(c => c.canFit) // STRICT: Only candidates that fit within max limit
