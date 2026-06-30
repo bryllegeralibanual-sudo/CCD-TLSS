@@ -165,6 +165,34 @@ export function DataProvider({ children }) {
       return { ok: false, blockers: [`${term.ay} ${term.sem} semester is already finalized - reopen it before making changes.`], created: [] }
     }
 
+    const blockers = []
+    const simulated = assignments.filter((a) => a.ay === term.ay).map((a) => ({ ...a }))
+    items.forEach((item) => {
+      const check = checkAssignmentCompatibility({
+        faculty: facultyById[item.facultyId],
+        subject: subjectsById[item.subjectId],
+        section: item.section,
+        assignments: simulated,
+        subjectsById,
+      })
+      if (!check.ok) {
+        const subject = subjectsById[item.subjectId]
+        const facultyRecord = facultyById[item.facultyId]
+        blockers.push(`${item.section} ${subject?.code || item.subjectId}: ${check.blockers[0] || `${facultyRecord?.ln || 'Faculty'} is not eligible.`}`)
+        return
+      }
+      simulated.push({
+        id: `bulk-${simulated.length}`,
+        ay: term.ay,
+        facultyId: item.facultyId,
+        subjectId: item.subjectId,
+        section: item.section,
+        status: 'draft',
+      })
+    })
+
+    if (blockers.length) return { ok: false, blockers, created: [] }
+
     const createdAt = new Date().toISOString()
     setAssignments((prev) => {
       const nextStartId = prev.reduce((max, a) => Math.max(max, a.id), 0) + 1

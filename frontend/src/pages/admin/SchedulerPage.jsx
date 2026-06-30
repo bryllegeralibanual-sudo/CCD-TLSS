@@ -8,6 +8,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, getSections, programLabel } from '../../data/programs'
 import ScheduleViewByProgram from '../../components/ScheduleViewByProgram'
+import { runGreedySchedule } from '../../utils/greedyScheduler'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -1079,8 +1080,12 @@ export default function SchedulerPage() {
   const utilization = activeRooms ? Math.round((roomMinutes / (activeRooms * utilizationDays * (CLOSE - OPEN))) * 100) : 0
 
   function generate() {
-    const initial = applyPolicyGuards(makeSchedule({ approved, subjectsById, facultyById, rooms, yearBlocks, settings }))
-    if (initial.unscheduled.length > 0 && initial.unscheduled.every(item => item.type === 'no-slot')) {
+    // Prefer the new greedy scheduler (fast, high coverage). Keep the original
+    // makeSchedule as a fallback if desired.
+    const greedy = runGreedySchedule({ approved, subjectsById, facultyById, rooms, yearBlocks, settings })
+    const initial = applyPolicyGuards({ scheduled: greedy.scheduled, unscheduled: greedy.unscheduled, offCampus: [] })
+    // If greedy left many unscheduled, try original full search as fallback
+    if (initial.unscheduled.length > 0 && initial.unscheduled.length > greedy.scheduled.length * 0.1) {
       const fallback = applyPolicyGuards(makeSchedule({ approved, subjectsById, facultyById, rooms, yearBlocks: FULL_DAY_YEAR_BLOCKS, settings }))
       if (fallback.unscheduled.length < initial.unscheduled.length) {
         setResult(fallback)

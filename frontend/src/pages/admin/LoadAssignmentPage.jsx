@@ -6,7 +6,7 @@ import {
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, getSections } from '../../data/programs'
-import { canTeachProgram, getFacultyMaxUnits, getFacultyUnits, specMatchScore, specMatchLabel } from '../../data/validation'
+import { canTeachProgram, checkAssignmentCompatibility, getFacultyMaxUnits, getFacultyUnits, specMatchScore, specMatchLabel } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
 
 const FOREST = '#033826'
@@ -652,6 +652,7 @@ export default function LoadAssignmentPage() {
   const [filterStatus, setFilterStatus] = useState('ALL')
   const [viewMode, setViewMode] = useState('all')
   const [toast, setToast] = useState(null)
+  const [autoPreview, setAutoPreview] = useState(null)
   const [submittedSections, setSubmittedSections] = useState(() => {
     try {
       const saved = localStorage.getItem(`ccd-tlss.submitted-sections`)
@@ -784,9 +785,7 @@ export default function LoadAssignmentPage() {
     return specMatchScore(facultyRecord, subject)
   }
 
-  function handleAutoAssignProgram() {
-    if (finalized) return
-
+  function buildAutoAssignPlan() {
     const termAssignments = assignments.filter(a => a.ay === term.ay)
     const simulated = termAssignments.filter(a => a.status !== 'rejected' && a.status !== 'withdrawn').map(a => ({ ...a }))
     const loads = new Map(facultyOptions.map(fac => [fac.id, getFacultyUnits(simulated, subjectsById, fac.id, term.sem)]))
@@ -802,20 +801,49 @@ export default function LoadAssignmentPage() {
       return simulated.some(a => a.facultyId === facultyId && a.subjectId === subjectId && a.section === section && a.status !== 'rejected' && a.status !== 'withdrawn')
     }
 
+    function explainNoCandidate(task) {
+      const eligibleFaculty = facultyOptions.filter(fac => canTeachProgram(fac, task.subject.prog))
+      if (eligibleFaculty.length === 0) return `No faculty is registered for ${task.subject.prog}.`
+
+      const availableFaculty = eligibleFaculty.filter(fac => !hasExactAssignment(fac.id, task.subject.id, task.section))
+      if (availableFaculty.length === 0) return 'All eligible faculty are already assigned to this exact subject and section.'
+
+      const capacityMatches = availableFaculty.filter(fac => (loads.get(fac.id) || 0) + task.units <= getFacultyMaxUnits(fac))
+      if (capacityMatches.length === 0) return 'All eligible faculty would exceed their maximum unit load.'
+
+      const validationIssues = capacityMatches
+        .map(fac => checkAssignmentCompatibility({
+          faculty: fac,
+          subject: task.subject,
+          section: task.section,
+          assignments: simulated,
+          subjectsById,
+        }))
+        .flatMap(check => check.blockers || [])
+
+      return validationIssues[0] || 'No eligible faculty passed the assignment validation rules.'
+    }
+
     function chooseCandidate(task) {
-      // STRICT: Only assign teachers who don't exceed their 18-unit limit (NO OVERLOAD)
       const candidates = facultyOptions
         .filter(fac => canTeachProgram(fac, task.subject.prog) && !hasExactAssignment(fac.id, task.subject.id, task.section))
         .map(fac => {
           const current = loads.get(fac.id) || 0
           const max = getFacultyMaxUnits(fac)
           const after = current + task.units
-          const canFit = after <= max // STRICT: Can only assign if it fits within max
+          const validation = checkAssignmentCompatibility({
+            faculty: fac,
+            subject: task.subject,
+            section: task.section,
+            assignments: simulated,
+            subjectsById,
+          })
+          const canFit = after <= max
           const specScoreVal = specScore(fac, task.subject)
           const yearScoreVal = yearPriorityScore(fac, task.subject)
           const reusableCode = simulated.some(a => a.facultyId === fac.id && subjectsById[a.subjectId]?.code === task.subject.code)
+          const isAcceptableSpec = specScoreVal >= 45
           
-          // Overall score: prioritizes specialization heavily
           const score = (specScoreVal * 2) + yearScoreVal + (reusableCode ? 15 : 0) - (current / Math.max(max, 1)) * 8
           
           return { 
@@ -827,21 +855,19 @@ export default function LoadAssignmentPage() {
             specScoreVal,
             yearScoreVal,
             canFit,
-            hasSpecMatch: specScoreVal >= 100, // strong match only (specMatchScore: strong=100, acceptable=45, mismatch=5)
+            validation,
+            isAcceptableSpec,
+            hasSpecMatch: specScoreVal >= 100,
           }
         })
-        .filter(c => c.canFit) // STRICT: Only candidates that fit within max limit
+        .filter(c => c.canFit && c.validation.ok && c.isAcceptableSpec)
       
       if (candidates.length === 0) return null
       
-      // Multi-pass selection strategy (WITHOUT overload):
-      
-      // Pass 1: Specialization match (highest priority)
       const pass1 = candidates.filter(c => c.hasSpecMatch)
         .sort((a, b) => b.specScoreVal - a.specScoreVal || b.yearScoreVal - a.yearScoreVal || b.score - a.score || a.fac.ln.localeCompare(b.fac.ln))
       if (pass1.length > 0) return pass1[0]
       
-      // Pass 2: ANY candidate available
       const pass2 = candidates
         .sort((a, b) => b.yearScoreVal - a.yearScoreVal || b.score - a.score || a.fac.ln.localeCompare(b.fac.ln))
       return pass2[0] || null
@@ -853,8 +879,11 @@ export default function LoadAssignmentPage() {
         // Can't assign this subject - mark as TBA (To Be Assigned)
         tba.push({
           subjectId: task.subject.id,
+          subjectCode: task.subject.code,
+          subjectTitle: task.subject.title,
           section: task.section,
-          reason: 'Not enough available teachers within capacity - load adjustment required',
+          units: task.units,
+          reason: explainNoCandidate(task),
         })
         continue
       }
@@ -871,26 +900,34 @@ export default function LoadAssignmentPage() {
       loads.set(picked.fac.id, picked.after)
       created.push({
         facultyId: picked.fac.id,
+        facultyName: `${picked.fac.ln}, ${picked.fac.fn}`,
+        facultySpec: picked.fac.spec,
+        afterUnits: picked.after,
+        maxUnits: picked.max,
+        specScore: picked.specScoreVal,
         subjectId: task.subject.id,
+        subjectCode: task.subject.code,
+        subjectTitle: task.subject.title,
         section: task.section,
+        units: task.units,
       })
     }
 
-    if (created.length === 0 && tba.length === 0) {
-      notify('error', 'All visible program subjects are already assigned.')
-      return
-    }
+    return { created, tba, taskCount: tasks.length, program: selectedProgram }
+  }
 
-    // Create the assignments
+  function commitAutoAssignPlan(plan) {
+    if (!plan || finalized) return false
+    const { created, tba } = plan
+
     if (created.length > 0) {
       const result = createBulkAssignments(created, account)
       if (!result.ok) {
         notify('error', result.blockers?.[0] || 'Auto assignment could not be saved.')
-        return
+        return false
       }
     }
 
-    // Create TBA placeholder assignments (facultyId = null, status = 'tba')
     if (tba.length > 0) {
       const createdAt = new Date().toISOString()
       setAssignments((prev) => {
@@ -914,12 +951,32 @@ export default function LoadAssignmentPage() {
       })
     }
 
+    return true
+  }
+
+  function handleAutoAssignProgram() {
+    if (finalized) return
+
+    const plan = buildAutoAssignPlan()
+    if (plan.created.length === 0 && plan.tba.length === 0) {
+      notify('error', 'All visible program subjects are already assigned.')
+      return
+    }
+    setAutoPreview(plan)
+  }
+
+  function confirmAutoAssignProgram() {
+    if (!autoPreview) return
+    const committed = commitAutoAssignPlan(autoPreview)
+    if (!committed) return
+
     const summary = []
-    if (created.length > 0) summary.push(`${created.length} auto-assigned`)
-    if (tba.length > 0) summary.push(`${tba.length} marked as TBA (load adjustment needed)`)
+    if (autoPreview.created.length > 0) summary.push(`${autoPreview.created.length} auto-assigned`)
+    if (autoPreview.tba.length > 0) summary.push(`${autoPreview.tba.length} marked as TBA (load adjustment needed)`)
     const message = summary.length > 0 
       ? `Done: ${summary.join(', ')}. Review assignments, then click "Submit for Review" on each section.`
       : 'Auto-assignment complete.'
+    setAutoPreview(null)
     notify('success', message)
   }
 
@@ -953,6 +1010,80 @@ export default function LoadAssignmentPage() {
   return (
     <div style={{ maxWidth: 1360, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Toast toast={toast} onClose={() => setToast(null)} />
+      {autoPreview && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(3,56,38,0.38)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18 }}>
+          <div style={{ width: 'min(860px, 100%)', maxHeight: '88vh', overflow: 'hidden', borderRadius: 16, background: '#fff', border: '1px solid rgba(3,56,38,0.14)', boxShadow: '0 24px 60px rgba(3,56,38,0.26)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '15px 18px', borderBottom: '1px solid rgba(3,56,38,0.10)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(15,107,60,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Wand2 size={16} style={{ color: MID_GREEN }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: FOREST, fontFamily: "'EB Garamond',Georgia,serif" }}>Auto Assignment Preview</p>
+                <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 700, color: 'rgba(3,56,38,0.50)' }}>
+                  {autoPreview.created.length} assignment{autoPreview.created.length !== 1 ? 's' : ''} ready, {autoPreview.tba.length} TBA
+                </p>
+              </div>
+              <button type="button" onClick={() => setAutoPreview(null)} aria-label="Close preview" style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(3,56,38,0.12)', background: '#fff', color: 'rgba(3,56,38,0.65)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={15} />
+              </button>
+            </div>
+
+            <div style={{ padding: 16, overflow: 'auto', display: 'grid', gap: 14 }}>
+              {autoPreview.created.length > 0 && (
+                <section style={{ border: '1px solid rgba(16,185,129,0.20)', borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 12px', background: 'rgba(16,185,129,0.08)', borderBottom: '1px solid rgba(16,185,129,0.16)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <CheckCircle2 size={14} style={{ color: MID_GREEN }} />
+                    <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: MID_GREEN }}>Assignments to create</p>
+                  </div>
+                  <div style={{ display: 'grid', maxHeight: 280, overflow: 'auto' }}>
+                    {autoPreview.created.map((item, index) => (
+                      <div key={`${item.section}-${item.subjectId}-${item.facultyId}-${index}`} style={{ padding: '10px 12px', borderTop: index ? '1px solid rgba(3,56,38,0.07)' : 'none', display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) minmax(160px, 1.2fr) minmax(150px, 1fr)', gap: 10, alignItems: 'center' }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: FOREST }}>{item.section}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(3,56,38,0.55)', fontWeight: 700 }}>{item.subjectCode} - {item.units} units</p>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 12, color: 'rgba(3,56,38,0.72)', fontWeight: 700 }}>{item.subjectTitle}</p>
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: FOREST }}>{item.facultyName}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: 10.5, color: 'rgba(3,56,38,0.50)', fontWeight: 700 }}>{item.afterUnits}/{item.maxUnits} units after</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {autoPreview.tba.length > 0 && (
+                <section style={{ border: '1px solid rgba(217,180,74,0.30)', borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 12px', background: 'rgba(217,180,74,0.10)', borderBottom: '1px solid rgba(217,180,74,0.22)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <AlertTriangle size={14} style={{ color: '#B45309' }} />
+                    <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: '#92400E' }}>Will be marked TBA</p>
+                  </div>
+                  <div style={{ display: 'grid', maxHeight: 220, overflow: 'auto' }}>
+                    {autoPreview.tba.map((item, index) => (
+                      <div key={`${item.section}-${item.subjectId}-${index}`} style={{ padding: '10px 12px', borderTop: index ? '1px solid rgba(3,56,38,0.07)' : 'none', display: 'grid', gridTemplateColumns: 'minmax(120px, .8fr) minmax(180px, 1fr) minmax(220px, 1.5fr)', gap: 10 }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: FOREST }}>{item.section}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(3,56,38,0.55)', fontWeight: 700 }}>{item.subjectCode} - {item.units} units</p>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 12, color: 'rgba(3,56,38,0.72)', fontWeight: 700 }}>{item.subjectTitle}</p>
+                        <p style={{ margin: 0, fontSize: 11, color: '#92400E', fontWeight: 700 }}>{item.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+
+            <div style={{ padding: '13px 16px', borderTop: '1px solid rgba(3,56,38,0.10)', display: 'flex', justifyContent: 'flex-end', gap: 10, background: 'rgba(3,56,38,0.02)' }}>
+              <button type="button" onClick={() => setAutoPreview(null)} style={{ border: '1px solid rgba(3,56,38,0.14)', background: '#fff', color: FOREST, borderRadius: 9, padding: '8px 12px', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}>Cancel</button>
+              <button type="button" onClick={confirmAutoAssignProgram} style={{ border: 'none', background: MID_GREEN, color: '#fff', borderRadius: 9, padding: '8px 13px', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}>
+                Confirm Auto Assign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ background: '#fff', borderRadius: 16, border: '1px solid rgba(3,56,38,0.10)', overflow: 'hidden', boxShadow: '0 1px 4px rgba(3,56,38,0.06)' }}>
         <div style={{ background: `linear-gradient(105deg, ${FOREST} 0%, ${MID_GREEN} 100%)`, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>

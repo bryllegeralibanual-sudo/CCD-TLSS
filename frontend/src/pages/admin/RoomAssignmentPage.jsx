@@ -136,7 +136,7 @@ export default function RoomAssignmentPage() {
   const { term, rooms, savedScheduleForTerm, assignRoomsToSchedule } = useData()
   const [filterType, setFilterType] = useState('ALL')
   const [sortBy, setSortBy] = useState('name')
-  const [autoStrategy, setAutoStrategy] = useState('maximize_classrooms')
+  const [autoStrategy, setAutoStrategy] = useState('early_finish')
   const [showConflictWarnings, setShowConflictWarnings] = useState(true)
   const [pendingAssignments, setPendingAssignments] = useState({})
 
@@ -206,6 +206,8 @@ export default function RoomAssignmentPage() {
     const assignmentCounts = {}
     const unassignedRows = scheduleRows.filter(row => !getResolvedRoomId(row, nextAssignments))
     const sortedRows = [...unassignedRows].sort((a, b) => {
+      if ((a.subject?.yr || 9) !== (b.subject?.yr || 9)) return (a.subject?.yr || 9) - (b.subject?.yr || 9)
+      if (a.start !== b.start) return a.start - b.start
       if (a.kind === 'Laboratory' && b.kind !== 'Laboratory') return -1
       if (a.kind !== 'Laboratory' && b.kind === 'Laboratory') return 1
       return (b.duration || 60) - (a.duration || 60)
@@ -241,6 +243,10 @@ export default function RoomAssignmentPage() {
           if (aScore !== bScore) return aScore - bScore
         } else if (autoStrategy === 'best_fit') {
           if (a.capacity !== b.capacity) return a.capacity - b.capacity
+        } else if (autoStrategy === 'early_finish') {
+          const aOwned = a.prog && a.prog === row.subject?.prog ? 0 : 1
+          const bOwned = b.prog && b.prog === row.subject?.prog ? 0 : 1
+          if (aOwned !== bOwned) return aOwned - bOwned
         } else {
           if (aUsage !== bUsage) return aUsage - bUsage
         }
@@ -371,7 +377,7 @@ export default function RoomAssignmentPage() {
                 <AlertCircle size={16} /> {unassignedCount} classes still need rooms
               </p>
               <p className="mt-1 text-xs text-amber-800/75">
-                Use the auto assignment tool to spread classes across rooms while avoiding time conflicts.
+                Use the auto assignment tool to keep the approved early schedule intact while avoiding room conflicts.
               </p>
             </div>
 
@@ -428,7 +434,8 @@ export default function RoomAssignmentPage() {
                 onChange={e => setAutoStrategy(e.target.value)}
                 className="mt-1 rounded-lg border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold text-emerald-950 outline-none"
               >
-                <option value="maximize_classrooms">Maximize classrooms</option>
+                <option value="early_finish">Early-finish priority</option>
+                <option value="maximize_classrooms">Spread across rooms</option>
                 <option value="balanced">Balanced utilization</option>
                 <option value="best_fit">Best fit capacity</option>
               </select>
