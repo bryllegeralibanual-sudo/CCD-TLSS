@@ -449,10 +449,7 @@ function startCandidates(window, duration) {
   return starts
 }
 
-// placeTask: single-day placement (used for labs and single-meeting lectures).
-// activeRooms and roomUse were already in context but never destructured here —
-// that was the root cause of every class getting "TBA" and zero room tracking.
-function placeTask(task, { activeRooms, facultyById, facultyUse, sectionUse, roomUse, yearBlocks, settings }, allowCrossProgramFallback = false) {
+function placeTask(task, { facultyById, facultyUse, sectionUse, yearBlocks, settings }, allowCrossProgramFallback = false) {
   const block = yearBlocks[task.subject.yr] || yearBlocks[4]
   const facultyWindow = preferredWindowForFaculty(facultyById[task.assignment.facultyId])
   const windows = facultyWindow ? [
@@ -468,18 +465,11 @@ function placeTask(task, { activeRooms, facultyById, facultyUse, sectionUse, roo
         if (unavailableForFaculty(settings, task.assignment.facultyId).some(item => ruleOverlaps(item, candidate))) continue
         if (!isFree(facultyUse, task.assignment.facultyId, candidate)) continue
         if (!isFree(sectionUse, task.assignment.section, candidate)) continue
-
-        // Find a room that is actually free at this day+time.
-        // roomCandidates() is already sorted by preference (program-owned first, least-used first).
-        const pool = roomCandidates(activeRooms || [], task, settings, allowCrossProgramFallback, roomUse, day)
-        const room = pool.find(r => isFree(roomUse, r.id, candidate))
-        if (!room) continue   // No room free at this slot — try the next start time
-
         return {
           placed: {
             ...task,
             ...candidate,
-            room,
+            room: createTbaRoom(),
             faculty: facultyById[task.assignment.facultyId],
           },
           error: null,
@@ -488,51 +478,7 @@ function placeTask(task, { activeRooms, facultyById, facultyUse, sectionUse, roo
     }
   }
 
-  return { placed: null, error: { task, type: 'no-slot', reason: `No available ${task.roomType} slot within Year ${task.subject.yr} ${block.label} block (${timeLabel(block.start)}–${timeLabel(block.end)})` } }
-}
-
-// placeMultiDayTask: atomic placement for MWF / TTH lecture patterns.
-// Finds a single (startTime, room) pair that is free on ALL meeting days simultaneously,
-// so the same room is guaranteed across every session of the pattern.
-function placeMultiDayTask(task, days, { activeRooms, facultyById, facultyUse, sectionUse, roomUse, yearBlocks, settings }, allowCrossProgramFallback = false) {
-  const block = yearBlocks[task.subject.yr] || yearBlocks[4]
-  const facultyWindow = preferredWindowForFaculty(facultyById[task.assignment.facultyId])
-  const windows = facultyWindow ? [
-    { start: Math.max(block.start, facultyWindow.start), end: Math.min(block.end, facultyWindow.end) },
-    block,
-  ].filter(w => w.start < w.end) : [block]
-
-  const facUnavailable = unavailableForFaculty(settings, task.assignment.facultyId)
-
-  for (const window of windows) {
-    for (const start of startCandidates(window, task.duration)) {
-      const end = start + task.duration
-      const candidates = days.map(day => ({ day, start, end }))
-
-      // Every day must pass break, faculty-unavailable, faculty-free, and section-free checks
-      if (candidates.some(c => violatesBreaks(settings, c))) continue
-      if (candidates.some(c => facUnavailable.some(rule => ruleOverlaps(rule, c)))) continue
-      if (!candidates.every(c => isFree(facultyUse, task.assignment.facultyId, c))) continue
-      if (!candidates.every(c => isFree(sectionUse, task.assignment.section, c))) continue
-
-      // Find one room that is free on ALL meeting days at this time.
-      // Using days[0] for day-specific room filters (e.g. gym on Saturdays).
-      const pool = roomCandidates(activeRooms || [], task, settings, allowCrossProgramFallback, roomUse, days[0])
-      const room = pool.find(r => candidates.every(c => isFree(roomUse, r.id, c)))
-      if (!room) continue  // Same room not available on all days — try next start time
-
-      const faculty = facultyById[task.assignment.facultyId]
-      return {
-        placed: candidates.map(c => ({ ...task, ...c, room, faculty })),
-        error: null,
-      }
-    }
-  }
-
-  return {
-    placed: null,
-    error: { task, type: 'no-slot', reason: `No ${days.join('/')} slot with an available ${task.roomType} in Year ${task.subject.yr} ${block.label} block (${timeLabel(block.start)}–${timeLabel(block.end)})` },
-  }
+  return { placed: null, error: { task, type: 'no-slot', reason: `No conflict-free slot within Year ${task.subject.yr} ${block.label} (${timeLabel(block.start)}-${timeLabel(block.end)})` } }
 }
 
 function commitPlaced(item, maps, scheduled) {
