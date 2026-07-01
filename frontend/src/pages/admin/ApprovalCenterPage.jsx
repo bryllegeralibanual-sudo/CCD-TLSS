@@ -1,14 +1,11 @@
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Clock, Filter, RefreshCw, TrendingUp, X, AlertCircle, ChevronRight, FileText } from 'lucide-react'
-import { useAuth } from '../../auth/AuthContext'
+import { CheckCircle2, Clock, TrendingUp, AlertCircle, FileText } from 'lucide-react'
 import { useData } from '../../data/DataContext'
 import { useTheme } from '../../context/ThemeContext'
 import { PROGRAMS } from '../../data/programs'
-import StatusBadge from '../../components/StatusBadge'
 
 const GOLD = '#D9B44A'
 const FOREST = '#033826'
-const MID_GREEN = '#0F6B3C'
 
 function card(dark) {
   return `rounded-2xl border p-5 transition-all duration-200 ${
@@ -177,11 +174,8 @@ function ApprovalSection({ title, icon: Icon, items, status, dark, onActionClick
 }
 
 export default function ApprovalCenterPage() {
-  const { account } = useAuth()
   const { dark } = useTheme()
   const { term, termAssignments, subjectsById, facultyById, isTermFinalized } = useData()
-  const [selectedFilter, setSelectedFilter] = useState('all')
-  const [selectedItem, setSelectedItem] = useState(null)
   const [selectedProgram, setSelectedProgram] = useState('all')
 
   const ta = useMemo(() => termAssignments(term.ay, term.sem), [term, termAssignments])
@@ -295,9 +289,7 @@ export default function ApprovalCenterPage() {
     [rejected, selectedProgram]
   )
 
-  const handleAction = (item, status) => {
-    setSelectedItem({ ...item, currentStatus: status })
-  }
+  const handleAction = () => {}
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">

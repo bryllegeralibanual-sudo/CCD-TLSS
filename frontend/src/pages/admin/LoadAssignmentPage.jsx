@@ -6,9 +6,8 @@ import {
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, getSections } from '../../data/programs'
-import { canTeachProgram, checkAssignmentCompatibility, getFacultyMaxUnits, getFacultyUnits, specMatchScore, specMatchLabel } from '../../data/validation'
+import { canTeachProgram, checkAssignmentCompatibility, getFacultyMaxUnits, getFacultyUnits, specMatchScore } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
-import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -642,7 +641,6 @@ function SectionCard({
 
 export default function LoadAssignmentPage() {
   const { account } = useAuth()
-  const { dark } = useTheme()
   const {
     term, isTermFinalized,
     faculty, subjects, assignments, setAssignments,
@@ -671,6 +669,7 @@ export default function LoadAssignmentPage() {
   }, [submittedSections])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSubmittedSections(new Set())
   }, [selectedProgram])
 
@@ -997,6 +996,8 @@ export default function LoadAssignmentPage() {
       notify('error', 'No draft assignments to submit.')
       return
     }
+    const ok = window.confirm(`Submit ${sectionAssignments.length} draft assignment(s) for ${sectionName} to the Program Head?`)
+    if (!ok) return
 
     // Submit draft assignments to program head for review
     const assignmentIds = sectionAssignments.map(a => a.id)

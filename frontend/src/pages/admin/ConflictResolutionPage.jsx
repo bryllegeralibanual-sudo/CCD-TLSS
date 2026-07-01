@@ -1,15 +1,13 @@
 import { useMemo, useState } from 'react'
 import {
-  AlertTriangle, CheckCircle2, Clock, DoorOpen, RefreshCw, Send, AlertCircle,
-  XCircle, ArrowRight, Calendar,
+  AlertTriangle, CheckCircle2, RefreshCw, Send, AlertCircle,
+  XCircle, Calendar,
 } from 'lucide-react'
-import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
-const GOLD = '#D9B44A'
 
 function timeLabel(minutes) {
   const hour24 = Math.floor(minutes / 60)
@@ -20,7 +18,6 @@ function timeLabel(minutes) {
 }
 
 export default function ConflictResolutionPage() {
-  const { account } = useAuth()
   const { dark } = useTheme()
   const { term, savedScheduleForTerm, getScheduleConflicts, suggestAlternativeTimeSlots } = useData()
   const [selectedAlternatives, setSelectedAlternatives] = useState({})
@@ -80,11 +77,6 @@ export default function ConflictResolutionPage() {
         </div>
       </div>
     )
-  }
-
-  function getAlternativeLabel(conflict, altIndex) {
-    const alt = suggestAlternativeTimeSlots(conflict.rows[1], savedSchedule)[altIndex]
-    return alt?.label || 'Unknown'
   }
 
   function handleSubmitResolution() {

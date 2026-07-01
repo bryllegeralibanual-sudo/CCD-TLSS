@@ -882,7 +882,7 @@ export function DataProvider({ children }) {
     return detectRoomConflicts(schedule)
   }
 
-  function suggestAlternativeTimeSlots(conflictRow, schedule, occupiedTimes = {}) {
+  function suggestAlternativeTimeSlots(conflictRow, schedule) {
     // Returns list of alternative time slots that don't conflict
     if (!schedule?.scheduled) return []
     

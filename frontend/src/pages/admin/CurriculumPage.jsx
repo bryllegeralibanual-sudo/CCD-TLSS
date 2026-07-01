@@ -10,6 +10,7 @@ const MID_GREEN = '#0F6B3C'
 const GOLD = '#D9B44A'
 
 function Stat({ label, value }) {
+  const { dark } = useTheme()
   return (
     <div className={`rounded-xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-4 py-3 shadow-sm`}>
       <p className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-950/45">{label}</p>

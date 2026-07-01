@@ -29,6 +29,8 @@ export default function RegistrarPage() {
   const canFinalize = schedule?.status === 'approved' && !finalized && blockers.length === 0
 
   function finalize() {
+    const ok = window.confirm('Finalize the approved schedule for Registrar release? This locks the schedule for the term.')
+    if (!ok) return
     finalizeScheduleForTerm(term.ay, term.sem, account)
   }
 

@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { Bell, X, CheckCircle2, AlertCircle, Clock, Zap } from 'lucide-react'
+import { Bell, X, AlertCircle, Clock, Zap } from 'lucide-react'
 
 const MID_GREEN = '#0F6B3C'
-const GOLD = '#D9B44A'
 
-export default function NotificationCenter({ alerts, approvals, dark, term }) {
+export default function NotificationCenter({ alerts, approvals, dark }) {
   const [isOpen, setIsOpen] = useState(false)
   const [read, setRead] = useState(new Set())
   const ref = useRef(null)
@@ -65,9 +64,6 @@ export default function NotificationCenter({ alerts, approvals, dark, term }) {
     return colorMap[color] || MID_GREEN
   }
 
-  const getBg = (dark) => dark ? 'bg-[#101F18]' : 'bg-white'
-  const getBorder = (dark) => dark ? 'border-emerald-900/30' : 'border-gray-100'
-  const getText = (dark) => dark ? 'text-emerald-50' : 'text-gray-900'
   const getSubtext = (dark) => dark ? 'text-emerald-200/60' : 'text-gray-600'
 
   return (

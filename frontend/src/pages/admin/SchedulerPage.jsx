@@ -107,7 +107,7 @@ function getSubjectUnitRequirements(subject) {
   }
 }
 
-function getScheduledUnitsForAssignment(scheduled, assignmentId, subjectsById) {
+function getScheduledUnitsForAssignment(scheduled, assignmentId) {
   const rows = scheduled.filter(row => row.assignment.id === assignmentId)
   const lectureHours = rows.filter(row => row.kind === 'Lecture').reduce((sum, row) => sum + row.duration / 60, 0)
   const labHours = rows.filter(row => row.kind === 'Laboratory').reduce((sum, row) => sum + row.duration / 60, 0)
@@ -152,7 +152,7 @@ function isRegularClassroom(room) {
   return room?.type === 'Classroom' || room?.type === 'Speech Lab' || room?.type === 'Science Lab'
 }
 
-function roomMatches(room, roomType, program, subject, allowCrossProgramFallback = false, day = null, roomUse = new Map()) {
+function roomMatches(room, roomType, program, subject, allowCrossProgramFallback = false, day = null) {
   if (!roomType || room.status === 'Inactive') return false
   
   // GYM constraint: Saturday is NSTP-only
@@ -349,7 +349,6 @@ function calculateSchedulingDifficulty(subject) {
 
 function scheduleNSTPSchoolWide(approved, subjectsById, facultyById) {
   const nstpScheduled = []
-  const remainingApprovals = []
   const room = createTbaRoom()
 
   const nstpBySubject = new Map()
@@ -754,18 +753,8 @@ function scheduleTone(row) {
     : 'border-emerald-900/15 bg-emerald-50 text-emerald-950'
 }
 
-function getYearColor(year) {
-  // Color scheme by year level
-  const yearColors = {
-    1: { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-900', label: 'Year 1' },
-    2: { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-900', label: 'Year 2' },
-    3: { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-900', label: 'Year 3' },
-    4: { bg: 'bg-purple-100', border: 'border-purple-300', text: 'text-purple-900', label: 'Year 4' },
-  }
-  return yearColors[year] || { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-900', label: 'Unknown' }
-}
-
 function Metric({ icon: Icon, label, value, tone = FOREST }) {
+  const { dark } = useTheme()
   return (
     <div className={`rounded-lg border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-4 py-3`}>
       <div className="flex items-center gap-2 text-[11px] font-black uppercase text-emerald-950/45"><Icon size={14} /> {label}</div>
@@ -815,155 +804,8 @@ function ScheduleGrid({ rows, onEdit, locked, days }) {
   )
 }
 
-function RoomOccupancyGrid({ rows, rooms, days, selectedSection, onSectionChange, sectionOptions }) {
-  const filteredRows = useMemo(() => {
-    if (!selectedSection || selectedSection === 'ALL') return rows
-    return rows.filter(row => row.assignment.section === selectedSection)
-  }, [rows, selectedSection])
-
-  const roomRows = useMemo(() => {
-    const ids = Array.from(new Set(filteredRows.map(row => String(row.room.id))))
-    return ids.map(id => rooms.find(room => String(room.id) === id)).filter(Boolean)
-  }, [filteredRows, rooms])
-
-  const occupancyByRoom = useMemo(() => {
-    const totals = {}
-    roomRows.forEach(room => {
-      const roomRowsForRoom = filteredRows.filter(row => String(row.room.id) === String(room.id))
-      const usedSlots = roomRowsForRoom.reduce((sum, row) => sum + (row.end - row.start) / SLOT, 0)
-      const totalSlots = days.length * ((CLOSE - OPEN) / SLOT)
-      const rate = totalSlots ? usedSlots / totalSlots : 0
-      let state = 'vacant'
-      if (usedSlots > 0 && rate >= 0.75) state = 'fully-occupied'
-      else if (usedSlots > 0) state = 'occupied'
-      totals[String(room.id)] = { state, rate, usedSlots, totalSlots }
-    })
-    return totals
-  }, [days.length, filteredRows, roomRows])
-
-  const occupancySummary = useMemo(() => Object.values(occupancyByRoom).reduce((acc, item) => {
-    if (item.state === 'fully-occupied') acc.fullyOccupied += 1
-    else if (item.state === 'occupied') acc.occupied += 1
-    else acc.vacant += 1
-    return acc
-  }, { vacant: 0, occupied: 0, fullyOccupied: 0 }), [occupancyByRoom])
-
-  if (!filteredRows.length) {
-    return (
-      <div className="p-4 text-sm font-semibold text-emerald-950/55">
-        No room occupancy is available for the selected filters.
-      </div>
-    )
-  }
-
-  return (
-    <div className="p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Room Occupancy</p>
-          <p className="text-xs font-semibold text-emerald-950/55">View which rooms are occupied during class hours and filter by section.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-2 text-[11px] font-black">
-            <span className={`rounded-full border border-emerald-200 ${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'} px-2.5 py-1 text-emerald-800`}>Vacant: {occupancySummary.vacant}</span>
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">Occupied: {occupancySummary.occupied}</span>
-            <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-red-800">Fully occupied: {occupancySummary.fullyOccupied}</span>
-          </div>
-          <select value={selectedSection} onChange={e => onSectionChange(e.target.value)} className={`rounded-lg border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
-            <option value="ALL">All sections</option>
-            {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="overflow-x-auto rounded-xl border border-emerald-950/10">
-        <table className="min-w-[920px] w-full table-fixed border-collapse text-left text-xs">
-          <thead>
-            <tr className="bg-emerald-950/[0.03] text-[11px] font-black uppercase text-emerald-950/45">
-              <th className="border border-emerald-950/10 px-3 py-2">Room</th>
-              {days.map(day => <th key={day} className="border border-emerald-950/10 px-3 py-2">{day}</th>)}
-            </tr>
-            <tr className="bg-emerald-950/[0.02]">
-              <td className="border border-emerald-950/10 px-3 py-2" colSpan={days.length + 1}>
-                <div className="flex flex-wrap gap-3 text-[10px] font-bold">
-                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-blue-100 border border-blue-300"></span>Year 1</span>
-                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-green-100 border border-green-300"></span>Year 2</span>
-                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-orange-100 border border-orange-300"></span>Year 3</span>
-                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-purple-100 border border-purple-300"></span>Year 4</span>
-                </div>
-              </td>
-            </tr>
-          </thead>
-          <tbody>
-            {roomRows.map(room => {
-              const occupancy = occupancyByRoom[String(room.id)] || { state: 'vacant', rate: 0 }
-              const roomTone = occupancy.state === 'fully-occupied'
-                ? 'bg-red-100 text-red-800'
-                : occupancy.state === 'occupied'
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-emerald-100 text-emerald-800'
-              const roomLabel = occupancy.state === 'fully-occupied'
-                ? 'Fully occupied'
-                : occupancy.state === 'occupied'
-                  ? 'Occupied'
-                  : 'Vacant'
-              return (
-                <tr key={room.id} className="align-top">
-                  <th className={`border border-emerald-950/10 bg-emerald-950/[0.02] px-3 py-2 text-left text-[11px] font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span>{room.name}</span>
-                      <span className={`rounded-full px-2 py-1 text-[10px] font-black ${roomTone}`}>{roomLabel}</span>
-                    </div>
-                  </th>
-                  {days.map(day => {
-                    const dayRows = filteredRows.filter(row => row.day === day && String(row.room.id) === String(room.id))
-                    
-                    // Get the primary year using this room/day combo
-                    const yearCounts = {}
-                    dayRows.forEach(row => {
-                      const year = row.subject.yr || 4
-                      yearCounts[year] = (yearCounts[year] || 0) + 1
-                    })
-                    const primaryYear = Object.keys(yearCounts).length > 0 
-                      ? Number(Object.keys(yearCounts).reduce((a, b) => yearCounts[a] > yearCounts[b] ? a : b))
-                      : null
-                    
-                    let cellTone = 'border-emerald-200 bg-emerald-50'
-                    if (primaryYear === 1) cellTone = 'border-blue-200 bg-blue-50'
-                    else if (primaryYear === 2) cellTone = 'border-green-200 bg-green-50'
-                    else if (primaryYear === 3) cellTone = 'border-orange-200 bg-orange-50'
-                    else if (primaryYear === 4) cellTone = 'border-purple-200 bg-purple-50'
-                    
-                    return (
-                      <td key={day} className={`border border-emerald-950/10 p-1.5 align-top ${cellTone}`}>
-                        {dayRows.length ? (
-                          <div className="space-y-1">
-                            {dayRows.map(row => {
-                              const rowYearColor = getYearColor(row.subject.yr || 4)
-                              return (
-                                <div key={`${row.assignment.id}-${row.day}-${row.start}-${row.room.id}`} className={`rounded-md border ${rowYearColor.border} ${rowYearColor.bg} p-1.5 shadow-sm`}>
-                                  <p className={`truncate text-[11px] font-black ${rowYearColor.text}`}>{row.assignment.section}</p>
-                                  <p className={`truncate text-[10px] font-semibold ${rowYearColor.text} opacity-75`}>{row.subject.code}</p>
-                                  <p className={`text-[10px] ${rowYearColor.text} opacity-60`}>{timeLabel(row.start)}-{timeLabel(row.end)}</p>
-                                  <p className={`text-[9px] font-bold ${rowYearColor.text}`}>{getYearColor(row.subject.yr || 4).label}</p>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        ) : <p className="text-[10px] text-emerald-950/35">Open</p>}
-                      </td>
-                    )
-                  })}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-function UnitValidationSummary({ result, subjectsById }) {
+function UnitValidationSummary({ result }) {
+  const { dark } = useTheme()
   if (!result?.scheduled || result.scheduled.length === 0) return null
   
   const assignmentUnitData = {}
@@ -1026,7 +868,6 @@ export default function SchedulerPage() {
   const [view, setView] = useState('master')
   const [focusValue, setFocusValue] = useState('ALL')
   const [displayMode, setDisplayMode] = useState('table')
-  const [occupancySection, setOccupancySection] = useState('ALL')
   const [editingRules, setEditingRules] = useState(false)
   const [draftBlocks, setDraftBlocks] = useState(() => normalizeBlocks(settings.scheduleYearBlocks))
   const [editingRow, setEditingRow] = useState(null)
@@ -1084,19 +925,16 @@ export default function SchedulerPage() {
     const ids = Array.from(new Set((result?.scheduled || []).map(row => row.assignment.facultyId).filter(Boolean)))
     return ids.map(id => facultyById[id]).filter(Boolean).sort((a, b) => a.ln.localeCompare(b.ln))
   }, [facultyById, result])
-  const roomOptions = useMemo(() => {
-    const ids = Array.from(new Set((result?.scheduled || []).map(row => row.room.id)))
-    return ids.map(id => rooms.find(room => room.id === id)).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name))
-  }, [result, rooms])
   const conflictGroups = useMemo(() => groupConflicts(result?.unscheduled), [result])
   const requiredSections = getSections().filter(section => subjectsById && section)
   const scheduledSections = new Set((result?.scheduled || []).map(row => row.assignment.section))
-  const roomMinutes = (result?.scheduled || []).reduce((sum, row) => sum + row.duration, 0)
   const activeRooms = rooms.filter(r => r.status !== 'Inactive').length
-  const utilizationDays = (result?.scheduled || []).some(row => row.day === 'Saturday') ? ALL_DAYS.length : CLASS_DAYS.length
-  const utilization = activeRooms ? Math.round((roomMinutes / (activeRooms * utilizationDays * (CLOSE - OPEN))) * 100) : 0
 
   function generate() {
+    if (result?.scheduled?.length) {
+      const ok = window.confirm('Regenerate the schedule? This will replace the current unsaved generated result.')
+      if (!ok) return
+    }
     // Prefer the new greedy scheduler (fast, high coverage). Keep the original
     // makeSchedule as a fallback if desired.
     const greedy = runGreedySchedule({ approved, subjectsById, facultyById, rooms, yearBlocks, settings })
@@ -1130,6 +968,8 @@ export default function SchedulerPage() {
   }
 
   function finalizeCurrentSchedule() {
+    const ok = window.confirm('Finalize this schedule? After finalization, admins cannot regenerate it unless it is reopened.')
+    if (!ok) return
     const response = finalizeScheduleForTerm(term.ay, term.sem, account)
     if (response?.ok) setResult(prev => prev ? { ...prev, status: 'finalized', finalized: true, finalizedBy: account?.id || 'system', finalizedAt: new Date().toISOString() } : prev)
   }
@@ -1141,6 +981,8 @@ export default function SchedulerPage() {
 
   function submitCurrentScheduleForApproval() {
     if (!result || scheduleLocked) return
+    const ok = window.confirm('Submit this generated schedule to the Program Head for approval?')
+    if (!ok) return
     submitScheduleForApproval(term.ay, term.sem, account)
     setResult(prev => prev ? { ...prev, status: 'pending_approval', submittedBy: account?.id, submittedAt: new Date().toISOString() } : prev)
   }
@@ -1485,7 +1327,7 @@ export default function SchedulerPage() {
             <div className="flex flex-wrap items-center gap-3 border-b border-emerald-950/10 p-4">
               <div className="flex overflow-hidden rounded-lg border border-emerald-950/10 bg-emerald-950/[0.03]">
                 {VIEW_OPTIONS.map(({ value, label, icon: Icon }) => (
-                  <button key={value} type="button" onClick={() => { setView(value); setFocusValue('ALL'); setOccupancySection('ALL'); setShowAllRows(false) }} className="flex items-center gap-1.5 px-3 py-2 text-xs font-black" style={{ background: view === value ? MID_GREEN : 'transparent', color: view === value ? '#fff' : FOREST }}><Icon size={13} /> {label}</button>
+                  <button key={value} type="button" onClick={() => { setView(value); setFocusValue('ALL'); setShowAllRows(false) }} className="flex items-center gap-1.5 px-3 py-2 text-xs font-black" style={{ background: view === value ? MID_GREEN : 'transparent', color: view === value ? '#fff' : FOREST }}><Icon size={13} /> {label}</button>
                 ))}
               </div>
               <div className="flex overflow-hidden rounded-lg border border-emerald-950/10 bg-emerald-950/[0.03]">

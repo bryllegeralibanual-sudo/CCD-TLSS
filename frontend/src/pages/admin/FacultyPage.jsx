@@ -318,6 +318,7 @@ function FacultyDetailDrawer({ faculty, onClose, dark, term, assignments, subjec
 }
 
 function FacultyEditModal({ faculty, onClose, onSave }) {
+  const { dark } = useTheme()
   const [form, setForm] = useState(() => ({
     ...faculty,
     preferredYearLevels: normalizePreferredYears(faculty),
@@ -478,6 +479,7 @@ function FacultyEditModal({ faculty, onClose, onSave }) {
 }
 
 function FacultyImportModal({ faculty, onClose, onImport }) {
+  const { dark } = useTheme()
   const [rows, setRows] = useState([])
   const [fileName, setFileName] = useState('')
   const [error, setError] = useState('')
@@ -612,7 +614,7 @@ export default function FacultyPage() {
   const { dark } = useTheme()
   const { account } = useAuth()
   const isHeadView = account?.role === 'program_head'
-  const headPrograms = account?.programs || []
+  const headPrograms = useMemo(() => account?.programs || [], [account?.programs])
   
   const [program, setProgram] = useState(isHeadView ? (headPrograms[0] || 'ALL') : 'ALL')
   const [query, setQuery] = useState('')
@@ -696,6 +698,14 @@ export default function FacultyPage() {
         </div>
       </div>
 
+      {byProgram.length === 0 && (
+        <div className={`rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18] text-emerald-200/65' : 'bg-white text-emerald-950/55'} p-10 text-center shadow-sm`}>
+          <Users size={30} className="mx-auto mb-3 opacity-40" />
+          <p className="text-sm font-black">No faculty match the current filters.</p>
+          <p className="mt-1 text-xs font-semibold">Adjust the program or search term, or import faculty records.</p>
+        </div>
+      )}
+
       {byProgram.map(([code, people]) => (
         <section key={code} className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -763,7 +773,7 @@ export default function FacultyPage() {
       <FacultyDetailDrawer 
         faculty={selectedFaculty} 
         onClose={() => setSelectedFaculty(null)}
-        dark={false}
+        dark={dark}
         term={term}
         assignments={assignments}
         subjectsById={subjectsById}

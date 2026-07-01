@@ -34,6 +34,7 @@ function emptyUser() {
 }
 
 function UserModal({ user, faculty, onClose, onSave }) {
+  const { dark } = useTheme()
   const [form, setForm] = useState(() => ({ ...emptyUser(), ...user }))
   const isNew = !user?.id
 
@@ -148,6 +149,7 @@ export default function UsersPage() {
   const { dark } = useTheme()
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null)
+  const [toast, setToast] = useState(null)
 
   const accounts = useMemo(() => users.map(account => ({ status: 'active', ...account })), [users])
 
@@ -211,6 +213,10 @@ export default function UsersPage() {
   }
 
   function saveUser(record) {
+    if (record.id && accounts.some(account => account.id === record.id && account.role !== record.role)) {
+      const ok = window.confirm(`Change ${record.name}'s role to ${ROLE_LABELS[record.role] || record.role}? This affects their access after the next login.`)
+      if (!ok) return
+    }
     const savedRecord = { ...record, managedEdited: true }
     setUsers(prev => {
       const existing = prev.some(user => user.id === savedRecord.id || user.email?.toLowerCase() === savedRecord.email?.toLowerCase())
@@ -219,18 +225,30 @@ export default function UsersPage() {
         : [...prev, savedRecord]
     })
     setEditing(null)
+    setToast(`${record.name} saved.`)
+    window.setTimeout(() => setToast(null), 2600)
   }
 
   function toggleStatus(account) {
+    const nextStatus = account.status === 'inactive' ? 'active' : 'inactive'
+    const ok = window.confirm(`${nextStatus === 'inactive' ? 'Deactivate' : 'Reactivate'} ${account.name}?`)
+    if (!ok) return
     saveUser({ ...account, status: account.status === 'inactive' ? 'active' : 'inactive' })
   }
 
   function resetPassword(account) {
+    const ok = window.confirm(`Reset password for ${account.name} to the default password?`)
+    if (!ok) return
     saveUser({ ...account, password: account.seedPassword || 'password123' })
   }
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-4">
+      {toast && (
+        <div className={`fixed right-4 top-4 z-50 rounded-xl border px-4 py-3 text-sm font-bold shadow-xl ${dark ? 'border-emerald-700/30 bg-[#101F18] text-emerald-100' : 'border-emerald-200 bg-white text-emerald-900'}`}>
+          {toast}
+        </div>
+      )}
       <div className={`overflow-hidden rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
         <div className="flex items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
@@ -259,6 +277,14 @@ export default function UsersPage() {
           </div>
         </div>
       </div>
+
+      {groupedAccounts.length === 0 && (
+        <div className={`rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18] text-emerald-200/65' : 'bg-white text-emerald-950/55'} p-10 text-center shadow-sm`}>
+          <UserCog size={30} className="mx-auto mb-3 opacity-40" />
+          <p className="text-sm font-black">No accounts match the current search.</p>
+          <p className="mt-1 text-xs font-semibold">Try a different name, email, role, faculty, or program.</p>
+        </div>
+      )}
 
       {groupedAccounts.map(group => (
         <section key={group.key} className={`overflow-hidden rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>

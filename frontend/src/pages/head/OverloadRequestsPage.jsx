@@ -2,12 +2,11 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Clock, MessageSquare, Search, ThumbsDown, ThumbsUp, XCircle } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
-import { getFacultyMaxUnits, getFacultyUnits } from '../../data/validation'
+import { getFacultyUnits } from '../../data/validation'
 import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
-const GOLD = '#D9B44A'
 
 function StatusBadge({ status }) {
   const config = {
@@ -25,7 +24,7 @@ function StatusBadge({ status }) {
   )
 }
 
-function RequestCard({ request, faculty, onPhRespond }) {
+function RequestCard({ request, faculty, onPhRespond, dark }) {
   const [phReason, setPhReason] = useState('')
   const [responding, setResponding] = useState(false)
 
@@ -42,12 +41,12 @@ function RequestCard({ request, faculty, onPhRespond }) {
   }
 
   return (
-    <div style={{ borderRadius: 12, border: '1.5px solid rgba(3,56,38,0.12)', background: '#fff', overflow: 'hidden' }}>
+    <div style={{ borderRadius: 12, border: `1.5px solid ${dark ? 'rgba(16,185,129,0.24)' : 'rgba(3,56,38,0.12)'}`, background: dark ? '#101F18' : '#fff', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(3,56,38,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: FOREST }}>{faculty?.fn} {faculty?.ln}</p>
-          <p style={{ margin: '3px 0 0', fontSize: 11, color: 'rgba(3,56,38,0.5)' }}>{request.requestType === 'admin-to-ph' ? 'Admin requested' : 'Teacher self-requested'}</p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: dark ? '#ECFDF5' : FOREST }}>{faculty?.fn} {faculty?.ln}</p>
+          <p style={{ margin: '3px 0 0', fontSize: 11, color: dark ? 'rgba(209,250,229,0.58)' : 'rgba(3,56,38,0.5)' }}>{request.requestType === 'admin-to-ph' ? 'Admin requested' : 'Teacher self-requested'}</p>
         </div>
         <StatusBadge status={request.phStatus} />
       </div>
@@ -66,7 +65,7 @@ function RequestCard({ request, faculty, onPhRespond }) {
               {faculty?.id ? `${getFacultyUnits([...JSON.parse(localStorage.getItem('ccd-tlss.assignments') || '[]')], 
                 JSON.parse(localStorage.getItem('ccd-tlss.subjects') || '[]'),
                 faculty.id,
-                request.sem)} / {getFacultyMaxUnits(faculty)}` : '0 / 18'}
+                request.sem)} / ${faculty.maxUnits || 18}` : '0 / 18'}
             </p>
           </div>
           <div style={{ padding: 10, borderRadius: 10, background: 'rgba(3,56,38,0.04)' }}>
@@ -241,13 +240,13 @@ function RequestCard({ request, faculty, onPhRespond }) {
 export default function OverloadRequestsPage() {
   const { account } = useAuth()
   const { dark } = useTheme()
-  const { term, facultyById, getPendingOverloadRequestsForPH, getPendingTeacherOverloadRequests, respondToOverloadRequest } = useData()
+  const { facultyById, getPendingOverloadRequestsForPH, getPendingTeacherOverloadRequests, respondToOverloadRequest } = useData()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('pending') // 'pending' | 'approved' | 'rejected' | 'all'
 
   const adminRequests = useMemo(() => getPendingOverloadRequestsForPH(account), [account, getPendingOverloadRequestsForPH])
   const teacherRequests = useMemo(() => getPendingTeacherOverloadRequests(account), [account, getPendingTeacherOverloadRequests])
-  const allRequests = [...adminRequests, ...teacherRequests]
+  const allRequests = useMemo(() => [...adminRequests, ...teacherRequests], [adminRequests, teacherRequests])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -273,7 +272,7 @@ export default function OverloadRequestsPage() {
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Header */}
-      <div style={{ borderRadius: 16, border: '1px solid rgba(3,56,38,0.10)', background: '#fff', overflow: 'hidden', boxShadow: '0 1px 4px rgba(3,56,38,0.06)' }}>
+      <div style={{ borderRadius: 16, border: `1px solid ${dark ? 'rgba(16,185,129,0.24)' : 'rgba(3,56,38,0.10)'}`, background: dark ? '#101F18' : '#fff', overflow: 'hidden', boxShadow: dark ? 'none' : '0 1px 4px rgba(3,56,38,0.06)' }}>
         <div style={{ padding: '16px 20px', background: `linear-gradient(105deg, ${FOREST} 0%, ${MID_GREEN} 100%)`, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AlertTriangle size={20} style={{ color: '#fff' }} />
@@ -288,7 +287,7 @@ export default function OverloadRequestsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, padding: 16 }}>
           <div style={{ textAlign: 'center', padding: '12px 10px', borderRadius: 10, background: 'rgba(3,56,38,0.04)' }}>
             <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: 'rgba(3,56,38,0.5)', textTransform: 'uppercase' }}>Total</p>
-            <p style={{ margin: '4px 0 0', fontSize: 20, fontWeight: 900, color: FOREST, fontFamily: "'EB Garamond',Georgia,serif" }}>{summary.total}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 20, fontWeight: 900, color: dark ? '#ECFDF5' : FOREST, fontFamily: "'EB Garamond',Georgia,serif" }}>{summary.total}</p>
           </div>
           <div style={{ textAlign: 'center', padding: '12px 10px', borderRadius: 10, background: 'rgba(217,180,74,0.12)' }}>
             <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#B45309', textTransform: 'uppercase' }}>Pending</p>
@@ -348,9 +347,9 @@ export default function OverloadRequestsPage() {
       {/* Requests list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', borderRadius: 12, background: 'rgba(3,56,38,0.03)' }}>
-            <AlertTriangle size={32} style={{ color: 'rgba(3,56,38,0.2)', margin: '0 auto 10px' }} />
-            <p style={{ margin: 0, fontSize: 13, color: 'rgba(3,56,38,0.4)' }}>No overload requests found</p>
+          <div style={{ textAlign: 'center', padding: '40px 20px', borderRadius: 12, background: dark ? 'rgba(255,255,255,0.05)' : 'rgba(3,56,38,0.03)' }}>
+            <AlertTriangle size={32} style={{ color: dark ? 'rgba(209,250,229,0.28)' : 'rgba(3,56,38,0.2)', margin: '0 auto 10px' }} />
+            <p style={{ margin: 0, fontSize: 13, color: dark ? 'rgba(209,250,229,0.58)' : 'rgba(3,56,38,0.4)' }}>No overload requests found</p>
           </div>
         ) : (
           filtered.map(request => (
@@ -359,6 +358,7 @@ export default function OverloadRequestsPage() {
               request={request}
               faculty={facultyById[request.facultyId]}
               onPhRespond={handlePhRespond}
+              dark={dark}
             />
           ))
         )}

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { findAccount, findAccountById, saveAccountOverride } from './accounts'
 
 const AuthContext = createContext(null)
@@ -28,14 +28,14 @@ export function AuthProvider({ children }) {
   }
 
   const logout = () => setAccount(null)
-  const updateAccount = (patch) => {
+  const updateAccount = useCallback((patch) => {
     if (!account) return null
     const updated = saveAccountOverride(account.id, patch)
     if (updated) setAccount(updated)
     return updated
-  }
+  }, [account])
 
-  const value = useMemo(() => ({ account, login, logout, updateAccount, error, setError }), [account, error])
+  const value = useMemo(() => ({ account, login, logout, updateAccount, error, setError }), [account, error, updateAccount])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

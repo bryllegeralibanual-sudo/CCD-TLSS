@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Download, Printer } from 'lucide-react'
+import { ChevronDown, ChevronUp, Printer } from 'lucide-react'
 
 const FOREST = '#033826'
-const MID_GREEN = '#0F6B3C'
 const GOLD = '#D9B44A'
 
 function timeLabel(minutes) {

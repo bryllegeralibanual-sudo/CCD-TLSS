@@ -5,7 +5,6 @@ import { useData } from '../../data/DataContext'
 import { programLabel } from '../../data/programs'
 import { getFacultyMaxUnits } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
-import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -81,7 +80,6 @@ function StatPill({ icon: Icon, label, value, color }) {
 
 export default function MyLoadPage() {
   const { account, updateAccount } = useAuth()
-  const { dark } = useTheme()
   const { term, facultyById, subjectsById, assignmentsForFaculty, upsertFaculty, settings, setSettings, setUsers, logActivity } = useData()
   const fac = facultyById[account.facultyId]
   const [profileOpen, setProfileOpen] = useState(false)

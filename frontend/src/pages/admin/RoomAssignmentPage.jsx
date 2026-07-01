@@ -1,17 +1,15 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  AlertTriangle, Building2, CheckCircle2, DoorOpen, FlaskConical, MapPin,
-  RefreshCw, Save, AlertCircle, Clock, Users,
+  AlertTriangle, Building2, CheckCircle2,
+  RefreshCw, Save, AlertCircle,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
-import { PROGRAMS, programLabel } from '../../data/programs'
 import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
-const GOLD = '#D9B44A'
 
 function getRowKey(assignmentId, kind, day) {
   return `${assignmentId}-${kind}-${day}`
@@ -21,7 +19,6 @@ function getRowKey(assignmentId, kind, day) {
 function getRoomSuitability(room, scheduleRow) {
   if (room.status === 'Inactive') return { suitable: false, reason: 'Room is inactive' }
 
-  const isLab = scheduleRow.kind === 'Laboratory'
   const needsType = scheduleRow.roomType
   const isRegularClassroom = /classroom|speech|science lab/i.test(room.type)
   const hvacrtWeldingOk = scheduleRow.subject?.prog === 'BTVTED-HVACRT' && room.type === 'Welding Lab' && ['Classroom', 'HVAC Lab', 'Welding Lab'].includes(needsType)
@@ -37,10 +34,8 @@ function getRoomSuitability(room, scheduleRow) {
   return { suitable: true, reason: 'Available' }
 }
 
-function RoomAssignmentCard({ schedule, room, scheduleRows, onAssign, onUnassign, assignments }) {
-  const [expandedRowId, setExpandedRowId] = useState(null)
-  const [selectedRoom, setSelectedRoom] = useState(null)
-  const [showConflicts, setShowConflicts] = useState(false)
+function RoomAssignmentCard({ room, scheduleRows, onAssign, onUnassign, assignments }) {
+  const { dark } = useTheme()
 
   function getAssignedRoomId(row) {
     const rowKey = getRowKey(row.assignment.id, row.kind, row.day)
@@ -143,7 +138,6 @@ export default function RoomAssignmentPage() {
   const [filterType, setFilterType] = useState('ALL')
   const [sortBy, setSortBy] = useState('name')
   const [autoStrategy, setAutoStrategy] = useState('early_finish')
-  const [showConflictWarnings, setShowConflictWarnings] = useState(true)
   const [pendingAssignments, setPendingAssignments] = useState({})
 
   const savedSchedule = savedScheduleForTerm(term.ay, term.sem)
@@ -207,6 +201,9 @@ export default function RoomAssignmentPage() {
 
   function handleAutoAssign() {
     if (!scheduleRows.length) return
+    const unassignedCount = scheduleRows.filter(row => !getResolvedRoomId(row)).length
+    const ok = window.confirm(`Auto-assign rooms for ${unassignedCount} unassigned class slot(s)? Existing pending room choices may be updated.`)
+    if (!ok) return
 
     const nextAssignments = { ...pendingAssignments }
     const assignmentCounts = {}
@@ -271,6 +268,8 @@ export default function RoomAssignmentPage() {
 
   function handleSaveAssignments() {
     if (Object.keys(pendingAssignments).length === 0) return
+    const ok = window.confirm(`Save ${Object.keys(pendingAssignments).length} room assignment change(s) to the current schedule?`)
+    if (!ok) return
 
     // Create the room assignments map
     const roomAssignments = {}

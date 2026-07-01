@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { Link } from 'react-router-dom'
-import { Users, ChevronRight, TrendingUp, AlertCircle, CalendarDays, History, ChevronDown, ClipboardCheck, Send, Lock, CheckCircle2 } from 'lucide-react'
+import { Users, ChevronRight, TrendingUp, AlertCircle, CalendarDays, History, ChevronDown, ClipboardCheck, Send, Lock } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { useTheme } from '../../context/ThemeContext'
@@ -297,20 +297,21 @@ export default function DashboardPage() {
   const { dark } = useTheme()
   const [expandedAlerts, setExpandedAlerts] = useState({})
   const { 
-    term, faculty, subjects, termAssignments, registrarSummary, isTermFinalized, subjectsById, facultyById,
-    getCriticalAlerts, getAssignmentProgress, getFacultyWorkload, getRecentActivity
+    term, faculty, subjects, termAssignments, subjectsById, facultyById,
+    savedScheduleForTerm, getCriticalAlerts, getAssignmentProgress, getFacultyWorkload, getRecentActivity
   } = useData()
 
   const ta = useMemo(() => termAssignments(term.ay, term.sem), [term, termAssignments])
   const pending  = ta.filter(a => a.status === 'pending').length
-  const approved = ta.filter(a => a.status === 'approved').length
   const progress = useMemo(() => getAssignmentProgress(term.ay, term.sem), [term, getAssignmentProgress])
   const alerts = useMemo(() => getCriticalAlerts(term.ay, term.sem), [term, getCriticalAlerts])
   const workload = useMemo(() => getFacultyWorkload(term.ay, term.sem), [term, getFacultyWorkload])
   const recentActivity = useMemo(() => getRecentActivity(10), [getRecentActivity])
-  
-  const summary  = registrarSummary(term.ay, term.sem)
-  const finalized = isTermFinalized(term.ay, term.sem)
+  const savedSchedule = savedScheduleForTerm(term.ay, term.sem)
+  const scheduleStatus = savedSchedule?.finalized ? 'finalized' : savedSchedule?.status || 'none'
+  const scheduleRows = savedSchedule?.scheduled?.length || 0
+  const scheduleExceptions = savedSchedule?.unscheduled?.length || 0
+  const rejectedLoads = ta.filter(a => a.status === 'rejected').length
   const recent = [...ta].reverse().slice(0, 6)
   const pendingByProgram = useMemo(() => {
     return PROGRAMS
@@ -382,6 +383,45 @@ export default function DashboardPage() {
     return { overall, byProgram }
   }, [subjects, ta, term.sem])
 
+  const loadsReady = assignmentProgress.overall.total > 0 && assignmentProgress.overall.completed === assignmentProgress.overall.total
+  const workflowSteps = [
+    {
+      icon: ClipboardCheck,
+      title: 'Load Approval',
+      detail: loadsReady ? 'All sections have approved loads.' : `${assignmentProgress.overall.completed}/${assignmentProgress.overall.total} sections approved`,
+      state: rejectedLoads > 0 ? 'issue' : loadsReady ? 'done' : pending > 0 ? 'active' : 'waiting',
+    },
+    {
+      icon: CalendarDays,
+      title: 'Generate Schedule',
+      detail: scheduleRows > 0 ? `${scheduleRows} class slots generated` : 'Generate after load approval.',
+      state: scheduleRows > 0 ? 'done' : loadsReady ? 'active' : 'waiting',
+    },
+    {
+      icon: Send,
+      title: 'Schedule Approval',
+      detail: scheduleStatus === 'pending_approval' ? 'Waiting for Program Head review.' : scheduleStatus === 'approved' || scheduleStatus === 'finalized' ? 'Approved by Program Head.' : scheduleStatus === 'draft' && savedSchedule?.rejectionReason ? 'Returned for changes.' : 'Submit generated schedule.',
+      state: scheduleStatus === 'approved' || scheduleStatus === 'finalized' ? 'done' : savedSchedule?.rejectionReason ? 'issue' : scheduleStatus === 'pending_approval' ? 'active' : 'waiting',
+    },
+    {
+      icon: Lock,
+      title: 'Registrar Finalization',
+      detail: scheduleStatus === 'finalized' ? 'Ready for student release after enrollment.' : scheduleStatus === 'approved' ? 'Ready for Registrar finalization.' : 'Final step after approval.',
+      state: scheduleStatus === 'finalized' ? 'done' : scheduleStatus === 'approved' ? 'active' : 'waiting',
+    },
+  ]
+
+  const nextAction = (() => {
+    if (rejectedLoads > 0) return { label: 'Fix Rejected Loads', to: '/admin/loads', tone: 'danger' }
+    if (!loadsReady) return { label: pending > 0 ? 'View Approval Status' : 'Continue Load Assignment', to: pending > 0 ? '/admin/approvals' : '/admin/loads', tone: 'warning' }
+    if (!savedSchedule) return { label: 'Generate Schedule', to: '/scheduler', tone: 'primary' }
+    if (savedSchedule.rejectionReason) return { label: 'Revise Schedule', to: '/scheduler', tone: 'danger' }
+    if (scheduleStatus === 'draft') return { label: 'Submit Schedule', to: '/scheduler', tone: 'primary' }
+    if (scheduleStatus === 'pending_approval') return { label: 'Waiting for Schedule Approval', to: '/scheduler', tone: 'warning' }
+    if (scheduleStatus === 'approved') return { label: 'Waiting for Registrar', to: '/registrar', tone: 'success' }
+    return { label: 'View Finalized Schedule', to: '/scheduler', tone: 'success' }
+  })()
+
   const greeting = () => {
     const h = new Date().getHours()
     return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
@@ -405,11 +445,11 @@ export default function DashboardPage() {
             <p className="text-emerald-200/70 text-sm">{greeting()},</p>
             <h2 className="text-white font-extrabold text-xl leading-tight mt-0.5"
               style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>
-              {account?.name} <span style={{ color: GOLD }}>👋</span>
+              {account?.name}
             </h2>
             <p className="text-emerald-100/70 text-xs mt-1">
-              AY {term.ay} · {term.sem === '1st' ? '1st' : term.sem === '2nd' ? '2nd' : 'Summer'} Semester
-              {finalized && <span className="ml-2 font-semibold text-emerald-300">· Finalized</span>}
+              AY {term.ay} - {term.sem === '1st' ? '1st' : term.sem === '2nd' ? '2nd' : 'Summer'} Semester
+              <span className="ml-2 font-semibold text-emerald-300">- Schedule: {scheduleStatus.replace(/_/g, ' ')}</span>
             </p>
           </div>
           <div className="hidden sm:flex items-center gap-2">
@@ -428,6 +468,40 @@ export default function DashboardPage() {
               <p className="text-[10px] text-emerald-200/70 mt-0.5">Faculty</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className={card(dark)}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className={`text-xs font-black uppercase ${dark ? 'text-emerald-200/50' : 'text-emerald-800/45'}`}>Admin Workflow</p>
+            <h3 className={`mt-1 text-lg font-black ${dark ? 'text-white' : 'text-[#10241A]'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>
+              {nextAction.label}
+            </h3>
+            <p className={`mt-1 text-xs font-semibold ${dark ? 'text-emerald-200/55' : 'text-gray-500'}`}>
+              {scheduleRows > 0 ? `${scheduleRows} scheduled slot(s), ${scheduleExceptions} exception(s).` : 'Complete load approval before generating the conflict-free schedule.'}
+            </p>
+          </div>
+          <Link
+            to={nextAction.to}
+            className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-black ${
+              nextAction.tone === 'danger'
+                ? 'bg-red-600 text-white'
+                : nextAction.tone === 'warning'
+                  ? 'bg-amber-400 text-emerald-950'
+                  : nextAction.tone === 'success'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-white'
+            }`}
+            style={nextAction.tone === 'primary' ? { background: MID_GREEN } : undefined}
+          >
+            {nextAction.label} <ChevronRight size={13} />
+          </Link>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {workflowSteps.map(step => (
+            <WorkflowStep key={step.title} {...step} dark={dark} />
+          ))}
         </div>
       </div>
 
@@ -625,7 +699,13 @@ export default function DashboardPage() {
                   'assignment_updated': 'blue',
                   'faculty_reassigned': 'indigo',
                   'faculty_profile_updated': 'blue',
-                  'admin_action': 'amber'
+                  'admin_action': 'amber',
+                  'schedule_saved': 'blue',
+                  'schedule_submitted_for_approval': 'amber',
+                  'schedule_approved': 'green',
+                  'schedule_rejected': 'red',
+                  'schedule_finalized': 'emerald',
+                  'schedule_reopened': 'amber',
                 }
                 return map[action] || 'gray'
               }
@@ -638,7 +718,13 @@ export default function DashboardPage() {
                   'assignment_updated': 'Assignment Updated',
                   'faculty_reassigned': 'Faculty Reassigned',
                   'faculty_profile_updated': 'Faculty Profile Updated',
-                  'admin_action': 'Admin Action'
+                  'admin_action': 'Admin Action',
+                  'schedule_saved': 'Schedule Saved',
+                  'schedule_submitted_for_approval': 'Schedule Submitted',
+                  'schedule_approved': 'Schedule Approved',
+                  'schedule_rejected': 'Schedule Rejected',
+                  'schedule_finalized': 'Schedule Finalized',
+                  'schedule_reopened': 'Schedule Reopened',
                 }
                 return map[action] || action
               }

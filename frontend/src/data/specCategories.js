@@ -170,8 +170,6 @@ export function specMatchLevel(fac, subject) {
 export function specMatchLabel(fac, subject) {
   const level = specMatchLevel(fac, subject)
   const subjectKey = getSubjectSpecKey(subject)
-  const facKeys = getFacultySpecKeys(fac)
-
   switch (level) {
     case 'strong':
       return {

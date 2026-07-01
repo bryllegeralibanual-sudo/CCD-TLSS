@@ -58,7 +58,7 @@ export default function RoomsLabsPage() {
   const labs = rooms.filter(r => /lab/i.test(r.type)).length
   const totalCapacity = rooms.reduce((sum, r) => sum + Number(r.capacity || 0), 0)
   const savedSchedule = savedScheduleForTerm(term.ay, term.sem)
-  const scheduleRows = savedSchedule?.scheduled || []
+  const scheduleRows = useMemo(() => savedSchedule?.scheduled || [], [savedSchedule])
 
   const occupancyMap = useMemo(() => {
     const activeDays = Array.from(new Set(scheduleRows.map((row) => row.day))).filter(Boolean)
@@ -253,7 +253,6 @@ export default function RoomsLabsPage() {
 
         <div className="grid gap-3 md:grid-cols-2">
           {visible.map(room => {
-            const demand = requiredTypes.get(room.type) || 0
             const occupancy = occupancyMap[room.id] || { state: 'vacant', rate: 0, usedSlots: 0, totalSlots: 0 }
             const statusTone = occupancy.state === 'fully-occupied'
               ? 'bg-red-100 text-red-800'
