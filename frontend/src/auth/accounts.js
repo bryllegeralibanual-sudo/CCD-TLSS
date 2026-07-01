@@ -28,6 +28,7 @@ const TEACHER_ACCOUNTS = FACULTY_SEED.map((f) => ({
 export const MOCK_ACCOUNTS = [...STATIC_ACCOUNTS, ...TEACHER_ACCOUNTS]
 
 const ACCOUNT_OVERRIDES_KEY = 'ccd-tlss.account-overrides'
+const MANAGED_USERS_KEY = 'ccd-tlss.users'
 
 function loadOverrides() {
   try {
@@ -39,22 +40,48 @@ function loadOverrides() {
 
 function accountsWithOverrides() {
   const overrides = loadOverrides()
-  return MOCK_ACCOUNTS.map((account) => ({ ...account, ...(overrides[account.id] || {}) }))
+  const managed = loadManagedUsers()
+  const combined = [...MOCK_ACCOUNTS]
+  managed.forEach((user) => {
+    const existingIndex = combined.findIndex((account) => account.id === user.id || account.email?.toLowerCase() === user.email?.toLowerCase())
+    if (existingIndex >= 0) {
+      if (user.managedEdited) combined[existingIndex] = { ...combined[existingIndex], ...user }
+      return
+    }
+    combined.push(user)
+  })
+  return combined.map((account) => {
+    const override = overrides[account.id]
+    return override?.managedEdited ? { ...account, ...override } : account
+  })
+}
+
+function loadManagedUsers() {
+  try {
+    const users = JSON.parse(localStorage.getItem(MANAGED_USERS_KEY) || '[]')
+    return Array.isArray(users) ? users : []
+  } catch {
+    return []
+  }
 }
 
 export function saveAccountOverride(id, patch) {
   const overrides = loadOverrides()
-  const next = { ...(overrides[id] || {}), ...patch }
+  const next = { ...(overrides[id] || {}), ...patch, managedEdited: true }
   localStorage.setItem(ACCOUNT_OVERRIDES_KEY, JSON.stringify({ ...overrides, [id]: next }))
   return accountsWithOverrides().find((account) => account.id === id) || null
 }
 
 export function findAccount(email, password) {
-  return accountsWithOverrides().find((a) => a.email.toLowerCase() === email.trim().toLowerCase() && a.password === password) || null
+  return accountsWithOverrides().find((a) => a.status !== 'inactive' && a.email.toLowerCase() === email.trim().toLowerCase() && a.password === password) || null
 }
 
 export function findAccountById(id) {
   return accountsWithOverrides().find((a) => a.id === id) || null
+}
+
+export function listAccounts() {
+  return accountsWithOverrides()
 }
 
 // Quick-login list shown on the login page so this is actually demoable.

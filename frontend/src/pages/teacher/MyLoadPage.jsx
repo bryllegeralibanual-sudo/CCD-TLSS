@@ -80,7 +80,7 @@ function StatPill({ icon: Icon, label, value, color }) {
 
 export default function MyLoadPage() {
   const { account, updateAccount } = useAuth()
-  const { term, facultyById, subjectsById, assignmentsForFaculty, upsertFaculty, settings, setSettings } = useData()
+  const { term, facultyById, subjectsById, assignmentsForFaculty, upsertFaculty, settings, setSettings, setUsers, logActivity } = useData()
   const fac = facultyById[account.facultyId]
   const [profileOpen, setProfileOpen] = useState(false)
   const [profile, setProfile] = useState(null)
@@ -144,6 +144,25 @@ export default function MyLoadPage() {
 
   function saveProfile(e) {
     e.preventDefault()
+    const passwordChanged = profile.password && profile.password !== account.password
+    const emailChanged = profile.email !== account.email
+    const nameChanged = profile.fn !== fac.fn || profile.ln !== fac.ln
+    const specChanged = profile.spec !== fac.spec
+    const photoChanged = profile.photo !== fac.photo
+    const yearsChanged = JSON.stringify(preferredYears(profile)) !== JSON.stringify(preferredYears(fac))
+    const timeChanged = Number(profile.preferredTimeStart || 450) !== Number(fac.preferredTimeStart || 450) || Number(profile.preferredTimeEnd || 1290) !== Number(fac.preferredTimeEnd || 1290)
+    const availabilityChanged = JSON.stringify(profile.unavailable || []) !== JSON.stringify(unavailable || [])
+    const changedFields = [
+      nameChanged && 'name',
+      emailChanged && 'email',
+      passwordChanged && 'password',
+      specChanged && 'specialization',
+      photoChanged && 'photo',
+      yearsChanged && 'year priority',
+      timeChanged && 'preferred time',
+      availabilityChanged && 'availability',
+    ].filter(Boolean)
+
     const savedFaculty = {
       ...fac,
       ...profile,
@@ -153,7 +172,18 @@ export default function MyLoadPage() {
       preferredTimeEnd: Number(profile.preferredTimeEnd || 1290),
     }
     upsertFaculty(savedFaculty)
-    updateAccount({ email: profile.email, password: profile.password || account.password, name: `${savedFaculty.fn} ${savedFaculty.ln}` })
+    const accountPatch = { email: profile.email, password: profile.password || account.password, name: `${savedFaculty.fn} ${savedFaculty.ln}` }
+    updateAccount(accountPatch)
+    setUsers(prev => prev.map(user => (
+      user.id === account.id || Number(user.facultyId) === Number(account.facultyId)
+        ? {
+            ...user,
+            ...accountPatch,
+            facultyId: account.facultyId,
+            managedEdited: true,
+          }
+        : user
+    )))
     setSettings(prev => ({
       ...prev,
       facultyUnavailable: [
@@ -161,6 +191,13 @@ export default function MyLoadPage() {
         ...(profile.unavailable || []).map(item => ({ ...item, facultyId: account.facultyId })),
       ],
     }))
+    if (changedFields.length > 0) {
+      logActivity(
+        'faculty_profile_updated',
+        `${savedFaculty.fn} ${savedFaculty.ln} updated ${changedFields.join(', ')}.`,
+        account.id,
+      )
+    }
     setProfileOpen(false)
   }
 

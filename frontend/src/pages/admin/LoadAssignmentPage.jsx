@@ -556,10 +556,11 @@ function SectionCard({
   const draftCount = activeAssignments.filter(a => a.status === 'draft').length
   const pendingCount = activeAssignments.filter(a => a.status === 'pending').length
   const approvedCount = activeAssignments.filter(a => a.status === 'approved').length
-  // Button is ONLY enabled when ALL subjects assigned, NO rejections, has DRAFT assignments, NOT already submitted, and term NOT finalized
+  // Draft replacements still need Program Head review even when the section has
+  // older approved assignments from a previous submission.
   const allComplete = assignedCount === requiredCount
   const hasDrafts = draftCount > 0
-  const canSubmit = allComplete && !hasRejected && hasDrafts && !isSubmitted && !finalized
+  const canSubmit = allComplete && !hasRejected && hasDrafts && !finalized
 
   return (
     <div style={{ borderRadius: 12, border: `1.5px solid ${hasRejected ? 'rgba(220,38,38,0.24)' : status === 'draft' ? 'rgba(37,99,235,0.25)' : status === 'complete' ? 'rgba(16,185,129,0.25)' : 'rgba(3,56,38,0.12)'}`, background: hasRejected ? 'rgba(220,38,38,0.02)' : status === 'draft' ? 'rgba(37,99,235,0.03)' : status === 'complete' ? 'rgba(16,185,129,0.03)' : '#fff', overflow: 'hidden', boxShadow: '0 1px 3px rgba(3,56,38,0.06)' }}>
@@ -576,7 +577,7 @@ function SectionCard({
           {approvedCount > 0 && <StatusBadge status="approved" />}
           <span style={{ minWidth: 24, height: 24, borderRadius: 99, background: hasRejected ? 'rgba(220,38,38,0.10)' : completionPct === 100 ? 'rgba(16,185,129,0.15)' : 'rgba(217,180,74,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: hasRejected ? '#991B1B' : completionPct === 100 ? MID_GREEN : '#92620A' }}>{Math.round(completionPct)}%</span>
           
-          {isSubmitted ? (
+          {isSubmitted && !hasDrafts ? (
             <span style={{ fontSize: 11, fontWeight: 800, color: MID_GREEN, background: 'rgba(16,185,129,0.10)', border: `1px solid rgba(16,185,129,0.25)`, padding: '6px 10px', borderRadius: 7, whiteSpace: 'nowrap' }}>✓ Submitted</span>
           ) : (
             <button

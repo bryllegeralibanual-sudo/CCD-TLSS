@@ -13,7 +13,7 @@ import CurriculumPage from './pages/admin/CurriculumPage'
 import FacultyPage from './pages/admin/FacultyPage'
 import RoomsLabsPage from './pages/admin/RoomsLabsPage'
 import RoomAssignmentPage from './pages/admin/RoomAssignmentPage'
-import ConflictResolutionPage from './pages/admin/ConflictResolutionPage'
+import UsersPage from './pages/admin/UsersPage'
 import ApprovalsPage from './pages/head/ApprovalsPage'
 import RegistrarPage from './pages/registrar/RegistrarPage'
 import MyLoadPage from './pages/teacher/MyLoadPage'
@@ -45,6 +45,9 @@ export default function App() {
               <Route path="/admin/approvals" element={<ProtectedRoute roles={['admin']}><AppLayout title="Approval Center" /></ProtectedRoute>}>
                 <Route index element={<ApprovalCenterPage />} />
               </Route>
+              <Route path="/admin/users" element={<ProtectedRoute roles={['admin']}><AppLayout title="User Management" /></ProtectedRoute>}>
+                <Route index element={<UsersPage />} />
+              </Route>
               {/* AI Auto Assignment removed — functionality available in Load Assignment */}
               <Route path="/admin/curriculum" element={<ProtectedRoute roles={['admin']}><AppLayout title="Curriculum Prospectus" /></ProtectedRoute>}>
                 <Route index element={<CurriculumPage />} />
@@ -54,9 +57,6 @@ export default function App() {
               </Route>
               <Route path="/admin/room-assignment" element={<ProtectedRoute roles={['admin']}><AppLayout title="Room Assignment" /></ProtectedRoute>}>
                 <Route index element={<RoomAssignmentPage />} />
-              </Route>
-              <Route path="/admin/conflict-resolution" element={<ProtectedRoute roles={['admin']}><AppLayout title="Conflict Resolution" /></ProtectedRoute>}>
-                <Route index element={<ConflictResolutionPage />} />
               </Route>
               <Route path="/head/approvals" element={<ProtectedRoute roles={['program_head']}><AppLayout title="Approvals" /></ProtectedRoute>}>
                 <Route index element={<ApprovalsPage />} />

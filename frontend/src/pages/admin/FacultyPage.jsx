@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Camera, Mail, Search, Users, X, BookOpen, Clock, Briefcase, Pencil, Save } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { AlertTriangle, Camera, Mail, Search, Users, X, BookOpen, Clock, Briefcase, Pencil, Save, Plus, Upload, FileSpreadsheet, CheckCircle2 } from 'lucide-react'
 import { useData } from '../../data/DataContext'
 import { useAuth } from '../../auth/AuthContext'
 import { PROGRAMS, programLabel } from '../../data/programs'
@@ -15,6 +16,114 @@ const YEAR_LEVELS = [
   { value: 4, label: '4th year' },
 ]
 
+const FACULTY_TEMPLATE_COLUMNS = 'First Name,Last Name,Email,Program,Shared Programs,Specialization,Type,Max Units,Preferred Years'
+
+function splitList(value) {
+  if (!value) return []
+  return String(value).split(/[;,|]/).map(item => item.trim()).filter(Boolean)
+}
+
+function normalizeHeader(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function pick(row, names) {
+  const normalized = Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeHeader(key), value]))
+  for (const name of names) {
+    const value = normalized[normalizeHeader(name)]
+    if (value !== undefined && value !== null && String(value).trim() !== '') return value
+  }
+  return ''
+}
+
+function normalizeProgram(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const compact = raw.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const match = PROGRAMS.find(program =>
+    program.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === compact ||
+    program.label.toUpperCase().replace(/[^A-Z0-9]/g, '') === compact
+  )
+  return match?.code || raw.toUpperCase()
+}
+
+function normalizeImportedFaculty(row, index, existingEmails) {
+  const fn = String(pick(row, ['First Name', 'FirstName', 'FN', 'Given Name']) || '').trim()
+  const ln = String(pick(row, ['Last Name', 'LastName', 'LN', 'Surname', 'Family Name']) || '').trim()
+  const email = String(pick(row, ['Email', 'Email Address', 'Mail']) || '').trim()
+  const prog = normalizeProgram(pick(row, ['Program', 'Primary Program', 'Prog']))
+  const shared = splitList(pick(row, ['Shared Programs', 'Shared', 'Other Programs'])).map(normalizeProgram).filter(Boolean)
+  const spec = String(pick(row, ['Specialization', 'Spec', 'Expertise']) || '').trim()
+  const type = String(pick(row, ['Type', 'Employment Type', 'Faculty Type']) || 'Full-Time').trim()
+  const maxUnits = Number(pick(row, ['Max Units', 'MaxUnits', 'Units']) || 18)
+  const preferredYearLevels = splitList(pick(row, ['Preferred Years', 'Preferred Year Levels', 'Years']))
+    .map(value => Number(String(value).replace(/[^0-9]/g, '')))
+    .filter(value => value >= 1 && value <= 4)
+
+  const errors = []
+  if (!fn) errors.push('Missing first name')
+  if (!ln) errors.push('Missing last name')
+  if (!email) errors.push('Missing email')
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Invalid email')
+  if (!prog) errors.push('Missing program')
+  if (prog && !PROGRAMS.some(program => program.code === prog)) errors.push(`Unknown program: ${prog}`)
+  if (!spec) errors.push('Missing specialization')
+  if (!Number.isFinite(maxUnits) || maxUnits <= 0) errors.push('Invalid max units')
+
+  const emailKey = email.toLowerCase()
+  const action = existingEmails.has(emailKey) ? 'update' : 'create'
+
+  return {
+    rowNumber: index + 2,
+    action,
+    errors,
+    faculty: {
+      fn,
+      ln,
+      email,
+      prog,
+      shared: Array.from(new Set([prog, ...shared].filter(Boolean))),
+      spec,
+      type: type || 'Full-Time',
+      maxUnits: Number.isFinite(maxUnits) && maxUnits > 0 ? maxUnits : 18,
+      preferred: 'flexible',
+      preferredYearLevels,
+    },
+  }
+}
+
+function parseCsv(text) {
+  const rows = []
+  let cell = ''
+  let row = []
+  let quoted = false
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+    const next = text[index + 1]
+    if (char === '"' && quoted && next === '"') {
+      cell += '"'
+      index += 1
+    } else if (char === '"') {
+      quoted = !quoted
+    } else if (char === ',' && !quoted) {
+      row.push(cell)
+      cell = ''
+    } else if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && next === '\n') index += 1
+      row.push(cell)
+      if (row.some(item => String(item).trim())) rows.push(row)
+      row = []
+      cell = ''
+    } else {
+      cell += char
+    }
+  }
+  row.push(cell)
+  if (row.some(item => String(item).trim())) rows.push(row)
+  const headers = rows.shift() || []
+  return rows.map(values => Object.fromEntries(headers.map((header, index) => [header, values[index] || ''])))
+}
+
 function normalizePreferredYears(faculty) {
   const years = faculty?.preferredYearLevels || faculty?.preferredYears || []
   if (Array.isArray(years)) return years.map(Number).filter(Boolean)
@@ -26,6 +135,12 @@ function preferredYearLabel(faculty) {
   const years = normalizePreferredYears(faculty)
   if (years.length === 0) return 'Any year level'
   return YEAR_LEVELS.filter(y => years.includes(y.value)).map(y => y.label).join(', ')
+}
+
+function sharedProgramLabel(faculty) {
+  const shared = (faculty?.shared || []).filter(code => code && code !== faculty.prog)
+  if (shared.length === 0) return 'No borrowed programs'
+  return shared.map(programLabel).join(', ')
 }
 
 function initials(faculty) {
@@ -223,10 +338,21 @@ function FacultyEditModal({ faculty, onClose, onSave }) {
     })
   }
 
+  function toggleSharedProgram(code) {
+    setForm(prev => {
+      const current = new Set(prev.shared || [])
+      if (current.has(code)) current.delete(code)
+      else current.add(code)
+      if (prev.prog) current.add(prev.prog)
+      return { ...prev, shared: Array.from(current) }
+    })
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     onSave({
       ...form,
+      shared: Array.from(new Set([form.prog, ...(form.shared || [])].filter(Boolean))),
       maxUnits: Number(form.maxUnits || 18),
       preferredYearLevels: normalizePreferredYears(form),
     })
@@ -238,8 +364,8 @@ function FacultyEditModal({ faculty, onClose, onSave }) {
       <div className="fixed left-1/2 top-1/2 z-50 w-[min(94vw,520px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div>
-            <p className="text-sm font-black text-white" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Edit Faculty Priority</p>
-            <p className="mt-0.5 text-xs font-semibold text-emerald-100/70">{faculty.fn} {faculty.ln}</p>
+            <p className="text-sm font-black text-white" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{faculty.id ? 'Edit Faculty' : 'Add Faculty'}</p>
+            <p className="mt-0.5 text-xs font-semibold text-emerald-100/70">{faculty.id ? `${faculty.fn} ${faculty.ln}` : 'Create a new faculty record'}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-white/80 hover:bg-white/10" aria-label="Close edit faculty">
             <X size={18} />
@@ -247,6 +373,54 @@ function FacultyEditModal({ faculty, onClose, onSave }) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
+              First Name
+              <input required value={form.fn || ''} onChange={e => updateField('fn', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+            </label>
+            <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
+              Last Name
+              <input required value={form.ln || ''} onChange={e => updateField('ln', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
+            Email
+            <input required type="email" value={form.email || ''} onChange={e => updateField('email', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
+              Program
+              <select required value={form.prog || ''} onChange={e => updateField('prog', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold normal-case tracking-normal text-emerald-950 outline-none">
+                <option value="">Choose program</option>
+                {PROGRAMS.map(program => <option key={program.code} value={program.code}>{program.label}</option>)}
+              </select>
+            </label>
+            <div className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
+              Shared Programs
+              <div className="rounded-xl border border-emerald-950/15 bg-white p-2 normal-case tracking-normal">
+                <div className="grid gap-1.5">
+                  {PROGRAMS.map(program => {
+                    const checked = (form.shared || []).includes(program.code) || form.prog === program.code
+                    return (
+                      <label key={program.code} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-bold text-emerald-950/70 hover:bg-emerald-50">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={form.prog === program.code}
+                          onChange={() => toggleSharedProgram(program.code)}
+                          className="h-4 w-4 accent-emerald-700"
+                        />
+                        {program.label}
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Type
@@ -303,8 +477,135 @@ function FacultyEditModal({ faculty, onClose, onSave }) {
   )
 }
 
+function FacultyImportModal({ faculty, onClose, onImport }) {
+  const [rows, setRows] = useState([])
+  const [fileName, setFileName] = useState('')
+  const [error, setError] = useState('')
+
+  const existingEmails = useMemo(() => new Set(faculty.map(item => String(item.email || '').toLowerCase()).filter(Boolean)), [faculty])
+  const validRows = rows.filter(row => row.errors.length === 0)
+  const errorRows = rows.filter(row => row.errors.length > 0)
+
+  async function handleFile(file) {
+    if (!file) return
+    setFileName(file.name)
+    setError('')
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      let rawRows = []
+      if (ext === 'csv') {
+        rawRows = parseCsv(await file.text())
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        const data = await file.arrayBuffer()
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' })
+      } else {
+        setError('Upload a .xlsx, .xls, or .csv file.')
+        setRows([])
+        return
+      }
+      setRows(rawRows.map((row, index) => normalizeImportedFaculty(row, index, existingEmails)))
+    } catch (err) {
+      setError(err?.message || 'Could not read the faculty file.')
+      setRows([])
+    }
+  }
+
+  function downloadTemplate() {
+    const sample = [
+      FACULTY_TEMPLATE_COLUMNS,
+      'Juan,Dela Cruz,juan.delacruz@ccd.edu.ph,BTVTED-CP,"BTVTED-HVACRT","CP Programming, Web Systems & Application Development",Full-Time,18,"1,2"',
+    ].join('\n')
+    const blob = new Blob([sample], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'faculty-import-template.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function confirmImport() {
+    if (validRows.length === 0) return
+    onImport(validRows.map(row => row.faculty))
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[min(96vw,880px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
+          <div>
+            <p className="text-sm font-black text-white" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Import Faculty</p>
+            <p className="mt-0.5 text-xs font-semibold text-emerald-100/70">Accepted columns: {FACULTY_TEMPLATE_COLUMNS}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-white/80 hover:bg-white/10" aria-label="Close import faculty">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-4 overflow-y-auto p-5">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-emerald-900/25 bg-emerald-50/50 px-4 py-5">
+              <FileSpreadsheet size={22} className="text-emerald-700" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-emerald-950">{fileName || 'Choose Excel or CSV file'}</p>
+                <p className="mt-0.5 text-xs font-semibold text-emerald-950/50">Supports .xlsx, .xls, and .csv</p>
+              </div>
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e => handleFile(e.target.files?.[0])} />
+            </label>
+            <button type="button" onClick={downloadTemplate} className="rounded-2xl border border-emerald-950/15 px-4 py-3 text-sm font-black text-emerald-800 hover:bg-emerald-50">
+              Template CSV
+            </button>
+          </div>
+
+          {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
+
+          {rows.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Ready</p><p className="mt-1 text-2xl font-black text-emerald-700">{validRows.length}</p></div>
+              <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Updates</p><p className="mt-1 text-2xl font-black text-blue-700">{validRows.filter(row => row.action === 'update').length}</p></div>
+              <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Errors</p><p className="mt-1 text-2xl font-black text-red-700">{errorRows.length}</p></div>
+            </div>
+          )}
+
+          {rows.length > 0 && (
+            <div className="overflow-hidden rounded-2xl border border-emerald-950/10">
+              <div className="grid grid-cols-[70px_1fr_1fr_1fr] gap-3 bg-emerald-950/[0.04] px-4 py-2 text-[11px] font-black uppercase text-emerald-950/45">
+                <span>Row</span><span>Name</span><span>Program</span><span>Status</span>
+              </div>
+              <div className="max-h-72 overflow-y-auto divide-y divide-emerald-950/10">
+                {rows.map(row => (
+                  <div key={row.rowNumber} className="grid grid-cols-[70px_1fr_1fr_1fr] gap-3 px-4 py-3 text-xs">
+                    <span className="font-black text-emerald-950/50">{row.rowNumber}</span>
+                    <span className="font-bold text-emerald-950">{row.faculty.ln}, {row.faculty.fn}<br /><span className="font-semibold text-emerald-950/45">{row.faculty.email}</span></span>
+                    <span className="font-semibold text-emerald-950/65">{programLabel(row.faculty.prog)}</span>
+                    {row.errors.length ? (
+                      <span className="font-bold text-red-700">{row.errors.join(', ')}</span>
+                    ) : (
+                      <span className="flex items-center gap-1 font-black text-emerald-700"><CheckCircle2 size={13} /> {row.action === 'update' ? 'Update existing' : 'Create new'}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-emerald-950/10 px-5 py-4">
+          <button type="button" onClick={onClose} className="rounded-xl border border-emerald-950/15 px-4 py-2 text-sm font-black text-emerald-950/65">Cancel</button>
+          <button type="button" onClick={confirmImport} disabled={validRows.length === 0} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50" style={{ background: MID_GREEN }}>
+            <Upload size={15} /> Import {validRows.length || ''} Faculty
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 export default function FacultyPage() {
-  const { term, faculty, assignments, subjectsById, upsertFaculty } = useData()
+  const { term, faculty, assignments, subjectsById, upsertFaculty, upsertFacultyMany } = useData()
   const { account } = useAuth()
   const isHeadView = account?.role === 'program_head'
   const headPrograms = account?.programs || []
@@ -313,6 +614,7 @@ export default function FacultyPage() {
   const [query, setQuery] = useState('')
   const [selectedFaculty, setSelectedFaculty] = useState(null)
   const [editingFaculty, setEditingFaculty] = useState(null)
+  const [importingFaculty, setImportingFaculty] = useState(false)
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -325,20 +627,25 @@ export default function FacultyPage() {
           .map(a => ({ ...a, subject: subjectsById[a.subjectId] }))
         return { ...f, used, max, current }
       })
-      .filter(f => isHeadView ? headPrograms.includes(f.prog) : (program === 'ALL' || f.prog === program || (f.shared || []).includes(program)))
-      .filter(f => !q || `${f.fn} ${f.ln} ${f.email} ${f.spec} ${f.prog} ${preferredYearLabel(f)}`.toLowerCase().includes(q))
+      .filter(f => {
+        const shared = f.shared || []
+        if (isHeadView) return headPrograms.includes(f.prog) || shared.some(code => headPrograms.includes(code))
+        return program === 'ALL' || f.prog === program || shared.includes(program)
+      })
+      .filter(f => !q || `${f.fn} ${f.ln} ${f.email} ${f.spec} ${f.prog} ${sharedProgramLabel(f)} ${preferredYearLabel(f)}`.toLowerCase().includes(q))
       .sort((a, b) => programLabel(a.prog).localeCompare(programLabel(b.prog)) || a.ln.localeCompare(b.ln))
   }, [assignments, faculty, program, query, subjectsById, term.ay, term.sem, isHeadView, headPrograms])
 
   const byProgram = useMemo(() => {
     const groups = new Map()
     rows.forEach(f => {
-      const key = f.prog || 'Unassigned'
+      const borrowedForHead = isHeadView && !headPrograms.includes(f.prog) && (f.shared || []).some(code => headPrograms.includes(code))
+      const key = borrowedForHead ? 'BORROWED' : (f.prog || 'Unassigned')
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key).push(f)
     })
     return Array.from(groups.entries())
-  }, [rows])
+  }, [rows, isHeadView, headPrograms])
 
   const overloaded = rows.filter(f => f.used > f.max).length
   const nearCapacity = rows.filter(f => f.used <= f.max && f.max && f.used / f.max >= 0.85).length
@@ -354,6 +661,16 @@ export default function FacultyPage() {
             <p className="text-sm font-black text-white" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Faculty Directory</p>
             <p className="mt-0.5 text-xs text-emerald-100/70">Click any faculty card to view detailed analytics and current assignments</p>
           </div>
+          {!isHeadView && (
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setEditingFaculty({ fn: '', ln: '', email: '', prog: '', shared: [], spec: '', type: 'Full-Time', maxUnits: 18, preferred: 'flexible', preferredYearLevels: [] })} className="flex items-center gap-2 rounded-xl bg-white/12 px-3 py-2 text-xs font-black text-white hover:bg-white/20">
+                <Plus size={14} /> Add
+              </button>
+              <button type="button" onClick={() => setImportingFaculty(true)} className="flex items-center gap-2 rounded-xl bg-white/12 px-3 py-2 text-xs font-black text-white hover:bg-white/20">
+                <Upload size={14} /> Import
+              </button>
+            </div>
+          )}
         </div>
         <div className="grid gap-3 p-4 sm:grid-cols-4">
           <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Faculty</p><p className="mt-1 text-2xl font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{rows.length}</p></div>
@@ -378,7 +695,10 @@ export default function FacultyPage() {
       {byProgram.map(([code, people]) => (
         <section key={code} className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{programLabel(code)}</h2>
+            <div>
+              <h2 className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{code === 'BORROWED' ? 'Borrowed Teachers' : programLabel(code)}</h2>
+              {code === 'BORROWED' && <p className="mt-0.5 text-xs font-semibold text-emerald-950/45">Faculty shared from other programs</p>}
+            </div>
             <span className="rounded-full px-3 py-1 text-[11px] font-black" style={{ background: `${GOLD}24`, color: FOREST }}>{people.length} faculty</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -404,6 +724,7 @@ export default function FacultyPage() {
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <span className="rounded-full bg-emerald-950/[0.06] px-2.5 py-1 text-[10px] font-black text-emerald-950/65">{programLabel(f.prog)}</span>
                     <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-800">{preferredYearLabel(f)}</span>
+                    {code === 'BORROWED' && <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-black text-blue-800">Borrowed</span>}
                     {(f.shared || []).filter(p => p !== f.prog).map(p => <span key={p} className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-800">{programLabel(p)}</span>)}
                   </div>
                   {!isHeadView && (
@@ -415,7 +736,7 @@ export default function FacultyPage() {
                       }}
                       className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-50"
                     >
-                      <Pencil size={13} /> Edit priority
+                      <Pencil size={13} /> Edit
                     </button>
                   )}
                   <div className="mt-3 border-t border-emerald-950/10 pt-3">
@@ -450,6 +771,16 @@ export default function FacultyPage() {
           onSave={(record) => {
             upsertFaculty(record)
             setEditingFaculty(null)
+          }}
+        />
+      )}
+      {importingFaculty && (
+        <FacultyImportModal
+          faculty={faculty}
+          onClose={() => setImportingFaculty(false)}
+          onImport={(records) => {
+            upsertFacultyMany(records)
+            setImportingFaculty(false)
           }}
         />
       )}

@@ -186,7 +186,7 @@ function FacultyDistributionCard({ group, workload, facultyById, dark }) {
   )
 }
 
-function AlertDetails({ alert, pendingByProgram, facultyById, dark }) {
+function AlertDetails({ alert, pendingByProgram, rejectedByProgram, facultyById, dark }) {
   if (alert.type === 'pending-approvals') {
     return (
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -195,6 +195,36 @@ function AlertDetails({ alert, pendingByProgram, facultyById, dark }) {
             <p className={`text-xs font-bold ${dark ? 'text-emerald-50' : 'text-gray-800'}`}>{item.label}</p>
             <p className={`mt-0.5 text-[10px] font-semibold ${dark ? 'text-amber-200/80' : 'text-amber-700'}`}>
               {item.count} assignment{item.count === 1 ? '' : 's'} pending review
+            </p>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (alert.type === 'rejected-assignments') {
+    return (
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        {rejectedByProgram.map(item => (
+          <div key={item.code} className={`rounded-lg px-3 py-2 ${dark ? 'bg-white/6' : 'bg-white/70'}`}>
+            <p className={`text-xs font-bold ${dark ? 'text-emerald-50' : 'text-gray-800'}`}>{item.label}</p>
+            <p className={`mt-0.5 text-[10px] font-semibold ${dark ? 'text-red-200/80' : 'text-red-700'}`}>
+              {item.count} rejected load{item.count === 1 ? '' : 's'} need replacement
+            </p>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (alert.type === 'faculty-profile-updates') {
+    return (
+      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+        {(alert.updates || []).map(item => (
+          <div key={item.id} className={`rounded-lg px-3 py-2 ${dark ? 'bg-white/6' : 'bg-white/70'}`}>
+            <p className={`text-xs font-bold ${dark ? 'text-emerald-50' : 'text-gray-800'}`}>{item.details}</p>
+            <p className={`mt-0.5 text-[10px] font-semibold ${dark ? 'text-amber-200/80' : 'text-amber-700'}`}>
+              {new Date(item.timestamp).toLocaleString()}
             </p>
           </div>
         ))}
@@ -264,6 +294,15 @@ export default function DashboardPage() {
         code: program.code,
         label: program.label,
         count: ta.filter(a => a.status === 'pending' && subjectsById[a.subjectId]?.prog === program.code).length,
+      }))
+      .filter(item => item.count > 0)
+  }, [ta, subjectsById])
+  const rejectedByProgram = useMemo(() => {
+    return PROGRAMS
+      .map(program => ({
+        code: program.code,
+        label: program.label,
+        count: ta.filter(a => a.status === 'rejected' && subjectsById[a.subjectId]?.prog === program.code).length,
       }))
       .filter(item => item.count > 0)
   }, [ta, subjectsById])
@@ -414,10 +453,15 @@ export default function DashboardPage() {
                     Review <ChevronRight size={12} />
                   </Link>
                 )}
+                {alert.type === 'rejected-assignments' && (
+                  <Link to="/admin/loads" className="text-xs font-semibold text-red-600 hover:text-red-700 flex items-center gap-1 shrink-0">
+                    Reassign <ChevronRight size={12} />
+                  </Link>
+                )}
                 </div>
               </div>
               {isExpanded && (
-                <AlertDetails alert={alert} pendingByProgram={pendingByProgram} facultyById={facultyById} dark={dark} />
+                <AlertDetails alert={alert} pendingByProgram={pendingByProgram} rejectedByProgram={rejectedByProgram} facultyById={facultyById} dark={dark} />
               )}
             </div>
             )
@@ -556,6 +600,7 @@ export default function DashboardPage() {
                   'assignment_rejected': 'red',
                   'assignment_updated': 'blue',
                   'faculty_reassigned': 'indigo',
+                  'faculty_profile_updated': 'blue',
                   'admin_action': 'amber'
                 }
                 return map[action] || 'gray'
@@ -568,6 +613,7 @@ export default function DashboardPage() {
                   'assignment_rejected': 'Assignment Rejected',
                   'assignment_updated': 'Assignment Updated',
                   'faculty_reassigned': 'Faculty Reassigned',
+                  'faculty_profile_updated': 'Faculty Profile Updated',
                   'admin_action': 'Admin Action'
                 }
                 return map[action] || action

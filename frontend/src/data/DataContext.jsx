@@ -3,6 +3,7 @@ import { FACULTY_SEED } from './facultySeed'
 import { SUBJECTS } from './subjects'
 import { PROGRAM_BY_CODE } from './programs'
 import { checkAssignmentCompatibility, getFacultyUnits, getFacultyMaxUnits, canTeachProgram, specMatchScore } from './validation'
+import { MOCK_ACCOUNTS } from '../auth/accounts'
 
 const DataContext = createContext(null)
 
@@ -82,6 +83,23 @@ function loadRooms() {
   }
 }
 
+function loadUsers() {
+  const stored = load(USERS_KEY, [])
+  const storedById = new Map(stored.map((user) => [user.id, user]))
+  const seedEmails = new Set(MOCK_ACCOUNTS.map((account) => account.email?.toLowerCase()).filter(Boolean))
+  return [
+    ...MOCK_ACCOUNTS.map((account) => ({
+      status: 'active',
+      programs: [],
+      facultyId: null,
+      seedPassword: account.password,
+      ...account,
+      ...(storedById.get(account.id)?.managedEdited ? storedById.get(account.id) : {}),
+    })),
+    ...stored.filter((user) => !MOCK_ACCOUNTS.some((account) => account.id === user.id || account.email?.toLowerCase() === user.email?.toLowerCase()) && !seedEmails.has(user.email?.toLowerCase())),
+  ]
+}
+
 // NOTE: this whole file is a stand-in for a real backend. Everything here is
 // stored in the browser's localStorage so the approval workflow is demoable
 // without standing up a server/database. Swap the bodies of these functions
@@ -94,7 +112,7 @@ export function DataProvider({ children }) {
   const [faculty, setFaculty] = useState(loadFaculty)
   const [subjects, setSubjects] = useState(() => load(SUBJECTS_KEY, SUBJECTS))
   const [rooms, setRooms] = useState(loadRooms)
-  const [users, setUsers] = useState(() => load(USERS_KEY, []))
+  const [users, setUsers] = useState(loadUsers)
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
   const [activity, setActivity] = useState(() => load(ACTIVITY_KEY, []))
   const [overloadRequests, setOverloadRequests] = useState(() => load(OVERLOAD_KEY, []))
@@ -402,6 +420,29 @@ export function DataProvider({ children }) {
     })
   }
 
+  function upsertFacultyMany(records) {
+    setFaculty((prev) => {
+      let nextId = prev.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1
+      const byEmail = new Map(prev.filter(item => item.email).map(item => [String(item.email).toLowerCase(), item]))
+      const byId = new Map(prev.map(item => [item.id, item]))
+      const next = [...prev]
+
+      records.forEach((record) => {
+        const emailKey = record.email ? String(record.email).toLowerCase() : ''
+        const existing = (record.id && byId.get(record.id)) || (emailKey && byEmail.get(emailKey))
+        const id = existing?.id || record.id || nextId++
+        const saved = { ...existing, ...record, id, maxUnits: Number(record.maxUnits || existing?.maxUnits || settings.maxFacultyUnits) }
+        const index = next.findIndex(item => item.id === id)
+        if (index >= 0) next[index] = saved
+        else next.push(saved)
+        if (saved.email) byEmail.set(String(saved.email).toLowerCase(), saved)
+        byId.set(id, saved)
+      })
+
+      return next
+    })
+  }
+
   function upsertSubject(record) {
     setSubjects((prev) => {
       const id = record.id || prev.reduce((max, item) => Math.max(max, item.id), 0) + 1
@@ -512,6 +553,28 @@ export function DataProvider({ children }) {
         type: 'pending-approvals',
         severity: 'medium',
         message: `⚠ ${pending} assignments waiting for Program Head approval`,
+      })
+    }
+
+    const rejected = ta.filter((a) => a.status === 'rejected').length
+    if (rejected > 0) {
+      alerts.push({
+        type: 'rejected-assignments',
+        severity: 'high',
+        message: `${rejected} rejected load assignment(s) need admin reassignment`,
+      })
+    }
+
+    const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000)
+    const facultyProfileUpdates = activity.filter(
+      (item) => item.action === 'faculty_profile_updated' && new Date(item.timestamp).getTime() >= weekAgo,
+    )
+    if (facultyProfileUpdates.length > 0) {
+      alerts.push({
+        type: 'faculty-profile-updates',
+        severity: 'medium',
+        message: `${facultyProfileUpdates.length} faculty profile update(s) need admin review`,
+        updates: facultyProfileUpdates.slice(0, 6),
       })
     }
 
@@ -852,6 +915,7 @@ export function DataProvider({ children }) {
     facultyById,
     setFaculty,
     upsertFaculty,
+    upsertFacultyMany,
     subjects,
     subjectsById,
     setSubjects,
