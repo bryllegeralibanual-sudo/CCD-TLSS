@@ -14,7 +14,7 @@ const NAV = {
   admin:        [
     { section: 'Overview', items: [
       { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/admin/approvals', label: 'Approval Center', icon: ClipboardCheck, badge: false },
+      { to: '/admin/approvals', label: 'Approval Status', icon: ClipboardCheck, badge: false },
     ] },
     { section: 'Faculty', items: [
       { to: '/admin/faculty', label: 'Faculty', icon: Users },
@@ -34,14 +34,14 @@ const NAV = {
   ],
   program_head: [
     { section: 'Program Head', items: [
-      { to: '/head/approvals', label: 'Approvals', icon: ClipboardCheck, badge: true },
+      { to: '/head/approvals', label: 'Schedule Approval', icon: ClipboardCheck, badge: true },
       { to: '/head/faculty', label: 'Faculty', icon: Users },
       { to: '/head/curriculum', label: 'Curriculum', icon: BookOpen },
     ] },
   ],
   registrar:    [
     { section: 'Registrar', items: [
-      { to: '/registrar', label: 'Finalize Loads', icon: ShieldCheck },
+      { to: '/registrar', label: 'Finalize Schedule', icon: ShieldCheck },
       { to: '/scheduler', label: 'Scheduler', icon: CalendarDays },
     ] },
   ],
@@ -52,8 +52,8 @@ const initials = (n='') => n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).
 
 export default function Sidebar({ open, onClose }) {
   const { account, logout } = useAuth()
-  const { term, pendingForProgramHead } = useData()
-  const pendingCount = account?.role === 'program_head' ? pendingForProgramHead(account).length : 0
+  const { term, getPendingSchedulesForPH } = useData()
+  const pendingCount = account?.role === 'program_head' ? getPendingSchedulesForPH(account).length : 0
   const groups = NAV[account?.role] || []
 
   return (

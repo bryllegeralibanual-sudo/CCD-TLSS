@@ -42,7 +42,7 @@ export default function App() {
               <Route path="/admin/loads" element={<ProtectedRoute roles={['admin']}><AppLayout title="Load Assignment" /></ProtectedRoute>}>
                 <Route index element={<LoadAssignmentPage />} />
               </Route>
-              <Route path="/admin/approvals" element={<ProtectedRoute roles={['admin']}><AppLayout title="Approval Center" /></ProtectedRoute>}>
+              <Route path="/admin/approvals" element={<ProtectedRoute roles={['admin']}><AppLayout title="Approval Status" /></ProtectedRoute>}>
                 <Route index element={<ApprovalCenterPage />} />
               </Route>
               <Route path="/admin/users" element={<ProtectedRoute roles={['admin']}><AppLayout title="User Management" /></ProtectedRoute>}>
@@ -58,7 +58,7 @@ export default function App() {
               <Route path="/admin/room-assignment" element={<ProtectedRoute roles={['admin']}><AppLayout title="Room Assignment" /></ProtectedRoute>}>
                 <Route index element={<RoomAssignmentPage />} />
               </Route>
-              <Route path="/head/approvals" element={<ProtectedRoute roles={['program_head']}><AppLayout title="Approvals" /></ProtectedRoute>}>
+              <Route path="/head/approvals" element={<ProtectedRoute roles={['program_head']}><AppLayout title="Schedule Approval" /></ProtectedRoute>}>
                 <Route index element={<ApprovalsPage />} />
               </Route>
               <Route path="/head/faculty" element={<ProtectedRoute roles={['program_head']}><AppLayout title="Faculty" /></ProtectedRoute>}>
@@ -67,7 +67,7 @@ export default function App() {
               <Route path="/head/curriculum" element={<ProtectedRoute roles={['program_head']}><AppLayout title="Curriculum Prospectus" /></ProtectedRoute>}>
                 <Route index element={<CurriculumPage />} />
               </Route>
-              <Route path="/registrar" element={<ProtectedRoute roles={['registrar']}><AppLayout title="Finalize Loads" /></ProtectedRoute>}>
+              <Route path="/registrar" element={<ProtectedRoute roles={['registrar']}><AppLayout title="Finalize Schedule" /></ProtectedRoute>}>
                 <Route index element={<RegistrarPage />} />
               </Route>
               <Route path="/teacher" element={<ProtectedRoute roles={['teacher']}><AppLayout title="My Load" /></ProtectedRoute>}>

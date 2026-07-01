@@ -1009,16 +1009,11 @@ function UnitValidationSummary({ result, subjectsById }) {
 export default function SchedulerPage() {
   const { account } = useAuth()
   const {
-    term, assignments, subjectsById, facultyById, faculty, rooms, isTermFinalized,
+    term, assignments, subjectsById, facultyById, faculty, rooms,
     settings, setSettings, savedScheduleForTerm, saveScheduleForTerm,
     finalizeScheduleForTerm, reopenScheduleForTerm,
-    getScheduleStatusForTerm, submitScheduleForApproval,
-    approveScheduleForTerm, rejectScheduleForTerm,
+    submitScheduleForApproval,
   } = useData()
-  
-  // ✅ Phase 10: Require finalized loads before scheduling
-  const termsFinalized = isTermFinalized(term.ay, term.sem)
-  const canSchedule = termsFinalized
   
   const [result, setResult] = useState(null)
   const [program, setProgram] = useState('ALL')
@@ -1062,11 +1057,10 @@ export default function SchedulerPage() {
     const out = []
     const notApproved = termLoads.filter(a => !['approved', 'withdrawn'].includes(a.status))
     if (notApproved.length) out.push(`${notApproved.length} teaching load(s) are not approved yet.`)
-    if (!isTermFinalized(term.ay, term.sem)) out.push('Registrar has not finalized this term yet.')
     if (!rooms.some(r => r.status !== 'Inactive')) out.push('No active rooms are available.')
     if (scheduleLocked) out.push('Saved schedule is finalized. Reopen it before regenerating.')
     return out
-  }, [isTermFinalized, rooms, scheduleLocked, term.ay, term.sem, termLoads])
+  }, [rooms, scheduleLocked, termLoads])
 
   const visible = useMemo(() => {
     const rows = result?.scheduled || []
@@ -1120,7 +1114,7 @@ export default function SchedulerPage() {
 
   function saveCurrentSchedule() {
     if (!result || scheduleLocked) return
-    const saved = saveScheduleForTerm(applyPolicyGuards({ ...result, yearBlocks, generatedAt: new Date().toISOString() }), account)
+    const saved = saveScheduleForTerm(applyPolicyGuards({ ...result, status: 'draft', yearBlocks, generatedAt: new Date().toISOString() }), account)
     setResult(saved)
   }
 
@@ -1132,8 +1126,8 @@ export default function SchedulerPage() {
   }
 
   function finalizeCurrentSchedule() {
-    finalizeScheduleForTerm(term.ay, term.sem, account)
-    setResult(prev => prev ? { ...prev, finalized: true, finalizedBy: account?.id || 'system', finalizedAt: new Date().toISOString() } : prev)
+    const response = finalizeScheduleForTerm(term.ay, term.sem, account)
+    if (response?.ok) setResult(prev => prev ? { ...prev, status: 'finalized', finalized: true, finalizedBy: account?.id || 'system', finalizedAt: new Date().toISOString() } : prev)
   }
 
   function reopenCurrentSchedule() {
@@ -1145,20 +1139,6 @@ export default function SchedulerPage() {
     if (!result || scheduleLocked) return
     submitScheduleForApproval(term.ay, term.sem, account)
     setResult(prev => prev ? { ...prev, status: 'pending_approval', submittedBy: account?.id, submittedAt: new Date().toISOString() } : prev)
-  }
-
-  function approveCurrentSchedule() {
-    if (!editableByAdmin) return
-    approveScheduleForTerm(term.ay, term.sem, account)
-    setResult(prev => prev ? { ...prev, status: 'approved', reviewedBy: account?.id, reviewedAt: new Date().toISOString() } : prev)
-  }
-
-  function rejectCurrentSchedule() {
-    if (!editableByAdmin) return
-    const reason = prompt('Enter rejection reason:')
-    if (!reason) return
-    rejectScheduleForTerm(term.ay, term.sem, account, reason)
-    setResult(prev => prev ? { ...prev, status: 'draft', rejectionReason: reason, reviewedBy: account?.id, reviewedAt: new Date().toISOString() } : prev)
   }
 
   function goToConflictResolution(item) {
@@ -1354,7 +1334,7 @@ export default function SchedulerPage() {
 
   const scheduleStatus = savedSchedule?.status || 'draft'
   const isAdmin = account?.role === 'admin'
-  const isPH = account?.role === 'program_head'
+  const isRegistrar = account?.role === 'registrar'
 
   function updateDraftBlock(year, field, value) {
     setDraftBlocks(prev => ({ ...prev, [year]: { ...prev[year], [field]: field === 'label' ? value : inputToMinutes(value) } }))
@@ -1451,24 +1431,6 @@ export default function SchedulerPage() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4">
-        {/* ✅ Phase 10: Block scheduling if loads not finalized */}
-        {!canSchedule && (
-          <section className="overflow-hidden rounded-2xl border-2 border-amber-300 bg-amber-50">
-            <div className="flex items-start gap-3 p-5">
-              <AlertTriangle size={24} className="shrink-0 text-amber-700" />
-              <div>
-                <p className="text-lg font-black text-amber-900">Cannot Schedule Yet</p>
-                <p className="mt-2 text-sm text-amber-800">
-                  All faculty loads for AY {term.ay} {term.sem} Semester must be finalized by the Registrar before scheduling can begin.
-                </p>
-                <p className="mt-1 text-xs text-amber-800/75">
-                  ➜ Go to Registrar page and finalize all approved loads first.
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
-
         <section className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm">
           <div className="flex flex-wrap items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10"><CalendarDays size={20} className="text-white" /></div>
@@ -1489,22 +1451,16 @@ export default function SchedulerPage() {
                 {isAdmin && scheduleStatus === 'draft' && (
                   <button type="button" onClick={submitCurrentScheduleForApproval} disabled={!result} className="flex items-center gap-2 rounded-lg border border-blue-300/50 bg-blue-500/20 px-3 py-2 text-xs font-black text-blue-200 disabled:opacity-45"><CheckCircle2 size={14} /> Submit for Approval</button>
                 )}
-                {isAdmin && scheduleStatus === 'pending_approval' && (
-                  <>
-                    <button type="button" onClick={approveCurrentSchedule} className="flex items-center gap-2 rounded-lg border border-green-300/50 bg-green-500/20 px-3 py-2 text-xs font-black text-green-200"><CheckCircle2 size={14} /> Approve Schedule</button>
-                    <button type="button" onClick={rejectCurrentSchedule} className="flex items-center gap-2 rounded-lg border border-red-300/50 bg-red-500/20 px-3 py-2 text-xs font-black text-red-200"><X size={14} /> Reject</button>
-                  </>
-                )}
               </>
             )}
 
-            {savedSchedule?.finalized ? (
-              <button type="button" onClick={reopenCurrentSchedule} disabled={!editableByAdmin} className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white disabled:opacity-45"><Unlock size={14} /> Reopen</button>
+            {isRegistrar && (savedSchedule?.finalized ? (
+              <button type="button" onClick={reopenCurrentSchedule} className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white disabled:opacity-45"><Unlock size={14} /> Reopen</button>
             ) : (
-              <button type="button" onClick={finalizeCurrentSchedule} disabled={!savedSchedule || !editableByAdmin} className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white disabled:opacity-45"><Lock size={14} /> Finalize</button>
-            )}
+              <button type="button" onClick={finalizeCurrentSchedule} disabled={!savedSchedule || scheduleStatus !== 'approved'} className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white disabled:opacity-45"><Lock size={14} /> Finalize</button>
+            ))}
             <button type="button" onClick={saveCurrentSchedule} disabled={!result || !editableByAdmin || scheduleLocked} className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white disabled:opacity-45"><Save size={14} /> Save</button>
-            <button type="button" onClick={generate} disabled={blockers.length > 0 || !canSchedule} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black text-emerald-950 disabled:opacity-50" style={{ background: GOLD }}>{result ? <RefreshCw size={14} /> : <Play size={14} />} Generate</button>
+            <button type="button" onClick={generate} disabled={blockers.length > 0 || !editableByAdmin} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black text-emerald-950 disabled:opacity-50" style={{ background: GOLD }}>{result ? <RefreshCw size={14} /> : <Play size={14} />} Generate</button>
           </div>
 
           <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">

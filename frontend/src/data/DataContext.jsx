@@ -672,6 +672,7 @@ export function DataProvider({ children }) {
       ...schedule,
       ay: term.ay,
       sem: term.sem,
+      status: existing?.status || schedule.status || 'draft',
       finalized: existing?.finalized || false,
       finalizedBy: existing?.finalizedBy || null,
       finalizedAt: existing?.finalizedAt || null,
@@ -684,18 +685,22 @@ export function DataProvider({ children }) {
   }
 
   function finalizeScheduleForTerm(ay, sem, account) {
-    setSchedules((prev) => prev.map((schedule) => (
-      schedule.ay === ay && schedule.sem === sem
-        ? { ...schedule, finalized: true, finalizedBy: account?.id || 'system', finalizedAt: new Date().toISOString() }
-        : schedule
+    const schedule = savedScheduleForTerm(ay, sem)
+    if (!schedule) return { ok: false, blockers: ['No generated schedule has been saved yet.'] }
+    if (schedule.status !== 'approved') return { ok: false, blockers: ['Program Head approval is required before Registrar finalization.'] }
+    setSchedules((prev) => prev.map((item) => (
+      item.ay === ay && item.sem === sem
+        ? { ...item, status: 'finalized', finalized: true, finalizedBy: account?.id || 'system', finalizedAt: new Date().toISOString() }
+        : item
     )))
     logActivity('schedule_finalized', { ay, sem }, account?.id || 'system')
+    return { ok: true, blockers: [] }
   }
 
   function reopenScheduleForTerm(ay, sem, account) {
     setSchedules((prev) => prev.map((schedule) => (
       schedule.ay === ay && schedule.sem === sem
-        ? { ...schedule, finalized: false, finalizedBy: null, finalizedAt: null }
+        ? { ...schedule, status: 'approved', finalized: false, finalizedBy: null, finalizedAt: null }
         : schedule
     )))
     logActivity('schedule_reopened', { ay, sem }, account?.id || 'system')
@@ -807,6 +812,14 @@ export function DataProvider({ children }) {
         ...schedule,
         relevantPrograms: programs,
       }))
+  }
+
+  function getScheduleFinalizeBlockers(ay, sem) {
+    const schedule = savedScheduleForTerm(ay, sem)
+    const blockers = []
+    if (!schedule) blockers.push('No generated schedule has been saved yet.')
+    else if (schedule.status !== 'approved' && !schedule.finalized) blockers.push('Generated schedule is not approved by the Program Head yet.')
+    return blockers
   }
 
   // ✅ Phase 10: Room Conflict Detection & Auto-Fix Support
@@ -939,6 +952,7 @@ export function DataProvider({ children }) {
     rejectScheduleForTerm,
     assignRoomsToSchedule,
     getPendingSchedulesForPH,
+    getScheduleFinalizeBlockers,
     detectRoomConflicts,
     markRoomsAsTBA,
     getScheduleConflicts,
