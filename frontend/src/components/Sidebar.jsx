@@ -34,7 +34,8 @@ const NAV = {
   ],
   program_head: [
     { section: 'Program Head', items: [
-      { to: '/head/approvals', label: 'Schedule Approval', icon: ClipboardCheck, badge: true },
+      { to: '/head/approvals', label: 'Load Approval', icon: ClipboardCheck, badge: 'loads' },
+      { to: '/head/schedule-approval', label: 'Schedule Approval', icon: CalendarDays, badge: 'schedules' },
       { to: '/head/faculty', label: 'Faculty', icon: Users },
       { to: '/head/curriculum', label: 'Curriculum', icon: BookOpen },
     ] },
@@ -52,8 +53,9 @@ const initials = (n='') => n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).
 
 export default function Sidebar({ open, onClose }) {
   const { account, logout } = useAuth()
-  const { term, getPendingSchedulesForPH } = useData()
-  const pendingCount = account?.role === 'program_head' ? getPendingSchedulesForPH(account).length : 0
+  const { term, pendingForProgramHead, getPendingSchedulesForPH } = useData()
+  const pendingLoadCount = account?.role === 'program_head' ? pendingForProgramHead(account).length : 0
+  const pendingScheduleCount = account?.role === 'program_head' ? getPendingSchedulesForPH(account).length : 0
   const groups = NAV[account?.role] || []
 
   return (
@@ -96,7 +98,9 @@ export default function Sidebar({ open, onClose }) {
           {groups.map((group, groupIndex) => (
             <div key={group.section}>
               <p className="text-[9px] uppercase tracking-widest font-bold px-3 py-2" style={{color:'rgba(220,252,231,0.4)'}}>{group.section}</p>
-              {group.items.map(({to,label,icon:Icon,badge},i)=>(
+              {group.items.map(({to,label,icon:Icon,badge},i)=>{
+                const badgeCount = badge === 'loads' ? pendingLoadCount : badge === 'schedules' ? pendingScheduleCount : 0
+                return (
                 <NavLink key={to} to={to} onClick={onClose}
                   className={({isActive})=>`sb-item flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-200 group ${isActive?'text-white':'text-white/65 hover:text-white hover:bg-white/8'}`}
                   style={({isActive})=>isActive?{backgroundColor:'rgba(217,180,74,0.14)',borderLeft:`3px solid ${GOLD}`,paddingLeft:'0.625rem'}:{animationDelay:`${(groupIndex + i)*0.05}s`}}>
@@ -104,11 +108,11 @@ export default function Sidebar({ open, onClose }) {
                     <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{backgroundColor:'rgba(255,255,255,0.07)'}}><Icon size={15}/></span>
                     <span className="text-sm font-medium truncate">{label}</span>
                   </span>
-                  {badge&&pendingCount>0
-                    ?<span className="min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] font-bold px-1.5" style={{backgroundColor:GOLD,color:'#033826'}}>{pendingCount}</span>
+                  {badgeCount>0
+                    ?<span className="min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] font-bold px-1.5" style={{backgroundColor:GOLD,color:'#033826'}}>{badgeCount}</span>
                     :<ChevronRight size={12} className="opacity-0 group-hover:opacity-40 transition-opacity shrink-0"/>}
                 </NavLink>
-              ))}
+              )})}
             </div>
           ))}
         </nav>
