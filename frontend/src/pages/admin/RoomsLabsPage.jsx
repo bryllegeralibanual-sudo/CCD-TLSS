@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, Building2, Clock3, DoorOpen, FlaskConical, Plus, Search } from 'lucide-react'
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, programLabel } from '../../data/programs'
+import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -29,6 +30,7 @@ function overlaps(a, b) {
 
 export default function RoomsLabsPage() {
   const { rooms, upsertRoom, subjects, term, savedScheduleForTerm } = useData()
+  const { dark } = useTheme()
   const [query, setQuery] = useState('')
   const [type, setType] = useState('ALL')
   const [program, setProgram] = useState('ALL')
@@ -119,7 +121,7 @@ export default function RoomsLabsPage() {
   return (
     <div className="mx-auto grid max-w-6xl gap-4 lg:grid-cols-[1fr_320px]">
       <div className="flex flex-col gap-4">
-        <div className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-white shadow-sm">
+        <div className={`overflow-hidden rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
           <div className="flex items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST} 0%, ${MID_GREEN} 100%)` }}>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
               <Building2 size={19} className="text-white" />
@@ -130,24 +132,24 @@ export default function RoomsLabsPage() {
             </div>
           </div>
           <div className="grid gap-3 p-4 sm:grid-cols-4">
-            <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Spaces</p><p className="mt-1 text-2xl font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{rooms.length}</p></div>
-            <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Labs</p><p className="mt-1 text-2xl font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{labs}</p></div>
-            <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Capacity</p><p className="mt-1 text-2xl font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{totalCapacity}</p></div>
+            <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Spaces</p><p className={`mt-1 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{rooms.length}</p></div>
+            <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Labs</p><p className={`mt-1 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{labs}</p></div>
+            <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Capacity</p><p className={`mt-1 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{totalCapacity}</p></div>
             <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Missing Types</p><p className="mt-1 text-2xl font-black text-red-700" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{missingTypes.length}</p></div>
           </div>
           <div className="flex flex-wrap gap-3 border-t border-emerald-950/10 p-4">
-            <select value={type} onChange={e => setType(e.target.value)} className="rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+            <select value={type} onChange={e => setType(e.target.value)} className={`rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
               <option value="ALL">All types</option>
               {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            <select value={program} onChange={e => setProgram(e.target.value)} className="rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+            <select value={program} onChange={e => setProgram(e.target.value)} className={`rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
               <option value="ALL">All ownership</option>
               <option value="SHARED">Shared rooms</option>
               {PROGRAMS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
             </select>
             <div className="relative min-w-64 flex-1">
               <Search size={14} className="absolute left-3 top-3 text-emerald-950/35" />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search room, lab, equipment" className="w-full rounded-xl border border-emerald-950/15 bg-white py-2 pl-9 pr-3 text-sm text-emerald-950 outline-none" />
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search room, lab, equipment" className={`w-full rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} py-2 pl-9 pr-3 text-sm ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
             </div>
           </div>
         </div>
@@ -162,28 +164,28 @@ export default function RoomsLabsPage() {
         <div className="rounded-2xl border border-emerald-900/10 bg-emerald-950/[0.02] p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-black text-emerald-950">Current term occupancy</p>
+              <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Current term occupancy</p>
               <p className="text-xs font-semibold text-emerald-950/55">Vacant rooms are easy to spot, while heavily used spaces show as fully occupied.</p>
             </div>
             <div className="flex flex-wrap gap-2 text-[11px] font-black">
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">Vacant: {occupancySummary.vacant}</span>
+              <span className={`rounded-full border border-emerald-200 ${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'} px-2.5 py-1 text-emerald-800`}>Vacant: {occupancySummary.vacant}</span>
               <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">Occupied: {occupancySummary.occupied}</span>
               <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-red-800">Fully occupied: {occupancySummary.fullyOccupied}</span>
             </div>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-white shadow-sm">
+        <div className={`overflow-hidden rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-950/10 p-4">
             <div>
-              <p className="flex items-center gap-2 text-sm font-black text-emerald-950"><Clock3 size={15} /> Occupancy by day and hour</p>
+              <p className={`flex items-center gap-2 text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}><Clock3 size={15} /> Occupancy by day and hour</p>
               <p className="mt-1 text-xs font-semibold text-emerald-950/55">Green cells are vacant. Red cells show the class using the room.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <select value={occupancyDay} onChange={e => setOccupancyDay(e.target.value)} className="rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-950">
+              <select value={occupancyDay} onChange={e => setOccupancyDay(e.target.value)} className={`rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>
                 {ALL_DAYS.map(day => <option key={day}>{day}</option>)}
               </select>
-              <select value={occupancyRoom} onChange={e => setOccupancyRoom(e.target.value)} className="rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-950">
+              <select value={occupancyRoom} onChange={e => setOccupancyRoom(e.target.value)} className={`rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>
                 <option value="ALL">All visible rooms</option>
                 {visible.filter(room => room.status !== 'Inactive').map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
               </select>
@@ -194,7 +196,7 @@ export default function RoomsLabsPage() {
             <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
               <thead className="bg-emerald-950/[0.04] text-[10px] uppercase text-emerald-950/50">
                 <tr>
-                  <th className="sticky left-0 z-10 min-w-44 border-b border-r border-emerald-950/10 bg-emerald-50 px-3 py-2">Room</th>
+                  <th className={`sticky left-0 z-10 min-w-44 border-b border-r border-emerald-950/10 ${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'} px-3 py-2`}>Room</th>
                   {HOUR_OPTIONS.map(hour => <th key={hour} className="min-w-28 border-b border-r border-emerald-950/10 px-2 py-2">{timeLabel(hour)}</th>)}
                 </tr>
               </thead>
@@ -203,8 +205,8 @@ export default function RoomsLabsPage() {
                   const roomRows = scheduleRows.filter(row => String(row.room?.id) === String(room.id))
                   return (
                     <tr key={room.id}>
-                      <td className="sticky left-0 z-10 border-b border-r border-emerald-950/10 bg-white px-3 py-2">
-                        <p className="font-black text-emerald-950">{room.name}</p>
+                      <td className={`sticky left-0 z-10 border-b border-r border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2`}>
+                        <p className={`font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{room.name}</p>
                         <p className="mt-0.5 font-semibold text-emerald-950/45">{room.type}</p>
                       </td>
                       {HOUR_OPTIONS.map(hour => {
@@ -219,7 +221,7 @@ export default function RoomsLabsPage() {
                                 <p className="mt-0.5 font-semibold opacity-75">{timeLabel(booking.start)}-{timeLabel(booking.end)}</p>
                               </div>
                             ) : (
-                              <div className="flex min-h-12 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 font-black text-emerald-700">Vacant</div>
+                              <div className={`flex min-h-12 items-center justify-center rounded-md border border-emerald-200 ${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'} font-black text-emerald-700`}>Vacant</div>
                             )}
                           </td>
                         )
@@ -238,8 +240,8 @@ export default function RoomsLabsPage() {
             <p className="text-xs font-black uppercase text-emerald-950/45">Best vacancy blocks on {occupancyDay}</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {vacancySuggestions.map(item => (
-                <div key={`${item.room.id}-${item.start}-${item.end}`} className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                  <p className="text-xs font-black text-emerald-950">{item.room.name}</p>
+                <div key={`${item.room.id}-${item.start}-${item.end}`} className={`rounded-lg border border-emerald-200 ${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'} p-3`}>
+                  <p className={`text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{item.room.name}</p>
                   <p className="mt-1 text-xs font-semibold text-emerald-800">{timeLabel(item.start)} - {timeLabel(item.end)}</p>
                   <p className="mt-1 text-[10px] font-black uppercase text-emerald-700/60">{Math.round((item.end - item.start) / 60)} hr open block</p>
                 </div>
@@ -264,13 +266,13 @@ export default function RoomsLabsPage() {
                 ? 'Occupied'
                 : 'Vacant'
             return (
-              <article key={room.id} className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
+              <article key={room.id} className={`rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm`}>
                 <div className="flex items-start gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{ background: /lab/i.test(room.type) ? `${GOLD}24` : 'rgba(15,107,60,0.09)' }}>
                     {/lab/i.test(room.type) ? <FlaskConical size={20} style={{ color: '#92620A' }} /> : <DoorOpen size={20} style={{ color: MID_GREEN }} />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black text-emerald-950">{room.name}</p>
+                    <p className={`truncate text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{room.name}</p>
                     <p className="mt-1 text-xs font-bold text-emerald-950/55">{room.type} - {room.capacity} seats</p>
                   </div>
                   <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${room.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>{room.status}</span>
@@ -292,19 +294,19 @@ export default function RoomsLabsPage() {
         </div>
       </div>
 
-      <aside className="h-fit rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
-        <p className="flex items-center gap-2 text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}><Plus size={15} /> Add Room or Lab</p>
+      <aside className={`h-fit rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm`}>
+        <p className={`flex items-center gap-2 text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}><Plus size={15} /> Add Room or Lab</p>
         <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
           <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Room name" className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm outline-none" />
-          <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+          <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className={`rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
             {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           <input type="number" min="0" value={form.capacity} onChange={e => setForm({ ...form, capacity: e.target.value })} placeholder="Capacity" className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm outline-none" />
-          <select value={form.prog} onChange={e => setForm({ ...form, prog: e.target.value })} className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+          <select value={form.prog} onChange={e => setForm({ ...form, prog: e.target.value })} className={`rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
             <option value="">Shared</option>
             {PROGRAMS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
           </select>
-          <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+          <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className={`rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
             <option>Active</option>
             <option>Maintenance</option>
             <option>Inactive</option>

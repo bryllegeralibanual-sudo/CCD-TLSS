@@ -4,6 +4,7 @@ import { useData } from '../../data/DataContext'
 import { useAuth } from '../../auth/AuthContext'
 import { PROGRAMS, programLabel } from '../../data/programs'
 import { getFacultyMaxUnits, getFacultyUnits } from '../../data/validation'
+import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -360,7 +361,7 @@ function FacultyEditModal({ faculty, onClose, onSave }) {
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 z-50 w-[min(94vw,520px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className={`fixed left-1/2 top-1/2 z-50 w-[min(94vw,520px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-2xl`}>
         <div className="flex items-center justify-between px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div>
             <p className="text-sm font-black text-white" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{faculty.id ? 'Edit Faculty' : 'Add Faculty'}</p>
@@ -375,35 +376,35 @@ function FacultyEditModal({ faculty, onClose, onSave }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               First Name
-              <input required value={form.fn || ''} onChange={e => updateField('fn', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+              <input required value={form.fn || ''} onChange={e => updateField('fn', e.target.value)} className={`rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-semibold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
             </label>
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Last Name
-              <input required value={form.ln || ''} onChange={e => updateField('ln', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+              <input required value={form.ln || ''} onChange={e => updateField('ln', e.target.value)} className={`rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-semibold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
             </label>
           </div>
 
           <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
             Email
-            <input required type="email" value={form.email || ''} onChange={e => updateField('email', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+            <input required type="email" value={form.email || ''} onChange={e => updateField('email', e.target.value)} className={`rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-semibold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
           </label>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Program
-              <select required value={form.prog || ''} onChange={e => updateField('prog', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold normal-case tracking-normal text-emerald-950 outline-none">
+              <select required value={form.prog || ''} onChange={e => updateField('prog', e.target.value)} className={`rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-bold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
                 <option value="">Choose program</option>
                 {PROGRAMS.map(program => <option key={program.code} value={program.code}>{program.label}</option>)}
               </select>
             </label>
             <div className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Shared Programs
-              <div className="rounded-xl border border-emerald-950/15 bg-white p-2 normal-case tracking-normal">
+              <div className={`rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-2 normal-case tracking-normal`}>
                 <div className="grid gap-1.5">
                   {PROGRAMS.map(program => {
                     const checked = (form.shared || []).includes(program.code) || form.prog === program.code
                     return (
-                      <label key={program.code} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-bold text-emerald-950/70 hover:bg-emerald-50">
+                      <label key={program.code} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-bold text-emerald-950/70 hover:${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>
                         <input
                           type="checkbox"
                           checked={checked}
@@ -423,20 +424,20 @@ function FacultyEditModal({ faculty, onClose, onSave }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Type
-              <select value={form.type || 'Full-Time'} onChange={e => updateField('type', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold normal-case tracking-normal text-emerald-950 outline-none">
+              <select value={form.type || 'Full-Time'} onChange={e => updateField('type', e.target.value)} className={`rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-bold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
                 <option value="Full-Time">Full-Time</option>
                 <option value="Part-Time">Part-Time</option>
               </select>
             </label>
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Max Units
-              <input type="number" min="1" value={form.maxUnits || 18} onChange={e => updateField('maxUnits', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold normal-case tracking-normal text-emerald-950 outline-none" />
+              <input type="number" min="1" value={form.maxUnits || 18} onChange={e => updateField('maxUnits', e.target.value)} className={`rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-bold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
             </label>
           </div>
 
           <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
             Specialization
-            <input value={form.spec || ''} onChange={e => updateField('spec', e.target.value)} className="rounded-xl border border-emerald-950/15 bg-white px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+            <input value={form.spec || ''} onChange={e => updateField('spec', e.target.value)} className={`rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-semibold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
           </label>
 
           <div>
@@ -536,7 +537,7 @@ function FacultyImportModal({ faculty, onClose, onImport }) {
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[min(96vw,880px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className={`fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[min(96vw,880px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-2xl`}>
         <div className="flex items-center justify-between px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div>
             <p className="text-sm font-black text-white" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Import Faculty</p>
@@ -552,12 +553,12 @@ function FacultyImportModal({ faculty, onClose, onImport }) {
             <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-emerald-900/25 bg-emerald-50/50 px-4 py-5">
               <FileSpreadsheet size={22} className="text-emerald-700" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-black text-emerald-950">{fileName || 'Choose Excel or CSV file'}</p>
+                <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{fileName || 'Choose Excel or CSV file'}</p>
                 <p className="mt-0.5 text-xs font-semibold text-emerald-950/50">Supports .xlsx, .xls, and .csv</p>
               </div>
               <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e => handleFile(e.target.files?.[0])} />
             </label>
-            <button type="button" onClick={downloadTemplate} className="rounded-2xl border border-emerald-950/15 px-4 py-3 text-sm font-black text-emerald-800 hover:bg-emerald-50">
+            <button type="button" onClick={downloadTemplate} className={`rounded-2xl border border-emerald-950/15 px-4 py-3 text-sm font-black text-emerald-800 hover:${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>
               Template CSV
             </button>
           </div>
@@ -581,7 +582,7 @@ function FacultyImportModal({ faculty, onClose, onImport }) {
                 {rows.map(row => (
                   <div key={row.rowNumber} className="grid grid-cols-[70px_1fr_1fr_1fr] gap-3 px-4 py-3 text-xs">
                     <span className="font-black text-emerald-950/50">{row.rowNumber}</span>
-                    <span className="font-bold text-emerald-950">{row.faculty.ln}, {row.faculty.fn}<br /><span className="font-semibold text-emerald-950/45">{row.faculty.email}</span></span>
+                    <span className={`font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{row.faculty.ln}, {row.faculty.fn}<br /><span className="font-semibold text-emerald-950/45">{row.faculty.email}</span></span>
                     <span className="font-semibold text-emerald-950/65">{programLabel(row.faculty.prog)}</span>
                     {row.errors.length ? (
                       <span className="font-bold text-red-700">{row.errors.join(', ')}</span>
@@ -608,6 +609,7 @@ function FacultyImportModal({ faculty, onClose, onImport }) {
 
 export default function FacultyPage() {
   const { term, faculty, assignments, subjectsById, upsertFaculty, upsertFacultyMany } = useData()
+  const { dark } = useTheme()
   const { account } = useAuth()
   const isHeadView = account?.role === 'program_head'
   const headPrograms = account?.programs || []
@@ -654,7 +656,7 @@ export default function FacultyPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-white shadow-sm">
+      <div className={`overflow-hidden rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
         <div className="flex items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST} 0%, ${MID_GREEN} 100%)` }}>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
             <Users size={19} className="text-white" />
@@ -675,21 +677,21 @@ export default function FacultyPage() {
           )}
         </div>
         <div className="grid gap-3 p-4 sm:grid-cols-4">
-          <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Faculty</p><p className="mt-1 text-2xl font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{rows.length}</p></div>
+          <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Faculty</p><p className={`mt-1 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{rows.length}</p></div>
           <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Overloaded</p><p className="mt-1 text-2xl font-black text-red-700" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{overloaded}</p></div>
           <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Near Capacity</p><p className="mt-1 text-2xl font-black text-amber-700" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{nearCapacity}</p></div>
-          <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Term</p><p className="mt-1 text-lg font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{term.sem}</p></div>
+          <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Term</p><p className={`mt-1 text-lg font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{term.sem}</p></div>
         </div>
         <div className="flex flex-wrap gap-3 border-t border-emerald-950/10 p-4">
           {!isHeadView && (
-            <select value={program} onChange={e => setProgram(e.target.value)} className="rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+            <select value={program} onChange={e => setProgram(e.target.value)} className={`rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
               <option value="ALL">All programs</option>
               {PROGRAMS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
             </select>
           )}
           <div className="relative min-w-64 flex-1">
             <Search size={14} className="absolute left-3 top-3 text-emerald-950/35" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search faculty, email, specialization" className="w-full rounded-xl border border-emerald-950/15 bg-white py-2 pl-9 pr-3 text-sm text-emerald-950 outline-none" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search faculty, email, specialization" className={`w-full rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} py-2 pl-9 pr-3 text-sm ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
           </div>
         </div>
       </div>
@@ -698,7 +700,7 @@ export default function FacultyPage() {
         <section key={code} className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{code === 'BORROWED' ? 'Borrowed Teachers' : programLabel(code)}</h2>
+              <h2 className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{code === 'BORROWED' ? 'Borrowed Teachers' : programLabel(code)}</h2>
               {code === 'BORROWED' && <p className="mt-0.5 text-xs font-semibold text-emerald-950/45">Faculty shared from other programs</p>}
             </div>
             <span className="rounded-full px-3 py-1 text-[11px] font-black" style={{ background: `${GOLD}24`, color: FOREST }}>{people.length} faculty</span>
@@ -707,14 +709,14 @@ export default function FacultyPage() {
             {people.map(f => {
               const img = avatarUrl(f)
               return (
-                <article key={f.id} onClick={() => setSelectedFaculty(f)} className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm hover:shadow-md hover:border-emerald-700/20 cursor-pointer transition-all">
+                <article key={f.id} onClick={() => setSelectedFaculty(f)} className={`rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm hover:shadow-md hover:border-emerald-700/20 cursor-pointer transition-all`}>
                   <div className="flex gap-3">
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-emerald-900/10">
                       {img ? <img src={img} alt={`${f.fn} ${f.ln}`} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-lg font-black text-white" style={{ background: `linear-gradient(135deg, ${FOREST}, ${MID_GREEN})` }}>{initials(f)}</div>}
                       {!img && <Camera size={13} className="absolute bottom-1 right-1 text-white/75" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-black text-emerald-950">{f.ln}, {f.fn}</p>
+                      <p className={`truncate text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{f.ln}, {f.fn}</p>
                       <p className="mt-1 line-clamp-2 text-xs font-semibold text-emerald-950/55">{f.spec || 'Specialization not set'}</p>
                       <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-emerald-950/45"><Mail size={11} /> {f.email}</p>
                     </div>
@@ -725,7 +727,7 @@ export default function FacultyPage() {
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <span className="rounded-full bg-emerald-950/[0.06] px-2.5 py-1 text-[10px] font-black text-emerald-950/65">{programLabel(f.prog)}</span>
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-800">{preferredYearLabel(f)}</span>
+                    <span className={`rounded-full ${dark ? 'bg-emerald-900/30' : 'bg-emerald-100'} px-2.5 py-1 text-[10px] font-black text-emerald-800`}>{preferredYearLabel(f)}</span>
                     {code === 'BORROWED' && <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-black text-blue-800">Borrowed</span>}
                     {(f.shared || []).filter(p => p !== f.prog).map(p => <span key={p} className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-800">{programLabel(p)}</span>)}
                   </div>
@@ -736,7 +738,7 @@ export default function FacultyPage() {
                         e.stopPropagation()
                         setEditingFaculty(f)
                       }}
-                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-50"
+                      className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-800 hover:${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}
                     >
                       <Pencil size={13} /> Edit
                     </button>

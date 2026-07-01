@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock, MessageSquare, Search, ThumbsDown, 
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { getFacultyMaxUnits, getFacultyUnits } from '../../data/validation'
+import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -239,6 +240,7 @@ function RequestCard({ request, faculty, onPhRespond }) {
 
 export default function OverloadRequestsPage() {
   const { account } = useAuth()
+  const { dark } = useTheme()
   const { term, facultyById, getPendingOverloadRequestsForPH, getPendingTeacherOverloadRequests, respondToOverloadRequest } = useData()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('pending') // 'pending' | 'approved' | 'rejected' | 'all'

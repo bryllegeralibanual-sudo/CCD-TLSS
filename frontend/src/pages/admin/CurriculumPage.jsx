@@ -3,6 +3,7 @@ import { BookOpen, Filter, GraduationCap, Search } from 'lucide-react'
 import { useData } from '../../data/DataContext'
 import { useAuth } from '../../auth/AuthContext'
 import { PROGRAMS, SEM_LABELS, YEAR_LABELS, programLabel } from '../../data/programs'
+import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -10,7 +11,7 @@ const GOLD = '#D9B44A'
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-xl border border-emerald-900/10 bg-white px-4 py-3 shadow-sm">
+    <div className={`rounded-xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-4 py-3 shadow-sm`}>
       <p className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-950/45">{label}</p>
       <p className="mt-1 text-2xl font-extrabold leading-none" style={{ color: FOREST, fontFamily: "'EB Garamond',Georgia,serif" }}>{value}</p>
     </div>
@@ -19,6 +20,7 @@ function Stat({ label, value }) {
 
 export default function CurriculumPage() {
   const { subjects } = useData()
+  const { dark } = useTheme()
   const { account } = useAuth()
   const isHeadView = account?.role === 'program_head'
   const headPrograms = account?.programs || []
@@ -60,7 +62,7 @@ export default function CurriculumPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-white shadow-sm">
+      <div className={`overflow-hidden rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
         <div className="flex items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST} 0%, ${MID_GREEN} 100%)` }}>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
             <BookOpen size={19} className="text-white" />
@@ -82,34 +84,34 @@ export default function CurriculumPage() {
           {!isHeadView && (
             <div className="min-w-56 flex-1">
               <label className="mb-1 block text-[11px] font-extrabold uppercase tracking-wider text-emerald-950/50">Program</label>
-              <select value={program} onChange={e => setProgram(e.target.value)} className="w-full rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+              <select value={program} onChange={e => setProgram(e.target.value)} className={`w-full rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
                 {PROGRAMS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
               </select>
             </div>
           )}
           <div>
             <label className="mb-1 block text-[11px] font-extrabold uppercase tracking-wider text-emerald-950/50">Year</label>
-            <select value={year} onChange={e => setYear(e.target.value)} className="rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+            <select value={year} onChange={e => setYear(e.target.value)} className={`rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
               <option value="ALL">All years</option>
               {[1, 2, 3, 4].map(y => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
             </select>
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-extrabold uppercase tracking-wider text-emerald-950/50">Semester</label>
-            <select value={sem} onChange={e => setSem(e.target.value)} className="rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
+            <select value={sem} onChange={e => setSem(e.target.value)} className={`rounded-xl border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
               <option value="ALL">All semesters</option>
               {Object.entries(SEM_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </div>
           <div className="relative min-w-64 flex-1">
             <Search size={14} className="absolute left-3 top-3 text-emerald-950/35" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search code, title, prerequisite" className="w-full rounded-xl border border-emerald-950/15 bg-white py-2 pl-9 pr-3 text-sm text-emerald-950 outline-none" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search code, title, prerequisite" className={`w-full rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} py-2 pl-9 pr-3 text-sm ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
           </div>
         </div>
       </div>
 
       {grouped.length === 0 ? (
-        <div className="rounded-2xl border border-emerald-900/10 bg-white p-10 text-center">
+        <div className={`rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-10 text-center`}>
           <Filter size={26} className="mx-auto text-emerald-700/40" />
           <p className="mt-2 text-sm font-bold text-emerald-950/50">No prospectus subjects match the current filters.</p>
         </div>
@@ -117,11 +119,11 @@ export default function CurriculumPage() {
         const [yr, semester] = key.split('|')
         const units = items.reduce((sum, s) => sum + (s.lec || 0) + (s.lab || 0), 0)
         return (
-          <section key={key} className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-white shadow-sm">
+          <section key={key} className={`overflow-hidden rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-950/10 px-5 py-3">
               <div className="flex items-center gap-2">
                 <GraduationCap size={16} style={{ color: MID_GREEN }} />
-                <h2 className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{YEAR_LABELS[yr]} - {SEM_LABELS[semester] || semester}</h2>
+                <h2 className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{YEAR_LABELS[yr]} - {SEM_LABELS[semester] || semester}</h2>
               </div>
               <span className="rounded-full px-3 py-1 text-[11px] font-black" style={{ color: FOREST, background: `${GOLD}24` }}>{items.length} subjects - {units} units</span>
             </div>
@@ -139,7 +141,7 @@ export default function CurriculumPage() {
                 <tbody>
                   {items.map(subject => (
                     <tr key={subject.id} className="border-t border-emerald-950/10">
-                      <td className="px-4 py-3 font-black text-emerald-950">{subject.code}</td>
+                      <td className={`px-4 py-3 font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{subject.code}</td>
                       <td className="px-4 py-3 text-emerald-950/75">{subject.title}</td>
                       <td className="px-4 py-3 font-bold text-emerald-950/70">{subject.lec || 0}</td>
                       <td className="px-4 py-3 font-bold text-emerald-950/70">{subject.lab || 0}</td>

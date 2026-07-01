@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   AlertTriangle, BookOpen, CalendarDays, CheckCircle2, Clock3, DoorOpen, Download,
   FlaskConical, Lock, Pencil, Play, Printer, RefreshCw, Save, Settings2, Unlock,
@@ -8,8 +8,6 @@ import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, getSections, programLabel } from '../../data/programs'
 import ScheduleViewByProgram from '../../components/ScheduleViewByProgram'
-import { runGreedySchedule } from '../../utils/greedyScheduler'
-import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -139,16 +137,12 @@ function isNSTPSubject(subject) {
   return /^NSTP\b/i.test(subject?.code || '') || /National Service Training Program/i.test(subject?.title || '')
 }
 
-function isComputerLab(room) {
-  return room?.type === 'Computer Lab' || /computer lab/i.test(room?.name || '')
-}
-
 function isActivityVenue(room) {
   return /gym|social hall/i.test(`${room?.name || ''} ${room?.type || ''}`)
 }
 
 function isRegularClassroom(room) {
-  return room?.type === 'Classroom' || room?.type === 'Speech Lab' || room?.type === 'Science Lab'
+  return room?.type === 'Classroom' || room?.type === 'Speech Lab'
 }
 
 function roomMatches(room, roomType, program, subject, allowCrossProgramFallback = false, day = null, roomUse = new Map()) {
@@ -161,31 +155,10 @@ function roomMatches(room, roomType, program, subject, allowCrossProgramFallback
   // Activity venues are reserved for PE, except NSTP in the gym on Saturday
   if (isActivityVenue(room) && !isPESubject(subject) && !(isGym && isNSTPSubject(subject) && day === 'Saturday')) return false
   if (isPESubject(subject) && isActivityVenue(room)) return true
-  const hvacrtWeldingOk = program === 'BTVTED-HVACRT' && room.type === 'Welding Lab' && ['Classroom', 'HVAC Lab', 'Welding Lab'].includes(roomType)
-  const typeOk = room.type === roomType || (roomType === 'Classroom' && isRegularClassroom(room)) || hvacrtWeldingOk
+  const typeOk = room.type === roomType || (roomType === 'Classroom' && isRegularClassroom(room))
 
-  // Computer Lab is EXCLUSIVELY for CP students — never share it with any other program,
-  // regardless of whether cross-program fallback is active.
-  if (isComputerLab(room) && program !== 'BTVTED-CP') return false
-
-  // For HVAC / Welding labs: HVACRT has priority in pass 1.
-  // In pass 2 (allowCrossProgramFallback=true), other programs may use them
-  // when the specific time slot is free. Actual slot-level vacancy is already
-  // enforced by isFree() in placeTask/placeMultiDayTask — no need to re-check
-  // global booking count here (that incorrectly blocks rooms that are busy at
-  // 8am but completely free at 2pm).
-  const isSpecialistLab = ['HVAC Lab', 'Welding Lab'].includes(room.type)
-  if (isSpecialistLab && room.prog && room.prog !== program) {
-    if (!allowCrossProgramFallback) return false   // first pass: owner-program only
-    // second pass: eligible — isFree() will confirm the slot is open
-  }
-
-  // General ownership: rooms with a prog tag go to their owner first;
-  // in second pass they're opened up (except Computer Lab & specialist labs handled above).
-  const ownerOk = isNSTPSubject(subject) ||
-    !room.prog ||
-    room.prog === program ||
-    allowCrossProgramFallback
+  const isSharedVacantLab = ['HVAC Lab', 'Welding Lab'].includes(room.type) && ((roomUse.get(room.id) || []).length === 0)
+  const ownerOk = isNSTPSubject(subject) || allowCrossProgramFallback ? true : (!room.prog || room.prog === program || isSharedVacantLab)
   return typeOk && ownerOk
 }
 
@@ -301,20 +274,6 @@ function meetingPatterns(hours) {
     { days: ['Tuesday', 'Thursday'], minutes: Math.ceil((hours * 60) / 2) },
     { days: ['Monday', 'Wednesday'], minutes: Math.ceil((hours * 60) / 2) },
   ]
-}
-
-function getOverrideDayPatterns(task) {
-  if (!task) return []
-  if (isNSTPSubject(task.subject)) return [['Saturday']]
-  if (task.kind === 'Laboratory') return CLASS_DAYS.map(day => [day])
-  const hours = Math.max(1, Math.round((task.duration / 60) * (task.days?.length || 1)))
-  const patterns = meetingPatterns(hours).map(pattern => pattern.days)
-  const current = task.days?.length ? [task.days] : []
-  const unique = [...current, ...patterns, ...CLASS_DAYS.map(day => [day])]
-  return unique.filter((days, index, source) => (
-    days.every(day => ALL_DAYS.includes(day)) &&
-    source.findIndex(item => item.join('|') === days.join('|')) === index
-  ))
 }
 
 function sectionSortValue(section = '') {
@@ -464,13 +423,12 @@ function roomScore(room, task, settings, roomUse = new Map()) {
   // Capacity bonus (smaller capacity for better fit)
   score += Number(room.capacity || 0) / 10
   
-  // Utilization tiebreaker: lightly prefer less-used rooms to spread load,
-  // but keep the penalty tiny so type/program ownership always dominates.
-  // *10 was too high — a room with 3 bookings (+30) outweighed its own program
-  // ownership bonus (-25), causing the scheduler to abandon valid rooms.
+  // UTILIZATION PENALTY: Heavily penalize already-used rooms to spread load
+  // Count how many times this room is already booked
   const roomBookings = roomUse.get(room.id) || []
-  score += roomBookings.length * 2
-
+  const utilizationPenalty = roomBookings.length * 100
+  score += utilizationPenalty
+  
   return score
 }
 
@@ -491,10 +449,7 @@ function startCandidates(window, duration) {
   return starts
 }
 
-// placeTask: single-day placement (used for labs and single-meeting lectures).
-// activeRooms and roomUse were already in context but never destructured here —
-// that was the root cause of every class getting "TBA" and zero room tracking.
-function placeTask(task, { activeRooms, facultyById, facultyUse, sectionUse, roomUse, yearBlocks, settings }, allowCrossProgramFallback = false) {
+function placeTask(task, { facultyById, facultyUse, sectionUse, yearBlocks, settings }, allowCrossProgramFallback = false) {
   const block = yearBlocks[task.subject.yr] || yearBlocks[4]
   const facultyWindow = preferredWindowForFaculty(facultyById[task.assignment.facultyId])
   const windows = facultyWindow ? [
@@ -510,18 +465,11 @@ function placeTask(task, { activeRooms, facultyById, facultyUse, sectionUse, roo
         if (unavailableForFaculty(settings, task.assignment.facultyId).some(item => ruleOverlaps(item, candidate))) continue
         if (!isFree(facultyUse, task.assignment.facultyId, candidate)) continue
         if (!isFree(sectionUse, task.assignment.section, candidate)) continue
-
-        // Find a room that is actually free at this day+time.
-        // roomCandidates() is already sorted by preference (program-owned first, least-used first).
-        const pool = roomCandidates(activeRooms || [], task, settings, allowCrossProgramFallback, roomUse, day)
-        const room = pool.find(r => isFree(roomUse, r.id, candidate))
-        if (!room) continue   // No room free at this slot — try the next start time
-
         return {
           placed: {
             ...task,
             ...candidate,
-            room,
+            room: createTbaRoom(),
             faculty: facultyById[task.assignment.facultyId],
           },
           error: null,
@@ -530,51 +478,7 @@ function placeTask(task, { activeRooms, facultyById, facultyUse, sectionUse, roo
     }
   }
 
-  return { placed: null, error: { task, type: 'no-slot', reason: `No available ${task.roomType} slot within Year ${task.subject.yr} ${block.label} block (${timeLabel(block.start)}–${timeLabel(block.end)})` } }
-}
-
-// placeMultiDayTask: atomic placement for MWF / TTH lecture patterns.
-// Finds a single (startTime, room) pair that is free on ALL meeting days simultaneously,
-// so the same room is guaranteed across every session of the pattern.
-function placeMultiDayTask(task, days, { activeRooms, facultyById, facultyUse, sectionUse, roomUse, yearBlocks, settings }, allowCrossProgramFallback = false) {
-  const block = yearBlocks[task.subject.yr] || yearBlocks[4]
-  const facultyWindow = preferredWindowForFaculty(facultyById[task.assignment.facultyId])
-  const windows = facultyWindow ? [
-    { start: Math.max(block.start, facultyWindow.start), end: Math.min(block.end, facultyWindow.end) },
-    block,
-  ].filter(w => w.start < w.end) : [block]
-
-  const facUnavailable = unavailableForFaculty(settings, task.assignment.facultyId)
-
-  for (const window of windows) {
-    for (const start of startCandidates(window, task.duration)) {
-      const end = start + task.duration
-      const candidates = days.map(day => ({ day, start, end }))
-
-      // Every day must pass break, faculty-unavailable, faculty-free, and section-free checks
-      if (candidates.some(c => violatesBreaks(settings, c))) continue
-      if (candidates.some(c => facUnavailable.some(rule => ruleOverlaps(rule, c)))) continue
-      if (!candidates.every(c => isFree(facultyUse, task.assignment.facultyId, c))) continue
-      if (!candidates.every(c => isFree(sectionUse, task.assignment.section, c))) continue
-
-      // Find one room that is free on ALL meeting days at this time.
-      // Using days[0] for day-specific room filters (e.g. gym on Saturdays).
-      const pool = roomCandidates(activeRooms || [], task, settings, allowCrossProgramFallback, roomUse, days[0])
-      const room = pool.find(r => candidates.every(c => isFree(roomUse, r.id, c)))
-      if (!room) continue  // Same room not available on all days — try next start time
-
-      const faculty = facultyById[task.assignment.facultyId]
-      return {
-        placed: candidates.map(c => ({ ...task, ...c, room, faculty })),
-        error: null,
-      }
-    }
-  }
-
-  return {
-    placed: null,
-    error: { task, type: 'no-slot', reason: `No ${days.join('/')} slot with an available ${task.roomType} in Year ${task.subject.yr} ${block.label} block (${timeLabel(block.start)}–${timeLabel(block.end)})` },
-  }
+  return { placed: null, error: { task, type: 'no-slot', reason: `No conflict-free slot within Year ${task.subject.yr} ${block.label} (${timeLabel(block.start)}-${timeLabel(block.end)})` } }
 }
 
 function commitPlaced(item, maps, scheduled) {
@@ -622,35 +526,23 @@ function makeSchedule({ approved, subjectsById, facultyById, rooms, yearBlocks, 
     if (group.lectureOptions.length) {
       let lastError = null
       for (const option of group.lectureOptions) {
-        // Multi-day options (MWF, TTH, etc.) are placed atomically so the same
-        // room is guaranteed on every meeting day — avoids phantom room waste.
-        const optionDays = option.map(t => t.days[0])
-        const isMultiDay = optionDays.length > 1 && new Set(optionDays).size === optionDays.length
-        
-        if (isMultiDay) {
-          // Use placeMultiDayTask for atomic room+time lock across all days
-          const representativeTask = { ...option[0], days: optionDays }
-          const { placed: multiPlaced, error } = placeMultiDayTask(representativeTask, optionDays, context, false)
-          if (multiPlaced) {
-            multiPlaced.forEach(p => commitPlaced(p, maps, scheduled))
-            lecturePlaced = multiPlaced
+        const optionPlaced = []
+        let failed = null
+        for (const task of option) {
+          const { placed, error } = placeTask(task, context, false)
+          if (!placed) {
+            failed = error
             break
           }
-          lastError = error
-        } else {
-          // Single-day or already-split tasks: place each session individually
-          const optionPlaced = []
-          let failed = null
-          for (const task of option) {
-            const { placed, error } = placeTask(task, context, false)
-            if (!placed) { failed = error; break }
-            commitPlaced(placed, maps, scheduled)
-            optionPlaced.push(placed)
-          }
-          if (!failed) { lecturePlaced = optionPlaced; break }
-          rollbackPlaced(optionPlaced, maps, scheduled)
-          lastError = failed
+          commitPlaced(placed, maps, scheduled)
+          optionPlaced.push(placed)
         }
+        if (!failed) {
+          lecturePlaced = optionPlaced
+          break
+        }
+        rollbackPlaced(optionPlaced, maps, scheduled)
+        lastError = failed
       }
       if (!lecturePlaced.length) {
         unscheduled.push(lastError || { task: group.lectureOptions[0][0], type: 'no-slot', reason: 'No lecture pattern could be placed.' })
@@ -681,27 +573,15 @@ function makeSchedule({ approved, subjectsById, facultyById, rooms, yearBlocks, 
 
   const retried = new Set()
   for (const task of retryTasks) {
-    // Try multi-day atomic placement first for lecture tasks that had multiple days
-    if (task.kind === 'Lecture' && task.days && task.days.length > 1) {
-      const { placed: multiPlaced } = placeMultiDayTask(task, task.days, context, true)
-      if (multiPlaced) {
-        multiPlaced.forEach(p => commitPlaced(p, maps, scheduled))
-        retried.add(`${task.assignment.id}-${task.kind}`)
-        continue
-      }
-    }
-    const { placed } = placeTask(task, context, true)
+    const { placed, error } = placeTask(task, context, true)
     if (placed) {
       commitPlaced(placed, maps, scheduled)
-      retried.add(`${task.assignment.id}-${task.kind}`)
+      retried.add(task.assignment.id)
     }
   }
 
   // Update unscheduled list to remove successfully retried items
-  unscheduled.splice(0, unscheduled.length, ...unscheduled.filter(item => {
-    const key = `${item.task.assignment.id}-${item.task.kind}`
-    return !retried.has(key)
-  }))
+  unscheduled.splice(0, unscheduled.length, ...unscheduled.filter(item => !retried.has(item.task.assignment.id)))
 
   return { scheduled, unscheduled, offCampus }
 }
@@ -766,7 +646,7 @@ function getYearColor(year) {
 
 function Metric({ icon: Icon, label, value, tone = FOREST }) {
   return (
-    <div className={`rounded-lg border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-4 py-3`}>
+    <div className="rounded-lg border border-emerald-950/10 bg-white px-4 py-3">
       <div className="flex items-center gap-2 text-[11px] font-black uppercase text-emerald-950/45"><Icon size={14} /> {label}</div>
       <p className="mt-1 text-2xl font-black" style={{ color: tone, fontFamily: "'EB Garamond',Georgia,serif" }}>{value}</p>
     </div>
@@ -859,16 +739,16 @@ function RoomOccupancyGrid({ rows, rooms, days, selectedSection, onSectionChange
     <div className="p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Room Occupancy</p>
+          <p className="text-sm font-black text-emerald-950">Room Occupancy</p>
           <p className="text-xs font-semibold text-emerald-950/55">View which rooms are occupied during class hours and filter by section.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap gap-2 text-[11px] font-black">
-            <span className={`rounded-full border border-emerald-200 ${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'} px-2.5 py-1 text-emerald-800`}>Vacant: {occupancySummary.vacant}</span>
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">Vacant: {occupancySummary.vacant}</span>
             <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">Occupied: {occupancySummary.occupied}</span>
             <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-red-800">Fully occupied: {occupancySummary.fullyOccupied}</span>
           </div>
-          <select value={selectedSection} onChange={e => onSectionChange(e.target.value)} className={`rounded-lg border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
+          <select value={selectedSection} onChange={e => onSectionChange(e.target.value)} className="rounded-lg border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
             <option value="ALL">All sections</option>
             {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
           </select>
@@ -907,7 +787,7 @@ function RoomOccupancyGrid({ rows, rooms, days, selectedSection, onSectionChange
                   : 'Vacant'
               return (
                 <tr key={room.id} className="align-top">
-                  <th className={`border border-emerald-950/10 bg-emerald-950/[0.02] px-3 py-2 text-left text-[11px] font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>
+                  <th className="border border-emerald-950/10 bg-emerald-950/[0.02] px-3 py-2 text-left text-[11px] font-black text-emerald-950">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span>{room.name}</span>
                       <span className={`rounded-full px-2 py-1 text-[10px] font-black ${roomTone}`}>{roomLabel}</span>
@@ -992,7 +872,7 @@ function UnitValidationSummary({ result, subjectsById }) {
         {issues.map((data, idx) => {
           const validation = validateSubjectUnits(data.assignment, data.subject, result.scheduled)
           return (
-            <div key={idx} className={`rounded-lg border border-amber-200 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-2 text-xs font-semibold text-amber-900`}>
+            <div key={idx} className="rounded-lg border border-amber-200 bg-white p-2 text-xs font-semibold text-amber-900">
               <p>{data.assignment.section} - {data.subject.code}</p>
               <p className="text-amber-800/75 mt-1">
                 Required: {validation.required.lectureHours}h lecture + {validation.required.labHours}h lab = {validation.required.totalHours}h total
@@ -1009,13 +889,17 @@ function UnitValidationSummary({ result, subjectsById }) {
 }
 export default function SchedulerPage() {
   const { account } = useAuth()
-  const { dark } = useTheme()
   const {
-    term, assignments, subjectsById, facultyById, faculty, rooms,
+    term, assignments, subjectsById, facultyById, faculty, rooms, isTermFinalized,
     settings, setSettings, savedScheduleForTerm, saveScheduleForTerm,
     finalizeScheduleForTerm, reopenScheduleForTerm,
-    submitScheduleForApproval,
+    getScheduleStatusForTerm, submitScheduleForApproval,
+    approveScheduleForTerm, rejectScheduleForTerm,
   } = useData()
+  
+  // ✅ Phase 10: Require finalized loads before scheduling
+  const termsFinalized = isTermFinalized(term.ay, term.sem)
+  const canSchedule = termsFinalized
   
   const [result, setResult] = useState(null)
   const [program, setProgram] = useState('ALL')
@@ -1030,10 +914,6 @@ export default function SchedulerPage() {
   const [editingRow, setEditingRow] = useState(null)
   const [editDraft, setEditDraft] = useState(null)
   const [editErrors, setEditErrors] = useState([])
-  const [overrideItem, setOverrideItem] = useState(null)
-  const [overrideDraft, setOverrideDraft] = useState(null)
-  const scheduleResolveRef = useRef(null)
-  const rulesResolveRef = useRef(null)
 
   const yearBlocks = useMemo(() => normalizeBlocks(settings.scheduleYearBlocks), [settings.scheduleYearBlocks])
   const editableByAdmin = account?.role === 'admin'
@@ -1059,10 +939,11 @@ export default function SchedulerPage() {
     const out = []
     const notApproved = termLoads.filter(a => !['approved', 'withdrawn'].includes(a.status))
     if (notApproved.length) out.push(`${notApproved.length} teaching load(s) are not approved yet.`)
+    if (!isTermFinalized(term.ay, term.sem)) out.push('Registrar has not finalized this term yet.')
     if (!rooms.some(r => r.status !== 'Inactive')) out.push('No active rooms are available.')
     if (scheduleLocked) out.push('Saved schedule is finalized. Reopen it before regenerating.')
     return out
-  }, [rooms, scheduleLocked, termLoads])
+  }, [isTermFinalized, rooms, scheduleLocked, term.ay, term.sem, termLoads])
 
   const visible = useMemo(() => {
     const rows = result?.scheduled || []
@@ -1095,12 +976,8 @@ export default function SchedulerPage() {
   const utilization = activeRooms ? Math.round((roomMinutes / (activeRooms * utilizationDays * (CLOSE - OPEN))) * 100) : 0
 
   function generate() {
-    // Prefer the new greedy scheduler (fast, high coverage). Keep the original
-    // makeSchedule as a fallback if desired.
-    const greedy = runGreedySchedule({ approved, subjectsById, facultyById, rooms, yearBlocks, settings })
-    const initial = applyPolicyGuards({ scheduled: greedy.scheduled, unscheduled: greedy.unscheduled, offCampus: [] })
-    // If greedy left many unscheduled, try original full search as fallback
-    if (initial.unscheduled.length > 0 && initial.unscheduled.length > greedy.scheduled.length * 0.1) {
+    const initial = applyPolicyGuards(makeSchedule({ approved, subjectsById, facultyById, rooms, yearBlocks, settings }))
+    if (initial.unscheduled.length > 0 && initial.unscheduled.every(item => item.type === 'no-slot')) {
       const fallback = applyPolicyGuards(makeSchedule({ approved, subjectsById, facultyById, rooms, yearBlocks: FULL_DAY_YEAR_BLOCKS, settings }))
       if (fallback.unscheduled.length < initial.unscheduled.length) {
         setResult(fallback)
@@ -1116,7 +993,7 @@ export default function SchedulerPage() {
 
   function saveCurrentSchedule() {
     if (!result || scheduleLocked) return
-    const saved = saveScheduleForTerm(applyPolicyGuards({ ...result, status: 'draft', yearBlocks, generatedAt: new Date().toISOString() }), account)
+    const saved = saveScheduleForTerm(applyPolicyGuards({ ...result, yearBlocks, generatedAt: new Date().toISOString() }), account)
     setResult(saved)
   }
 
@@ -1128,8 +1005,8 @@ export default function SchedulerPage() {
   }
 
   function finalizeCurrentSchedule() {
-    const response = finalizeScheduleForTerm(term.ay, term.sem, account)
-    if (response?.ok) setResult(prev => prev ? { ...prev, status: 'finalized', finalized: true, finalizedBy: account?.id || 'system', finalizedAt: new Date().toISOString() } : prev)
+    finalizeScheduleForTerm(term.ay, term.sem, account)
+    setResult(prev => prev ? { ...prev, finalized: true, finalizedBy: account?.id || 'system', finalizedAt: new Date().toISOString() } : prev)
   }
 
   function reopenCurrentSchedule() {
@@ -1143,200 +1020,23 @@ export default function SchedulerPage() {
     setResult(prev => prev ? { ...prev, status: 'pending_approval', submittedBy: account?.id, submittedAt: new Date().toISOString() } : prev)
   }
 
-  function goToConflictResolution(item) {
-    const task = item?.task
-    if (!task) return
-    const sameAssignmentRows = (result?.scheduled || []).filter(row => row.assignment.id === task.assignment.id)
-    const fallbackSectionRows = (result?.scheduled || []).filter(row => row.assignment.section === task.assignment.section)
-    const firstRelatedRow = sameAssignmentRows[0] || fallbackSectionRows[0]
-
-    setProgram(task.subject?.prog || 'ALL')
-    setView('section')
-    setDisplayMode('table')
-    setShowAllRows(true)
-    setFocusValue(task.assignment.section)
-    setQuery(task.subject?.code || '')
-
-    if (['no-slot', 'policy-violation', 'missing-room', 'missing-lab'].includes(item.type)) {
-      setDraftBlocks(yearBlocks)
-      setEditingRules(true)
-    }
-
-    window.setTimeout(() => {
-      if (firstRelatedRow && editableByAdmin && !scheduleLocked) {
-        scheduleResolveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      } else {
-        rulesResolveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-    }, 0)
+  function approveCurrentSchedule() {
+    if (!editableByAdmin) return
+    approveScheduleForTerm(term.ay, term.sem, account)
+    setResult(prev => prev ? { ...prev, status: 'approved', reviewedBy: account?.id, reviewedAt: new Date().toISOString() } : prev)
   }
 
-  function buildOverrideRows(item = overrideItem, draft = overrideDraft) {
-    const task = item?.task
-    if (!task || !draft) return []
-    const room = rooms.find(roomItem => String(roomItem.id) === String(draft.roomId)) || createTbaRoom()
-    const days = draft.days?.length ? draft.days : [draft.day]
-    const originalMeetings = Math.max(1, task.days?.length || 1)
-    const totalMinutes = task.duration * originalMeetings
-    const sessionDuration = Math.ceil(totalMinutes / days.length)
-    return days.map(day => ({
-      ...task,
-      day,
-      start: draft.start,
-      end: draft.start + sessionDuration,
-      duration: sessionDuration,
-      days,
-      room,
-      faculty: facultyById[task.assignment.facultyId] || null,
-      manualOverride: true,
-    }))
-  }
-
-  function getOverrideWarnings(item = overrideItem, draft = overrideDraft) {
-    const rows = buildOverrideRows(item, draft)
-    if (!rows.length) return ['Select a day, time, and room.']
-    const task = item.task
-    const room = rows[0].room
-    const block = yearBlocks[task.subject.yr] || { start: OPEN, end: CLOSE }
-    const warnings = []
-    rows.forEach(row => {
-      if (row.start < OPEN || row.end > CLOSE) warnings.push(`${row.day}: outside operating hours.`)
-      if (row.start < block.start || row.end > block.end) warnings.push(`${row.day}: outside Year ${task.subject.yr} ${block.label} block.`)
-      const policyError = policyViolation(row)
-      if (policyError) warnings.push(`${row.day}: ${policyError}`)
-      if (violatesBreaks(settings, row)) warnings.push(`${row.day}: overlaps a blocked break period.`)
-      if (unavailableForFaculty(settings, task.assignment.facultyId).some(rule => ruleOverlaps(rule, row))) warnings.push(`${row.day}: faculty is marked unavailable.`)
-      ;(result?.scheduled || []).forEach(existing => {
-        if (!overlaps(existing, row)) return
-        if (existing.assignment.facultyId === task.assignment.facultyId) warnings.push(`${row.day}: faculty conflict with ${existing.assignment.section} - ${existing.subject.code}.`)
-        if (existing.assignment.section === task.assignment.section) warnings.push(`${row.day}: section conflict with ${existing.subject.code}.`)
-        if (existing.room?.id && room.id && String(existing.room.id) === String(room.id)) warnings.push(`${row.day}: room conflict with ${existing.assignment.section} - ${existing.subject.code}.`)
-      })
-    })
-    if (room.id && !roomMatches(room, task.roomType, task.subject.prog, task.subject, true, rows[0].day)) {
-      warnings.push(`${room.name} does not match the required ${task.roomType} rules.`)
-    }
-    return Array.from(new Set(warnings))
-  }
-
-  function getVacantSuggestions(item = overrideItem, limit = 10) {
-    const task = item?.task
-    if (!task) return []
-    const block = yearBlocks[task.subject.yr] || { start: OPEN, end: CLOSE, label: 'Flexible' }
-    const daySets = getOverrideDayPatterns(task)
-    const matchingRooms = rooms
-      .filter(room => room.status !== 'Inactive')
-      .filter(room => roomMatches(room, task.roomType, task.subject.prog, task.subject, true, daySets[0]?.[0]))
-      .sort((a, b) => {
-        const ownedA = a.prog === task.subject.prog ? 0 : 1
-        const ownedB = b.prog === task.subject.prog ? 0 : 1
-        return ownedA - ownedB || Number(a.capacity || 0) - Number(b.capacity || 0) || a.name.localeCompare(b.name)
-      })
-
-    function isClean(rows) {
-      return rows.every(row => (
-        row.start >= OPEN &&
-        row.end <= CLOSE &&
-        !policyViolation(row) &&
-        !violatesBreaks(settings, row) &&
-        !unavailableForFaculty(settings, task.assignment.facultyId).some(rule => ruleOverlaps(rule, row)) &&
-        !(result?.scheduled || []).some(existing => overlaps(existing, row) && (
-          existing.assignment.facultyId === task.assignment.facultyId ||
-          existing.assignment.section === task.assignment.section ||
-          (existing.room?.id && row.room?.id && String(existing.room.id) === String(row.room.id))
-        ))
-      ))
-    }
-
-    function collectSuggestions(window, tier) {
-      const suggestions = []
-      for (const days of daySets) {
-        const originalMeetings = Math.max(1, task.days?.length || 1)
-        const sessionDuration = Math.ceil((task.duration * originalMeetings) / days.length)
-        for (const start of TIME_OPTIONS.filter(value => value >= window.start && value + sessionDuration <= window.end)) {
-          for (const room of matchingRooms) {
-            const rows = days.map(day => ({
-              ...task,
-              day,
-              start,
-              end: start + sessionDuration,
-              duration: sessionDuration,
-              days,
-              room,
-              faculty: facultyById[task.assignment.facultyId] || null,
-            }))
-            if (!isClean(rows)) continue
-            suggestions.push({
-              day: days[0],
-              days,
-              start,
-              end: start + sessionDuration,
-              room,
-              tier,
-              label: `${days.join('/')} ${timeLabel(start)}-${timeLabel(start + sessionDuration)} - ${room.name}`,
-            })
-          }
-        }
-      }
-      return suggestions
-    }
-
-    const strict = collectSuggestions(block, 'Within year block')
-    const relaxed = strict.length ? [] : collectSuggestions({ start: OPEN, end: CLOSE }, 'Vacant outside year block')
-      .filter(item => item.start < block.start || item.end > block.end)
-
-    return [...strict, ...relaxed].slice(0, limit)
-  }
-
-  function openManualOverride(item) {
-    const task = item?.task
-    if (!task) return
-    const suggestions = getVacantSuggestions(item, 1)
-    const block = yearBlocks[task.subject.yr] || { start: OPEN, end: CLOSE }
-    const days = suggestions[0]?.days || task.days || [isNSTPSubject(task.subject) ? 'Saturday' : 'Monday']
-    const day = days[0]
-    const room = rooms.find(roomItem => roomMatches(roomItem, task.roomType, task.subject.prog, task.subject, true, day)) || rooms.find(roomItem => roomItem.status !== 'Inactive')
-    setOverrideItem(item)
-    setOverrideDraft({
-      day: suggestions[0]?.day || day,
-      days,
-      start: suggestions[0]?.start || Math.min(block.start, CLOSE - task.duration),
-      roomId: suggestions[0]?.room?.id || room?.id || '',
-    })
-  }
-
-  function applyManualOverride() {
-    const rows = buildOverrideRows()
-    if (!rows.length) return
-    const task = overrideItem.task
-    setResult(prev => ({
-      ...prev,
-      scheduled: [...(prev?.scheduled || []), ...rows],
-      unscheduled: (prev?.unscheduled || []).filter(item => item !== overrideItem && !(item.task?.assignment.id === task.assignment.id && item.task?.kind === task.kind)),
-      savedAt: null,
-      finalized: false,
-    }))
-    setProgram(task.subject?.prog || 'ALL')
-    setView('section')
-    setDisplayMode('table')
-    setShowAllRows(true)
-    setFocusValue(task.assignment.section)
-    setQuery(task.subject?.code || '')
-    setOverrideItem(null)
-    setOverrideDraft(null)
-    window.setTimeout(() => scheduleResolveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
-  }
-
-  function overrideSessionDuration(task = overrideItem?.task, draft = overrideDraft) {
-    if (!task || !draft) return 0
-    const days = draft.days?.length ? draft.days : [draft.day]
-    const originalMeetings = Math.max(1, task.days?.length || 1)
-    return Math.ceil((task.duration * originalMeetings) / days.length)
+  function rejectCurrentSchedule() {
+    if (!editableByAdmin) return
+    const reason = prompt('Enter rejection reason:')
+    if (!reason) return
+    rejectScheduleForTerm(term.ay, term.sem, account, reason)
+    setResult(prev => prev ? { ...prev, status: 'draft', rejectionReason: reason, reviewedBy: account?.id, reviewedAt: new Date().toISOString() } : prev)
   }
 
   const scheduleStatus = savedSchedule?.status || 'draft'
   const isAdmin = account?.role === 'admin'
-  const isRegistrar = account?.role === 'registrar'
+  const isPH = account?.role === 'program_head'
 
   function updateDraftBlock(year, field, value) {
     setDraftBlocks(prev => ({ ...prev, [year]: { ...prev[year], [field]: field === 'label' ? value : inputToMinutes(value) } }))
@@ -1433,7 +1133,25 @@ export default function SchedulerPage() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4">
-        <section className={`overflow-hidden rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
+        {/* ✅ Phase 10: Block scheduling if loads not finalized */}
+        {!canSchedule && (
+          <section className="overflow-hidden rounded-2xl border-2 border-amber-300 bg-amber-50">
+            <div className="flex items-start gap-3 p-5">
+              <AlertTriangle size={24} className="shrink-0 text-amber-700" />
+              <div>
+                <p className="text-lg font-black text-amber-900">Cannot Schedule Yet</p>
+                <p className="mt-2 text-sm text-amber-800">
+                  All faculty loads for AY {term.ay} {term.sem} Semester must be finalized by the Registrar before scheduling can begin.
+                </p>
+                <p className="mt-1 text-xs text-amber-800/75">
+                  ➜ Go to Registrar page and finalize all approved loads first.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm">
           <div className="flex flex-wrap items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10"><CalendarDays size={20} className="text-white" /></div>
             <div className="min-w-0 flex-1">
@@ -1453,16 +1171,22 @@ export default function SchedulerPage() {
                 {isAdmin && scheduleStatus === 'draft' && (
                   <button type="button" onClick={submitCurrentScheduleForApproval} disabled={!result} className="flex items-center gap-2 rounded-lg border border-blue-300/50 bg-blue-500/20 px-3 py-2 text-xs font-black text-blue-200 disabled:opacity-45"><CheckCircle2 size={14} /> Submit for Approval</button>
                 )}
+                {isAdmin && scheduleStatus === 'pending_approval' && (
+                  <>
+                    <button type="button" onClick={approveCurrentSchedule} className="flex items-center gap-2 rounded-lg border border-green-300/50 bg-green-500/20 px-3 py-2 text-xs font-black text-green-200"><CheckCircle2 size={14} /> Approve Schedule</button>
+                    <button type="button" onClick={rejectCurrentSchedule} className="flex items-center gap-2 rounded-lg border border-red-300/50 bg-red-500/20 px-3 py-2 text-xs font-black text-red-200"><X size={14} /> Reject</button>
+                  </>
+                )}
               </>
             )}
 
-            {isRegistrar && (savedSchedule?.finalized ? (
-              <button type="button" onClick={reopenCurrentSchedule} className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white disabled:opacity-45"><Unlock size={14} /> Reopen</button>
+            {savedSchedule?.finalized ? (
+              <button type="button" onClick={reopenCurrentSchedule} disabled={!editableByAdmin} className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white disabled:opacity-45"><Unlock size={14} /> Reopen</button>
             ) : (
-              <button type="button" onClick={finalizeCurrentSchedule} disabled={!savedSchedule || scheduleStatus !== 'approved'} className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white disabled:opacity-45"><Lock size={14} /> Finalize</button>
-            ))}
+              <button type="button" onClick={finalizeCurrentSchedule} disabled={!savedSchedule || !editableByAdmin} className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white disabled:opacity-45"><Lock size={14} /> Finalize</button>
+            )}
             <button type="button" onClick={saveCurrentSchedule} disabled={!result || !editableByAdmin || scheduleLocked} className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white disabled:opacity-45"><Save size={14} /> Save</button>
-            <button type="button" onClick={generate} disabled={blockers.length > 0 || !editableByAdmin} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'} disabled:opacity-50`} style={{ background: GOLD }}>{result ? <RefreshCw size={14} /> : <Play size={14} />} Generate</button>
+            <button type="button" onClick={generate} disabled={blockers.length > 0 || !canSchedule} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black text-emerald-950 disabled:opacity-50" style={{ background: GOLD }}>{result ? <RefreshCw size={14} /> : <Play size={14} />} Generate</button>
           </div>
 
           <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -1479,7 +1203,7 @@ export default function SchedulerPage() {
         </section>
 
         <section className="grid gap-3 lg:grid-cols-[1fr_340px]">
-          <div ref={scheduleResolveRef} className={`rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
+          <div className="rounded-2xl border border-emerald-950/10 bg-white shadow-sm">
             <div className="flex flex-wrap items-center gap-3 border-b border-emerald-950/10 p-4">
               <div className="flex overflow-hidden rounded-lg border border-emerald-950/10 bg-emerald-950/[0.03]">
                 {VIEW_OPTIONS.map(({ value, label, icon: Icon }) => (
@@ -1489,12 +1213,12 @@ export default function SchedulerPage() {
               <div className="flex overflow-hidden rounded-lg border border-emerald-950/10 bg-emerald-950/[0.03]">
                 {['table', 'grid'].map(mode => <button key={mode} type="button" onClick={() => setDisplayMode(mode)} className="px-3 py-2 text-xs font-black" style={{ background: displayMode === mode ? GOLD : 'transparent', color: FOREST }}>{mode === 'table' ? 'Table' : 'Weekly Grid'}</button>)}
               </div>
-              <select value={program} onChange={e => setProgram(e.target.value)} className={`rounded-lg border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
+              <select value={program} onChange={e => setProgram(e.target.value)} className="rounded-lg border border-emerald-950/15 bg-emerald-950/[0.03] px-3 py-2 text-sm font-bold text-emerald-950 outline-none">
                 <option value="ALL">All programs</option>
                 {PROGRAMS.map(item => <option key={item.code} value={item.code}>{item.label}</option>)}
               </select>
-              {view === 'section' && <select value={focusValue} onChange={e => setFocusValue(e.target.value)} className={`rounded-lg border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}><option value="ALL">All sections</option>{sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}</select>}
-              {view === 'faculty' && <select value={focusValue} onChange={e => setFocusValue(e.target.value)} className={`rounded-lg border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}><option value="ALL">All faculty</option>{facultyOptions.map(item => <option key={item.id} value={item.id}>{item.ln}, {item.fn}</option>)}</select>}
+              {view === 'section' && <select value={focusValue} onChange={e => setFocusValue(e.target.value)} className="rounded-lg border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold text-emerald-950 outline-none"><option value="ALL">All sections</option>{sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}</select>}
+              {view === 'faculty' && <select value={focusValue} onChange={e => setFocusValue(e.target.value)} className="rounded-lg border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold text-emerald-950 outline-none"><option value="ALL">All faculty</option>{facultyOptions.map(item => <option key={item.id} value={item.id}>{item.ln}, {item.fn}</option>)}</select>}
               <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search section, subject, room" className="min-w-64 flex-1 rounded-lg border border-emerald-950/15 px-3 py-2 text-sm outline-none" />
             </div>
               {view === 'program' && result ? (
@@ -1510,17 +1234,17 @@ export default function SchedulerPage() {
                   <tbody>
                     {displayRows.map((row, index) => (
                       <tr key={`${makeRowId(row)}-${index}`} className={`border-t border-emerald-950/10 ${isLabRow(row) ? 'bg-amber-50' : ''}`}>
-                        <td className={`whitespace-nowrap px-4 py-3 font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{row.day}<br /><span className="text-xs font-bold text-emerald-950/55">{timeLabel(row.start)} - {timeLabel(row.end)}</span></td>
-                        <td className={`px-4 py-3 font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{row.assignment.section}<br /><span className="text-xs text-emerald-950/50">{yearBlocks[row.subject.yr]?.label}</span></td>
-                        <td className="px-4 py-3"><span className={`font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{row.subject.code}</span><br /><span className={`text-xs font-semibold ${isLabRow(row) ? 'text-amber-700' : 'text-emerald-950/55'}`}>{row.kind}</span></td>
-                        <td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full ${dark ? 'bg-emerald-900/30' : 'bg-emerald-100'} px-2.5 py-1 text-xs font-black text-emerald-800`}>{row.duration / 60}h</span></td>
+                        <td className="whitespace-nowrap px-4 py-3 font-black text-emerald-950">{row.day}<br /><span className="text-xs font-bold text-emerald-950/55">{timeLabel(row.start)} - {timeLabel(row.end)}</span></td>
+                        <td className="px-4 py-3 font-bold text-emerald-950">{row.assignment.section}<br /><span className="text-xs text-emerald-950/50">{yearBlocks[row.subject.yr]?.label}</span></td>
+                        <td className="px-4 py-3"><span className="font-black text-emerald-950">{row.subject.code}</span><br /><span className={`text-xs font-semibold ${isLabRow(row) ? 'text-amber-700' : 'text-emerald-950/55'}`}>{row.kind}</span></td>
+                        <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-800">{row.duration / 60}h</span></td>
                         <td className="px-4 py-3 text-xs font-semibold text-emerald-950/65">{row.faculty ? `${row.faculty.ln}, ${row.faculty.fn}` : 'TBA'}</td>
                         <td className={`px-4 py-3 text-xs font-black ${isLabRow(row) ? 'text-amber-800' : 'text-emerald-950'}`}>{isLabRow(row) ? <FlaskConical size={13} className="mr-1 inline" /> : <DoorOpen size={13} className="mr-1 inline" />}{row.room?.name || 'TBA'}</td>
-                        <td className="px-4 py-3"><button type="button" onClick={() => openEdit(row)} disabled={!editableByAdmin || scheduleLocked} className={`rounded-lg border border-emerald-950/15 px-2.5 py-1.5 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'} disabled:opacity-40`}><Pencil size={12} /></button></td>
+                        <td className="px-4 py-3"><button type="button" onClick={() => openEdit(row)} disabled={!editableByAdmin || scheduleLocked} className="rounded-lg border border-emerald-950/15 px-2.5 py-1.5 text-xs font-black text-emerald-950 disabled:opacity-40"><Pencil size={12} /></button></td>
                       </tr>
                     ))}
                     {visible.length === 0 && <tr><td colSpan="7" className="px-4 py-10 text-center text-sm font-bold text-emerald-950/45">{result ? 'No schedule rows match the filters.' : 'Generate or load a schedule.'}</td></tr>}
-                    {visible.length > displayRows.length && <tr><td colSpan="7" className="border-t border-emerald-950/10 px-4 py-4 text-center"><button type="button" onClick={() => setShowAllRows(true)} className={`rounded-lg border border-emerald-950/15 px-4 py-2 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Show all {visible.length} schedule rows</button></td></tr>}
+                    {visible.length > displayRows.length && <tr><td colSpan="7" className="border-t border-emerald-950/10 px-4 py-4 text-center"><button type="button" onClick={() => setShowAllRows(true)} className="rounded-lg border border-emerald-950/15 px-4 py-2 text-xs font-black text-emerald-950">Show all {visible.length} schedule rows</button></td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -1528,38 +1252,38 @@ export default function SchedulerPage() {
           </div>
 
           <aside className="flex flex-col gap-3">
-            <div className={`rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm`}>
-              <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Saved Schedule</p>
+            <div className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm">
+              <p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Saved Schedule</p>
               {savedSchedule ? <><p className="mt-2 text-xs font-semibold text-emerald-950/55">Last saved {new Date(savedSchedule.savedAt).toLocaleString()}</p><p className="mt-1 text-xs font-semibold text-emerald-950/55">{savedSchedule.scheduled?.length || 0} row(s), {savedSchedule.unscheduled?.length || 0} exception(s)</p><p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black ${savedSchedule.finalized ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{savedSchedule.finalized ? 'Finalized' : 'Editable'}</p></> : <p className="mt-2 text-xs font-semibold text-emerald-950/55">No saved schedule yet.</p>}
             </div>
 
-            <div ref={rulesResolveRef} className={`rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm`}>
-              <div className="flex items-center justify-between gap-3"><p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Rules</p>{editableByAdmin && !editingRules && <button type="button" onClick={() => { setDraftBlocks(yearBlocks); setEditingRules(true) }} className={`flex items-center gap-1.5 rounded-lg border border-emerald-950/15 px-2.5 py-1.5 text-[11px] font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}><Settings2 size={12} /> Edit</button>}</div>
+            <div className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Rules</p>{editableByAdmin && !editingRules && <button type="button" onClick={() => { setDraftBlocks(yearBlocks); setEditingRules(true) }} className="flex items-center gap-1.5 rounded-lg border border-emerald-950/15 px-2.5 py-1.5 text-[11px] font-black text-emerald-950"><Settings2 size={12} /> Edit</button>}</div>
               {editingRules ? (
                 <>
                   {Object.entries(draftBlocks).map(([year, block]) => (
                     <div key={year} className="mt-3 rounded-lg border border-emerald-950/10 p-3">
                       <label className="text-[11px] font-black uppercase text-emerald-950/45">Year {year}</label>
-                      <select value={block.label} onChange={e => updateDraftBlock(year, 'label', e.target.value)} className={`mt-1 w-full rounded-lg border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-2.5 py-2 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>{BLOCK_LABEL_OPTIONS.map(label => <option key={label} value={label}>{label}</option>)}</select>
+                      <select value={block.label} onChange={e => updateDraftBlock(year, 'label', e.target.value)} className="mt-1 w-full rounded-lg border border-emerald-950/15 bg-white px-2.5 py-2 text-xs font-black text-emerald-950 outline-none">{BLOCK_LABEL_OPTIONS.map(label => <option key={label} value={label}>{label}</option>)}</select>
                       <div className="mt-2 grid grid-cols-2 gap-2">
-                        <select value={minutesToInput(block.start)} onChange={e => updateDraftBlock(year, 'start', e.target.value)} className={`rounded-lg border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-2 py-2 text-xs font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>{TIME_OPTIONS.filter(value => value < block.end).map(value => <option key={value} value={minutesToInput(value)}>{timeLabel(value)}</option>)}</select>
-                        <select value={minutesToInput(block.end)} onChange={e => updateDraftBlock(year, 'end', e.target.value)} className={`rounded-lg border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-2 py-2 text-xs font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>{TIME_OPTIONS.filter(value => value > block.start).map(value => <option key={value} value={minutesToInput(value)}>{timeLabel(value)}</option>)}</select>
+                        <select value={minutesToInput(block.start)} onChange={e => updateDraftBlock(year, 'start', e.target.value)} className="rounded-lg border border-emerald-950/15 bg-white px-2 py-2 text-xs font-bold text-emerald-950 outline-none">{TIME_OPTIONS.filter(value => value < block.end).map(value => <option key={value} value={minutesToInput(value)}>{timeLabel(value)}</option>)}</select>
+                        <select value={minutesToInput(block.end)} onChange={e => updateDraftBlock(year, 'end', e.target.value)} className="rounded-lg border border-emerald-950/15 bg-white px-2 py-2 text-xs font-bold text-emerald-950 outline-none">{TIME_OPTIONS.filter(value => value > block.start).map(value => <option key={value} value={minutesToInput(value)}>{timeLabel(value)}</option>)}</select>
                       </div>
                     </div>
                   ))}
-                  <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setEditingRules(false)} className={`rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Cancel</button><button type="button" onClick={saveRules} disabled={ruleErrors.length > 0} className="rounded-lg px-3 py-2 text-xs font-black text-white disabled:opacity-50" style={{ background: MID_GREEN }}>Save</button></div>
+                  <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setEditingRules(false)} className="rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-950">Cancel</button><button type="button" onClick={saveRules} disabled={ruleErrors.length > 0} className="rounded-lg px-3 py-2 text-xs font-black text-white disabled:opacity-50" style={{ background: MID_GREEN }}>Save</button></div>
                 </>
-              ) : Object.entries(yearBlocks).map(([year, block]) => <div key={year} className="mt-3 rounded-lg border border-emerald-950/10 p-3"><p className={`text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Year {year} - {block.label}</p><p className="mt-1 text-xs font-semibold text-emerald-950/55">{timeLabel(block.start)} - {timeLabel(block.end)}</p></div>)}
+              ) : Object.entries(yearBlocks).map(([year, block]) => <div key={year} className="mt-3 rounded-lg border border-emerald-950/10 p-3"><p className="text-xs font-black text-emerald-950">Year {year} - {block.label}</p><p className="mt-1 text-xs font-semibold text-emerald-950/55">{timeLabel(block.start)} - {timeLabel(block.end)}</p></div>)}
             </div>
 
             {editableByAdmin && (
-              <div className={`rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm`}>
-                <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Advanced Rules</p>
+              <div className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm">
+                <p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Advanced Rules</p>
                 <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
                   <p className="text-xs font-black text-amber-900">Protected Lunch Break</p>
                   <p className="mt-0.5 text-xs font-semibold text-amber-800/75">{timeLabel(LUNCH_BREAK.start)} - {timeLabel(LUNCH_BREAK.end)} daily</p>
                 </div>
-                <button type="button" onClick={addBreak} className={`mt-3 rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Add Break</button>
+                <button type="button" onClick={addBreak} className="mt-3 rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-950">Add Break</button>
                 {(settings.scheduleBreaks || []).map((item, index) => (
                   <div key={index} className="mt-2 grid grid-cols-[1fr_1fr_1fr_32px] gap-1">
                     <select value={item.day} onChange={e => updateBreak(index, { day: e.target.value })} className="min-w-0 rounded border px-1 text-xs">{RULE_DAYS.map(day => <option key={day}>{day}</option>)}</select>
@@ -1568,7 +1292,7 @@ export default function SchedulerPage() {
                     <button type="button" onClick={() => removeBreak(index)} title="Remove break" className="flex h-8 items-center justify-center rounded border border-red-200 bg-red-50 text-red-700"><Trash2 size={13} /></button>
                   </div>
                 ))}
-                <button type="button" onClick={addFacultyUnavailable} className={`mt-4 rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Add Faculty Unavailable</button>
+                <button type="button" onClick={addFacultyUnavailable} className="mt-4 rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-950">Add Faculty Unavailable</button>
                 {(settings.facultyUnavailable || []).map((item, index) => (
                   <div key={index} className="mt-2 grid grid-cols-[1fr_1fr_32px] gap-1">
                     <select value={item.facultyId} onChange={e => updateFacultyUnavailable(index, { facultyId: Number(e.target.value) })} className="min-w-0 rounded border px-1 text-xs">{faculty.map(fac => <option key={fac.id} value={fac.id}>{fac.ln}, {fac.fn}</option>)}</select>
@@ -1578,12 +1302,12 @@ export default function SchedulerPage() {
                     <select value={minutesToInput(item.end)} onChange={e => updateFacultyUnavailable(index, { end: inputToMinutes(e.target.value) })} className="min-w-0 rounded border px-1 text-xs">{TIME_OPTIONS.map(value => <option key={value} value={minutesToInput(value)}>{timeLabel(value)}</option>)}</select>
                   </div>
                 ))}
-                <p className={`mt-4 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Room Priority</p>
+                <p className="mt-4 text-xs font-black text-emerald-950">Room Priority</p>
                 {PROGRAMS.map(item => <select key={item.code} value={(settings.roomPriority || {})[item.code] || ''} onChange={e => updateRuleSetting('roomPriority', { ...(settings.roomPriority || {}), [item.code]: e.target.value ? Number(e.target.value) : '' })} className="mt-2 w-full rounded border px-2 py-1 text-xs"><option value="">{item.label}: no preference</option>{rooms.filter(room => room.status !== 'Inactive' && !isActivityVenue(room)).map(room => <option key={room.id} value={room.id}>{item.label}: {room.name}</option>)}</select>)}
               </div>
             )}
 
-            {result && <div className={`rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm`}><p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Unit Summary by Section</p><div className="mt-3 space-y-2 max-h-96 overflow-y-auto text-xs">{sectionOptions.map(section => {
+            {result && <div className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm"><p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Unit Summary by Section</p><div className="mt-3 space-y-2 max-h-96 overflow-y-auto text-xs">{sectionOptions.map(section => {
               const assignmentsInSection = approved.filter(a => a.section === section)
               const issues = assignmentsInSection.map(a => {
                 const subject = subjectsById[a.subjectId]
@@ -1593,7 +1317,7 @@ export default function SchedulerPage() {
               if (issues.length === 0) return null
               return (
                 <div key={section} className="rounded-lg border border-emerald-950/10 p-2 bg-emerald-950/[0.02]">
-                  <p className={`font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{section}</p>
+                  <p className="font-black text-emerald-950">{section}</p>
                   {issues.map((item, idx) => (
                     <div key={idx} className="mt-1 rounded border border-amber-200 bg-amber-50/50 p-1.5">
                       <p className="font-bold text-amber-900">{item.subject.code}</p>
@@ -1605,114 +1329,17 @@ export default function SchedulerPage() {
               )
             })}</div></div>}
 
-            {result && <div className={`rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm`}><p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Conflict Report</p><p className="mt-2 text-xs font-semibold text-emerald-950/55">{result.offCampus.length} off-campus load(s) excluded. {scheduledSections.size}/{requiredSections.length} sections scheduled.</p>{conflictGroups.map(group => <div key={group.key} className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3"><p className="text-xs font-black text-red-800">{group.label} · {group.items.length}</p>{group.items.slice(0, 4).map((item, index) => <button key={index} type="button" onClick={() => { goToConflictResolution(item); openManualOverride(item) }} className="mt-1 block w-full rounded-md px-1.5 py-1 text-left text-xs font-semibold text-red-700/75 transition hover:bg-red-100 hover:text-red-900 focus:outline-none focus:ring-2 focus:ring-red-300"><span className="font-black underline decoration-red-300 underline-offset-2">{item.task.assignment.section} - {item.task.subject.code}</span>: {item.reason}</button>)}</div>)}</div>}
+            {result && <div className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm"><p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Conflict Report</p><p className="mt-2 text-xs font-semibold text-emerald-950/55">{result.offCampus.length} off-campus load(s) excluded. {scheduledSections.size}/{requiredSections.length} sections scheduled.</p>{conflictGroups.map(group => <div key={group.key} className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3"><p className="text-xs font-black text-red-800">{group.label} · {group.items.length}</p>{group.items.slice(0, 4).map((item, index) => <p key={index} className="mt-1 text-xs font-semibold text-red-700/75">{item.task.assignment.section} - {item.task.subject.code}: {item.reason}</p>)}</div>)}</div>}
 
-            <div className={`rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm`}><p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Programs</p>{PROGRAMS.map(item => <p key={item.code} className="mt-2 text-xs font-bold text-emerald-950/60">{programLabel(item.code)}</p>)}</div>
+            <div className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-sm"><p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Programs</p>{PROGRAMS.map(item => <p key={item.code} className="mt-2 text-xs font-bold text-emerald-950/60">{programLabel(item.code)}</p>)}</div>
           </aside>
         </section>
       </div>
 
-      {overrideItem && overrideDraft && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className={`w-full max-w-lg rounded-2xl ${dark ? 'bg-[#101F18]' : 'bg-white'} p-5 shadow-xl`}>
-            <div className="flex items-center justify-between">
-              <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Manual Conflict Override</p>
-              <button type="button" onClick={() => { setOverrideItem(null); setOverrideDraft(null) }}><X size={16} /></button>
-            </div>
-            <p className="mt-2 text-xs font-semibold text-emerald-950/60">
-              {overrideItem.task.assignment.section} - {overrideItem.task.subject.code} - {overrideItem.task.kind} - {overrideSessionDuration() / 60} hr per meeting
-            </p>
-            <p className="mt-1 text-xs font-semibold text-red-700">{overrideItem.reason}</p>
-
-            <div className={`mt-4 rounded-lg border border-emerald-200 ${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'} p-3`}>
-              <p className="text-xs font-black text-emerald-900">Suggested vacant room/time</p>
-              {getVacantSuggestions().length ? (
-                <div className="mt-2 grid gap-2">
-                  {getVacantSuggestions().map(suggestion => (
-                    <button
-                      key={`${suggestion.days.join('-')}-${suggestion.start}-${suggestion.room.id}`}
-                      type="button"
-                      onClick={() => setOverrideDraft(prev => ({
-                        ...prev,
-                        day: suggestion.day,
-                        days: suggestion.days,
-                        start: suggestion.start,
-                        roomId: suggestion.room.id,
-                      }))}
-                      className={`rounded-lg border p-2 text-left text-xs transition ${String(overrideDraft.roomId) === String(suggestion.room.id) && overrideDraft.start === suggestion.start && overrideDraft.day === suggestion.day ? 'border-emerald-600 bg-white text-emerald-950' : 'border-emerald-200 bg-white/70 text-emerald-900 hover:bg-white'}`}
-                    >
-                      <span className="block font-black">{suggestion.label}</span>
-                      <span className="mt-0.5 block font-semibold text-emerald-700/70">{suggestion.tier}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-1 text-xs font-semibold text-amber-800">
-                  No fully vacant option found. Use the manual fields below to override with warnings.
-                </p>
-              )}
-            </div>
-
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <select
-                value={(overrideDraft.days || [overrideDraft.day]).join('|')}
-                onChange={e => {
-                  const days = e.target.value.split('|')
-                  setOverrideDraft(prev => {
-                    const originalMeetings = Math.max(1, overrideItem.task.days?.length || 1)
-                    const sessionDuration = Math.ceil((overrideItem.task.duration * originalMeetings) / days.length)
-                    return { ...prev, day: days[0], days, start: Math.min(prev.start, CLOSE - sessionDuration) }
-                  })
-                }}
-                className="rounded-lg border px-3 py-2 text-sm font-bold"
-              >
-                {getOverrideDayPatterns(overrideItem.task).map(days => (
-                  <option key={days.join('|')} value={days.join('|')}>{days.join(' / ')}</option>
-                ))}
-              </select>
-              <select
-                value={minutesToInput(overrideDraft.start)}
-                onChange={e => setOverrideDraft(prev => ({ ...prev, start: inputToMinutes(e.target.value) }))}
-                className="rounded-lg border px-3 py-2 text-sm font-bold"
-              >
-                {TIME_OPTIONS.filter(value => value + overrideSessionDuration() <= CLOSE).map(value => <option key={value} value={minutesToInput(value)}>{timeLabel(value)}</option>)}
-              </select>
-              <select
-                value={overrideDraft.roomId}
-                onChange={e => setOverrideDraft(prev => ({ ...prev, roomId: e.target.value }))}
-                className="rounded-lg border px-3 py-2 text-sm font-bold"
-              >
-                {rooms.filter(room => room.status !== 'Inactive').map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
-              </select>
-            </div>
-
-            {overrideDraft.days?.length > 1 && (
-              <p className="mt-2 text-xs font-semibold text-emerald-950/55">
-                Applies to: {overrideDraft.days.join(', ')} at the selected start time.
-              </p>
-            )}
-
-            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-xs font-black text-amber-900">Override warnings</p>
-              {getOverrideWarnings().length ? getOverrideWarnings().map(warning => (
-                <p key={warning} className="mt-1 text-xs font-semibold text-amber-800">{warning}</p>
-              )) : (
-                <p className="mt-1 text-xs font-semibold text-emerald-800">No direct conflict detected for this override.</p>
-              )}
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => { setOverrideItem(null); setOverrideDraft(null) }} className="rounded-lg border px-3 py-2 text-xs font-black">Cancel</button>
-              <button type="button" onClick={applyManualOverride} className="rounded-lg px-3 py-2 text-xs font-black text-white" style={{ background: MID_GREEN }}>Apply Override</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {editingRow && editDraft && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className={`w-full max-w-md rounded-2xl ${dark ? 'bg-[#101F18]' : 'bg-white'} p-5 shadow-xl`}>
-            <div className="flex items-center justify-between"><p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Edit Class Slot</p><button type="button" onClick={() => setEditingRow(null)}><X size={16} /></button></div>
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between"><p className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Edit Class Slot</p><button type="button" onClick={() => setEditingRow(null)}><X size={16} /></button></div>
             <p className="mt-2 text-xs font-semibold text-emerald-950/55">{editingRow.assignment.section} · {editingRow.subject.code} · {editingRow.duration / 60} hr</p>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <select value={editDraft.day} onChange={e => updateEdit({ day: e.target.value })} className="rounded-lg border px-3 py-2 text-sm">{(isNSTPSubject(editingRow.subject) ? ['Saturday'] : CLASS_DAYS).map(day => <option key={day}>{day}</option>)}</select>

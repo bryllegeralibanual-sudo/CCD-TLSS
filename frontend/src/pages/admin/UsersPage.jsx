@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { CheckCircle2, KeyRound, Pencil, Plus, Search, ShieldCheck, UserCog, X } from 'lucide-react'
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, programLabel } from '../../data/programs'
+import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -65,7 +66,7 @@ function UserModal({ user, faculty, onClose, onSave }) {
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 z-50 w-[min(94vw,560px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className={`fixed left-1/2 top-1/2 z-50 w-[min(94vw,560px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-2xl`}>
         <div className="flex items-center justify-between px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div>
             <p className="text-sm font-black text-white" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{isNew ? 'Add User' : 'Edit User'}</p>
@@ -78,31 +79,31 @@ function UserModal({ user, faculty, onClose, onSave }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Name
-              <input required value={form.name || ''} onChange={e => update('name', e.target.value)} className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+              <input required value={form.name || ''} onChange={e => update('name', e.target.value)} className={`rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-semibold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
             </label>
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Email
-              <input required type="email" value={form.email || ''} onChange={e => update('email', e.target.value)} className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+              <input required type="email" value={form.email || ''} onChange={e => update('email', e.target.value)} className={`rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-semibold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
             </label>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Role
-              <select value={form.role} onChange={e => update('role', e.target.value)} className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold normal-case tracking-normal text-emerald-950 outline-none">
+              <select value={form.role} onChange={e => update('role', e.target.value)} className={`rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
                 {Object.entries(ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </label>
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Status
-              <select value={form.status || 'active'} onChange={e => update('status', e.target.value)} className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold normal-case tracking-normal text-emerald-950 outline-none">
+              <select value={form.status || 'active'} onChange={e => update('status', e.target.value)} className={`rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
             </label>
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Password
-              <input value={form.password || ''} onChange={e => update('password', e.target.value)} placeholder={isNew ? 'Required to login' : 'Keep current'} className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-emerald-950 outline-none" />
+              <input value={form.password || ''} onChange={e => update('password', e.target.value)} placeholder={isNew ? 'Required to login' : 'Keep current'} className={`rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-semibold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
             </label>
           </div>
 
@@ -123,7 +124,7 @@ function UserModal({ user, faculty, onClose, onSave }) {
           {form.role === 'teacher' && (
             <label className="flex flex-col gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-950/45">
               Linked Faculty Profile
-              <select value={form.facultyId || ''} onChange={e => update('facultyId', e.target.value)} className="rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold normal-case tracking-normal text-emerald-950 outline-none">
+              <select value={form.facultyId || ''} onChange={e => update('facultyId', e.target.value)} className={`rounded-xl border border-emerald-950/15 px-3 py-2 text-sm font-bold normal-case tracking-normal ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}>
                 <option value="">No linked faculty</option>
                 {faculty.map(fac => <option key={fac.id} value={fac.id}>{fac.ln}, {fac.fn} - {programLabel(fac.prog)}</option>)}
               </select>
@@ -144,6 +145,7 @@ function UserModal({ user, faculty, onClose, onSave }) {
 
 export default function UsersPage() {
   const { users, setUsers, faculty } = useData()
+  const { dark } = useTheme()
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null)
 
@@ -229,7 +231,7 @@ export default function UsersPage() {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-4">
-      <div className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-white shadow-sm">
+      <div className={`overflow-hidden rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
         <div className="flex items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
             <UserCog size={19} className="text-white" />
@@ -244,25 +246,25 @@ export default function UsersPage() {
         </div>
 
         <div className="grid gap-3 p-4 sm:grid-cols-4">
-          <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Accounts</p><p className="mt-1 text-2xl font-black text-emerald-950">{counts.total}</p></div>
-          <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Admins</p><p className="mt-1 text-2xl font-black text-emerald-950">{counts.admins}</p></div>
-          <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Faculty</p><p className="mt-1 text-2xl font-black text-emerald-950">{counts.faculty}</p></div>
+          <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Accounts</p><p className={`mt-1 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{counts.total}</p></div>
+          <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Admins</p><p className={`mt-1 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{counts.admins}</p></div>
+          <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Faculty</p><p className={`mt-1 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{counts.faculty}</p></div>
           <div className="rounded-xl border border-emerald-900/10 px-4 py-3"><p className="text-[11px] font-black uppercase text-emerald-950/45">Inactive</p><p className="mt-1 text-2xl font-black text-red-700">{counts.inactive}</p></div>
         </div>
 
         <div className="border-t border-emerald-950/10 p-4">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-3 text-emerald-950/35" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search accounts, email, role, faculty, or program" className="w-full rounded-xl border border-emerald-950/15 bg-white py-2 pl-9 pr-3 text-sm text-emerald-950 outline-none" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search accounts, email, role, faculty, or program" className={`w-full rounded-xl border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} py-2 pl-9 pr-3 text-sm ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`} />
           </div>
         </div>
       </div>
 
       {groupedAccounts.map(group => (
-        <section key={group.key} className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm">
+        <section key={group.key} className={`overflow-hidden rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
           <div className="flex items-center justify-between gap-3 border-b border-emerald-950/10 px-4 py-3">
             <div>
-              <h2 className="text-sm font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{group.title}</h2>
+              <h2 className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{group.title}</h2>
               <p className="mt-0.5 text-xs font-semibold text-emerald-950/45">{group.subtitle}</p>
             </div>
           </div>
@@ -275,7 +277,7 @@ export default function UsersPage() {
               return (
                 <div key={account.id} className="grid grid-cols-[1.3fr_1fr_1fr_1fr_150px] items-center gap-3 px-4 py-3 text-sm">
                   <div className="min-w-0">
-                    <p className="truncate font-black text-emerald-950">{account.name}</p>
+                    <p className={`truncate font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{account.name}</p>
                     <p className="truncate text-xs font-semibold text-emerald-950/45">{account.email}</p>
                   </div>
                   <span className="font-bold text-emerald-950/70">{ROLE_LABELS[account.role] || account.role}</span>
@@ -288,9 +290,9 @@ export default function UsersPage() {
                   </span>
                   <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-black ${account.status === 'inactive' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800'}`}>{account.status === 'inactive' ? 'Inactive' : 'Active'}</span>
                   <div className="flex gap-1.5">
-                    <button type="button" onClick={() => setEditing(account)} className="rounded-lg border border-emerald-950/15 p-2 text-emerald-800 hover:bg-emerald-50" aria-label="Edit account"><Pencil size={14} /></button>
-                    <button type="button" onClick={() => resetPassword(account)} className="rounded-lg border border-emerald-950/15 p-2 text-emerald-800 hover:bg-emerald-50" aria-label="Reset password"><KeyRound size={14} /></button>
-                    <button type="button" onClick={() => toggleStatus(account)} className="rounded-lg border border-emerald-950/15 p-2 text-emerald-800 hover:bg-emerald-50" aria-label="Toggle status"><ShieldCheck size={14} /></button>
+                    <button type="button" onClick={() => setEditing(account)} className={`rounded-lg border border-emerald-950/15 p-2 text-emerald-800 hover:${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`} aria-label="Edit account"><Pencil size={14} /></button>
+                    <button type="button" onClick={() => resetPassword(account)} className={`rounded-lg border border-emerald-950/15 p-2 text-emerald-800 hover:${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`} aria-label="Reset password"><KeyRound size={14} /></button>
+                    <button type="button" onClick={() => toggleStatus(account)} className={`rounded-lg border border-emerald-950/15 p-2 text-emerald-800 hover:${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`} aria-label="Toggle status"><ShieldCheck size={14} /></button>
                   </div>
                 </div>
               )

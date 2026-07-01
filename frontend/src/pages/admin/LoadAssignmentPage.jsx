@@ -8,6 +8,7 @@ import { useData } from '../../data/DataContext'
 import { PROGRAMS, getSections } from '../../data/programs'
 import { canTeachProgram, checkAssignmentCompatibility, getFacultyMaxUnits, getFacultyUnits, specMatchScore, specMatchLabel } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
+import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -641,6 +642,7 @@ function SectionCard({
 
 export default function LoadAssignmentPage() {
   const { account } = useAuth()
+  const { dark } = useTheme()
   const {
     term, isTermFinalized,
     faculty, subjects, assignments, setAssignments,

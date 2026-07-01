@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { programLabel } from '../../data/programs'
 import StatusBadge from '../../components/StatusBadge'
+import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -11,6 +12,7 @@ const GOLD = '#D9B44A'
 
 export default function ApprovalsPage() {
   const { account } = useAuth()
+  const { dark } = useTheme()
   const {
     term, isTermFinalized, subjectsById, facultyById,
     pendingForProgramHead, decidedForProgramHead,
@@ -69,7 +71,7 @@ export default function ApprovalsPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5">
-      <section className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm">
+      <section className={`overflow-hidden rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
         <div className="flex flex-wrap items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
             <ClipboardCheck size={20} className="text-white" />
@@ -104,7 +106,7 @@ export default function ApprovalsPage() {
               <div key={`${group.program}-${group.section}`} className="overflow-hidden rounded-xl border border-emerald-950/10">
                 <div className="flex items-center justify-between gap-3 border-b border-emerald-950/10 bg-emerald-950/[0.03] px-4 py-3">
                   <div>
-                    <p className="text-sm font-black text-emerald-950">{group.section}</p>
+                    <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{group.section}</p>
                     <p className="mt-0.5 text-xs font-semibold text-emerald-950/50">{programLabel(group.program)}</p>
                   </div>
                   <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">{group.items.length}</span>
@@ -123,7 +125,7 @@ export default function ApprovalsPage() {
                           className="mt-1 h-4 w-4"
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-black text-emerald-950">{subject?.code} <span className="font-semibold text-emerald-950/55">{subject?.title}</span></p>
+                          <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{subject?.code} <span className="font-semibold text-emerald-950/55">{subject?.title}</span></p>
                           <p className="mt-1 text-xs font-semibold text-emerald-950/60">{faculty ? `${faculty.fn} ${faculty.ln}` : 'TBA Faculty'}</p>
                         </div>
                         <StatusBadge status={item.status} />
@@ -136,13 +138,13 @@ export default function ApprovalsPage() {
           </div>
 
           <aside className="flex flex-col gap-3">
-            <div className="rounded-xl border border-emerald-950/10 bg-white p-4">
-              <p className="text-sm font-black text-emerald-950">Decision</p>
+            <div className={`rounded-xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4`}>
+              <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Decision</p>
               <p className="mt-2 text-xs font-semibold text-emerald-950/55">
                 Approve teaching loads first. After all needed loads are approved, Admin can generate and submit the conflict-free schedule for a separate schedule approval.
               </p>
 
-              <button type="button" onClick={selectAll} disabled={finalized || pending.length === 0} className="mt-4 w-full rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black text-emerald-950 disabled:opacity-45">
+              <button type="button" onClick={selectAll} disabled={finalized || pending.length === 0} className={`mt-4 w-full rounded-lg border border-emerald-950/15 px-3 py-2 text-xs font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'} disabled:opacity-45`}>
                 Select all pending loads
               </button>
 
@@ -167,7 +169,7 @@ export default function ApprovalsPage() {
 
             <div className="rounded-xl border border-emerald-950/10 bg-emerald-950/[0.03] p-4">
               <p className="text-xs font-black uppercase text-emerald-950/45">Review Summary</p>
-              <p className="mt-2 text-2xl font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{selected.length}</p>
+              <p className={`mt-2 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{selected.length}</p>
               <p className="text-xs font-semibold text-emerald-950/55">selected load(s)</p>
               <p className="mt-3 text-sm font-black" style={{ color: GOLD }}>{decided.length} previous decision(s)</p>
             </div>

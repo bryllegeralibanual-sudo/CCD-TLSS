@@ -6,6 +6,7 @@ import {
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, programLabel } from '../../data/programs'
+import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -59,10 +60,10 @@ function RoomAssignmentCard({ schedule, room, scheduleRows, onAssign, onUnassign
   }
 
   return (
-    <div className="rounded-2xl border border-emerald-900/10 bg-white p-5 shadow-sm">
+    <div className={`rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-5 shadow-sm`}>
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <h3 className="text-lg font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>
+          <h3 className={`text-lg font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>
             {room.name}
           </h3>
           <p className="mt-1 text-sm font-semibold text-emerald-950/60">{room.type} • Capacity: {room.capacity}</p>
@@ -75,9 +76,9 @@ function RoomAssignmentCard({ schedule, room, scheduleRows, onAssign, onUnassign
       <div className="space-y-2 border-t border-emerald-900/10 pt-4">
         <p className="text-xs font-bold uppercase text-emerald-950/45">Schedule assignments ({assignedRows.length})</p>
         {assignedRows.map(row => (
-          <div key={`${row.assignment.id}-${row.kind}-${row.day}`} className="flex items-center justify-between rounded-lg bg-emerald-50 p-3">
+          <div key={`${row.assignment.id}-${row.kind}-${row.day}`} className={`flex items-center justify-between rounded-lg ${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'} p-3`}>
             <div className="text-sm">
-              <p className="font-bold text-emerald-950">{row.subject.code}</p>
+              <p className={`font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{row.subject.code}</p>
               <p className="text-xs text-emerald-950/60">{row.day} • {row.subject.title}</p>
             </div>
             <button
@@ -135,6 +136,7 @@ function RoomAssignmentCard({ schedule, room, scheduleRows, onAssign, onUnassign
 
 export default function RoomAssignmentPage() {
   const { account } = useAuth()
+  const { dark } = useTheme()
   const { term, rooms, savedScheduleForTerm, assignRoomsToSchedule } = useData()
   const [filterType, setFilterType] = useState('ALL')
   const [sortBy, setSortBy] = useState('name')
@@ -316,7 +318,7 @@ export default function RoomAssignmentPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4">
-      <div className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm">
+      <div className={`overflow-hidden rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
         <div className="flex items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
             <Building2 size={20} className="text-white" />
@@ -334,7 +336,7 @@ export default function RoomAssignmentPage() {
         <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-xl border border-emerald-900/10 px-4 py-3">
             <p className="text-[11px] font-black uppercase text-emerald-950/45">Total Classes</p>
-            <p className="mt-1 text-2xl font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>
+            <p className={`mt-1 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>
               {totalCount}
             </p>
           </div>
@@ -352,13 +354,13 @@ export default function RoomAssignmentPage() {
           </div>
           <div className="rounded-xl border border-emerald-900/10 px-4 py-3">
             <p className="text-[11px] font-black uppercase text-emerald-950/45">Rooms Available</p>
-            <p className="mt-1 text-2xl font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>
+            <p className={`mt-1 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>
               {rooms.filter(r => r.status === 'Active').length}
             </p>
           </div>
           <div className="rounded-xl border border-emerald-900/10 px-4 py-3">
             <p className="text-[11px] font-black uppercase text-emerald-950/45">Completion</p>
-            <p className="mt-1 text-2xl font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>
+            <p className={`mt-1 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>
               {totalCount ? Math.round((assignedCount / totalCount) * 100) : 0}%
             </p>
           </div>
@@ -402,7 +404,7 @@ export default function RoomAssignmentPage() {
                   </button>
                   <button
                     onClick={() => setPendingAssignments({})}
-                    className="rounded-lg border border-emerald-950/15 px-4 py-2 text-sm font-black text-emerald-950 hover:bg-emerald-50"
+                    className={`rounded-lg border border-emerald-950/15 px-4 py-2 text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'} hover:${dark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}
                   >
                     Clear
                   </button>
@@ -419,7 +421,7 @@ export default function RoomAssignmentPage() {
               <select
                 value={filterType}
                 onChange={e => setFilterType(e.target.value)}
-                className="mt-1 rounded-lg border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold text-emerald-950 outline-none"
+                className={`mt-1 rounded-lg border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}
               >
                 <option value="ALL">All types</option>
                 {roomTypes.map(t => (
@@ -434,7 +436,7 @@ export default function RoomAssignmentPage() {
               <select
                 value={autoStrategy}
                 onChange={e => setAutoStrategy(e.target.value)}
-                className="mt-1 rounded-lg border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold text-emerald-950 outline-none"
+                className={`mt-1 rounded-lg border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}
               >
                 <option value="early_finish">Early-finish priority</option>
                 <option value="maximize_classrooms">Spread across rooms</option>
@@ -447,7 +449,7 @@ export default function RoomAssignmentPage() {
               <select
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value)}
-                className="mt-1 rounded-lg border border-emerald-950/15 bg-white px-3 py-2 text-sm font-bold text-emerald-950 outline-none"
+                className={`mt-1 rounded-lg border border-emerald-950/15 ${dark ? 'bg-[#101F18]' : 'bg-white'} px-3 py-2 text-sm font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'} outline-none`}
               >
                 <option value="name">Room Name</option>
                 <option value="type">Room Type</option>

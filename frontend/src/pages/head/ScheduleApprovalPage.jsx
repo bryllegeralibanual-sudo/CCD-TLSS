@@ -3,6 +3,7 @@ import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, XCircle } from 'luci
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { programLabel } from '../../data/programs'
+import { useTheme } from '../../context/ThemeContext'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -18,6 +19,7 @@ function timeLabel(minutes) {
 
 export default function ApprovalsPage() {
   const { account } = useAuth()
+  const { dark } = useTheme()
   const {
     term, savedScheduleForTerm, getPendingSchedulesForPH,
     approveScheduleForTerm, rejectScheduleForTerm,
@@ -50,7 +52,7 @@ export default function ApprovalsPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5">
-      <section className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm">
+      <section className={`overflow-hidden rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
         <div className="flex flex-wrap items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
             <CalendarDays size={20} className="text-white" />
@@ -77,14 +79,14 @@ export default function ApprovalsPage() {
           <div className="grid gap-4 p-5 lg:grid-cols-[1fr_320px]">
             <div className="overflow-hidden rounded-xl border border-emerald-950/10">
               <div className="border-b border-emerald-950/10 bg-emerald-950/[0.03] px-4 py-3">
-                <p className="text-sm font-black text-emerald-950">Submitted Schedule</p>
+                <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Submitted Schedule</p>
                 <p className="mt-1 text-xs font-semibold text-emerald-950/50">
                   {rows.length} class slot(s) in your program scope
                 </p>
               </div>
               <div className="max-h-[34rem] overflow-auto">
                 <table className="w-full min-w-[760px] border-collapse text-sm">
-                  <thead className="sticky top-0 bg-white">
+                  <thead className={`sticky top-0 ${dark ? 'bg-[#101F18]' : 'bg-white'}`}>
                     <tr className="border-b border-emerald-950/10 text-left text-[11px] uppercase text-emerald-950/45">
                       {['Section', 'Subject', 'Day', 'Time', 'Room', 'Faculty'].map(header => (
                         <th key={header} className="px-4 py-3 font-black">{header}</th>
@@ -94,9 +96,9 @@ export default function ApprovalsPage() {
                   <tbody>
                     {rows.map((row, index) => (
                       <tr key={`${row.assignment.id}-${row.kind}-${row.day}-${row.start}`} className={index % 2 ? 'bg-emerald-950/[0.015]' : 'bg-white'}>
-                        <td className="px-4 py-3 font-bold text-emerald-950">{row.assignment.section}</td>
+                        <td className={`px-4 py-3 font-bold ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{row.assignment.section}</td>
                         <td className="px-4 py-3">
-                          <span className="font-black text-emerald-950">{row.subject.code}</span>
+                          <span className={`font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>{row.subject.code}</span>
                           <span className="ml-2 text-xs font-semibold text-emerald-950/50">{row.kind}</span>
                         </td>
                         <td className="px-4 py-3 text-emerald-950/70">{row.day}</td>
@@ -118,8 +120,8 @@ export default function ApprovalsPage() {
                 </div>
               )}
 
-              <div className="rounded-xl border border-emerald-950/10 bg-white p-4">
-                <p className="text-sm font-black text-emerald-950">Decision</p>
+              <div className={`rounded-xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4`}>
+                <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`}>Decision</p>
                 <p className="mt-2 text-xs font-semibold text-emerald-950/55">
                   Approve the generated schedule if it is ready for Registrar finalization. Reject it when the Admin needs to adjust conflicts, rooms, time blocks, or program concerns.
                 </p>
@@ -145,7 +147,7 @@ export default function ApprovalsPage() {
 
               <div className="rounded-xl border border-emerald-950/10 bg-emerald-950/[0.03] p-4">
                 <p className="text-xs font-black uppercase text-emerald-950/45">Summary</p>
-                <p className="mt-2 text-2xl font-black text-emerald-950" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{schedule.scheduled?.length || 0}</p>
+                <p className={`mt-2 text-2xl font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{schedule.scheduled?.length || 0}</p>
                 <p className="text-xs font-semibold text-emerald-950/55">total generated class slots</p>
                 <p className="mt-3 text-sm font-black" style={{ color: GOLD }}>{schedule.unscheduled?.length || 0} exception(s)</p>
               </div>
