@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Briefcase, CalendarDays, ClipboardCheck,
   ShieldCheck, GraduationCap, LogOut, ChevronRight, X,
-  BookOpen, Users, Building2, MapPin, UserCog,
+  BookOpen, Users, Building2, MapPin, AlertCircle, UserCog,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { useData } from '../data/DataContext'
