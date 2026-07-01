@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { Link } from 'react-router-dom'
-import { Users, ChevronRight, TrendingUp, AlertCircle, CalendarDays, History, ChevronDown } from 'lucide-react'
+import { Users, ChevronRight, TrendingUp, AlertCircle, CalendarDays, History, ChevronDown, ClipboardCheck, Send, Lock, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { useTheme } from '../../context/ThemeContext'
@@ -8,6 +8,7 @@ import { PROGRAMS, getSections, programLabel } from '../../data/programs'
 import StatusBadge from '../../components/StatusBadge'
 
 const GOLD = '#D9B44A'
+const MID_GREEN = '#0F6B3C'
 
 function card(dark) {
   return `rounded-2xl border p-5 transition-all duration-200 ${
@@ -47,6 +48,29 @@ function ProgressStat({ label, value, tone, dark }) {
     <div className={`rounded-lg p-3 ${styles[tone] || styles.neutral}`}>
       <p className={`text-xs ${dark ? 'text-current/70' : ''}`}>{label}</p>
       <p className="text-lg font-bold mt-1" style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>{value}</p>
+    </div>
+  )
+}
+
+function WorkflowStep({ icon: Icon, title, detail, state, dark }) {
+  const styles = {
+    done: dark ? 'border-emerald-700/40 bg-emerald-900/20 text-emerald-200' : 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    active: dark ? 'border-amber-700/45 bg-amber-900/20 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-800',
+    waiting: dark ? 'border-emerald-900/30 bg-white/5 text-emerald-100/55' : 'border-gray-100 bg-gray-50 text-gray-500',
+    issue: dark ? 'border-red-700/45 bg-red-900/20 text-red-200' : 'border-red-200 bg-red-50 text-red-800',
+  }
+
+  return (
+    <div className={`rounded-xl border p-3 ${styles[state] || styles.waiting}`}>
+      <div className="flex items-start gap-3">
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${state === 'waiting' ? dark ? 'bg-white/5' : 'bg-white' : 'bg-white/60'}`}>
+          <Icon size={15} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-black">{title}</p>
+          <p className="mt-1 text-[11px] font-semibold opacity-75">{detail}</p>
+        </div>
+      </div>
     </div>
   )
 }
