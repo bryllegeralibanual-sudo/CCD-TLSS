@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import * as XLSX from 'xlsx'
 import { AlertTriangle, Camera, Mail, Search, Users, X, BookOpen, Clock, Briefcase, Pencil, Save, Plus, Upload, FileSpreadsheet, CheckCircle2 } from 'lucide-react'
 import { useData } from '../../data/DataContext'
 import { useAuth } from '../../auth/AuthContext'
@@ -497,6 +496,9 @@ function FacultyImportModal({ faculty, onClose, onImport }) {
         rawRows = parseCsv(await file.text())
       } else if (ext === 'xlsx' || ext === 'xls') {
         const data = await file.arrayBuffer()
+        // Lazy-load xlsx so the ~750 KB library is only downloaded when an
+        // Excel file is actually chosen — not on every page load.
+        const XLSX = await import('xlsx')
         const workbook = XLSX.read(data, { type: 'array' })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' })
