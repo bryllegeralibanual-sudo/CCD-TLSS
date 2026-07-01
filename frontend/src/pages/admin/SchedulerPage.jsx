@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle, BookOpen, CalendarDays, CheckCircle2, Clock3, DoorOpen, Download,
-  FlaskConical, Lock, Pencil, Play, Printer, RefreshCw, Save, Settings2, Unlock,
+  FlaskConical, Lock, MapPin, Pencil, Play, Printer, RefreshCw, Save, Settings2, Unlock,
   Trash2, UserRound, Users, X, LayoutGrid,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
@@ -1010,6 +1011,7 @@ function UnitValidationSummary({ result, subjectsById }) {
 export default function SchedulerPage() {
   const { account } = useAuth()
   const { dark } = useTheme()
+  const navigate = useNavigate()
   const {
     term, assignments, subjectsById, facultyById, faculty, rooms,
     settings, setSettings, savedScheduleForTerm, saveScheduleForTerm,
@@ -1530,7 +1532,32 @@ export default function SchedulerPage() {
           <aside className="flex flex-col gap-3">
             <div className={`rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm`}>
               <p className={`text-sm font-black ${dark ? 'text-emerald-50' : 'text-emerald-950'}`} style={{ fontFamily: "'EB Garamond',Georgia,serif" }}>Saved Schedule</p>
-              {savedSchedule ? <><p className="mt-2 text-xs font-semibold text-emerald-950/55">Last saved {new Date(savedSchedule.savedAt).toLocaleString()}</p><p className="mt-1 text-xs font-semibold text-emerald-950/55">{savedSchedule.scheduled?.length || 0} row(s), {savedSchedule.unscheduled?.length || 0} exception(s)</p><p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black ${savedSchedule.finalized ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{savedSchedule.finalized ? 'Finalized' : 'Editable'}</p></> : <p className="mt-2 text-xs font-semibold text-emerald-950/55">No saved schedule yet.</p>}
+              {savedSchedule ? (
+                <>
+                  <p className={`mt-2 text-xs font-semibold ${dark ? 'text-emerald-200/55' : 'text-emerald-950/55'}`}>Last saved {new Date(savedSchedule.savedAt).toLocaleString()}</p>
+                  <p className={`mt-1 text-xs font-semibold ${dark ? 'text-emerald-200/55' : 'text-emerald-950/55'}`}>{savedSchedule.scheduled?.length || 0} row(s), {savedSchedule.unscheduled?.length || 0} exception(s)</p>
+                  <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black ${savedSchedule.finalized ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{savedSchedule.finalized ? 'Finalized' : 'Editable'}</p>
+                  {editableByAdmin && !savedSchedule.finalized && (
+                    <div className={`mt-3 rounded-xl border px-3 py-2.5 ${dark ? 'border-emerald-700/40 bg-emerald-900/20' : 'border-emerald-200 bg-emerald-50'}`}>
+                      <p className={`text-[11px] font-black ${dark ? 'text-emerald-300' : 'text-emerald-800'}`}>Next step — assign rooms</p>
+                      <p className={`mt-0.5 text-[10px] font-semibold ${dark ? 'text-emerald-200/60' : 'text-emerald-700/70'}`}>
+                        {savedSchedule.roomsAssignedAt
+                          ? `Rooms last assigned ${new Date(savedSchedule.roomsAssignedAt).toLocaleDateString()}. Open Room Assignment to update.`
+                          : 'No rooms assigned yet. Open Room Assignment to match classes to classrooms and labs.'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/admin/room-assignment')}
+                        className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-black ${dark ? 'bg-emerald-700/50 text-emerald-100 hover:bg-emerald-700/70' : 'bg-emerald-700 text-white hover:bg-emerald-800'}`}
+                      >
+                        <MapPin size={11} /> Room Assignment →
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className={`mt-2 text-xs font-semibold ${dark ? 'text-emerald-200/55' : 'text-emerald-950/55'}`}>No saved schedule yet.</p>
+              )}
             </div>
 
             <div ref={rulesResolveRef} className={`rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} p-4 shadow-sm`}>

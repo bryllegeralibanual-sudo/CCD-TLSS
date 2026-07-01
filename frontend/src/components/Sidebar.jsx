@@ -36,6 +36,7 @@ const NAV = {
     { section: 'Program Head', items: [
       { to: '/head/approvals', label: 'Load Approval', icon: ClipboardCheck, badge: 'loads' },
       { to: '/head/schedule-approval', label: 'Schedule Approval', icon: CalendarDays, badge: 'schedules' },
+      { to: '/head/overload-requests', label: 'Overload Requests', icon: AlertCircle, badge: 'overloads' },
       { to: '/head/faculty', label: 'Faculty', icon: Users },
       { to: '/head/curriculum', label: 'Curriculum', icon: BookOpen },
     ] },
@@ -53,9 +54,10 @@ const initials = (n='') => n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).
 
 export default function Sidebar({ open, onClose }) {
   const { account, logout } = useAuth()
-  const { term, pendingForProgramHead, getPendingSchedulesForPH } = useData()
+  const { term, pendingForProgramHead, getPendingSchedulesForPH, getPendingOverloadRequestsForPH } = useData()
   const pendingLoadCount = account?.role === 'program_head' ? pendingForProgramHead(account).length : 0
   const pendingScheduleCount = account?.role === 'program_head' ? getPendingSchedulesForPH(account).length : 0
+  const pendingOverloadCount = account?.role === 'program_head' ? getPendingOverloadRequestsForPH(account).length : 0
   const groups = NAV[account?.role] || []
 
   return (
@@ -99,7 +101,7 @@ export default function Sidebar({ open, onClose }) {
             <div key={group.section}>
               <p className="text-[9px] uppercase tracking-widest font-bold px-3 py-2" style={{color:'rgba(220,252,231,0.4)'}}>{group.section}</p>
               {group.items.map(({to,label,icon:Icon,badge},i)=>{
-                const badgeCount = badge === 'loads' ? pendingLoadCount : badge === 'schedules' ? pendingScheduleCount : 0
+                const badgeCount = badge === 'loads' ? pendingLoadCount : badge === 'schedules' ? pendingScheduleCount : badge === 'overloads' ? pendingOverloadCount : 0
                 return (
                 <NavLink key={to} to={to} onClick={onClose}
                   className={({isActive})=>`sb-item flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-200 group ${isActive?'text-white':'text-white/65 hover:text-white hover:bg-white/8'}`}

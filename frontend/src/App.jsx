@@ -16,6 +16,7 @@ import RoomAssignmentPage from './pages/admin/RoomAssignmentPage'
 import UsersPage from './pages/admin/UsersPage'
 import ApprovalsPage from './pages/head/ApprovalsPage'
 import ScheduleApprovalPage from './pages/head/ScheduleApprovalPage'
+import OverloadRequestsPage from './pages/head/OverloadRequestsPage'
 import RegistrarPage from './pages/registrar/RegistrarPage'
 import MyLoadPage from './pages/teacher/MyLoadPage'
 
@@ -64,6 +65,9 @@ export default function App() {
               </Route>
               <Route path="/head/schedule-approval" element={<ProtectedRoute roles={['program_head']}><AppLayout title="Schedule Approval" /></ProtectedRoute>}>
                 <Route index element={<ScheduleApprovalPage />} />
+              </Route>
+              <Route path="/head/overload-requests" element={<ProtectedRoute roles={['program_head']}><AppLayout title="Overload Requests" /></ProtectedRoute>}>
+                <Route index element={<OverloadRequestsPage />} />
               </Route>
               <Route path="/head/faculty" element={<ProtectedRoute roles={['program_head']}><AppLayout title="Faculty" /></ProtectedRoute>}>
                 <Route index element={<FacultyPage />} />

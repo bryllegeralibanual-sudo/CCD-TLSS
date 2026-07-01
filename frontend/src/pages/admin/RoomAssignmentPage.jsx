@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle, Building2, CheckCircle2, DoorOpen, FlaskConical, MapPin,
   RefreshCw, Save, AlertCircle, Clock, Users,
@@ -135,6 +136,7 @@ function RoomAssignmentCard({ schedule, room, scheduleRows, onAssign, onUnassign
 }
 
 export default function RoomAssignmentPage() {
+  const navigate = useNavigate()
   const { account } = useAuth()
   const { dark } = useTheme()
   const { term, rooms, savedScheduleForTerm, assignRoomsToSchedule } = useData()
@@ -318,6 +320,22 @@ export default function RoomAssignmentPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4">
+      {/* Breadcrumb — clarifies that this page writes back to the same saved schedule */}
+      <div className={`mb-3 flex items-center justify-between rounded-xl border px-4 py-2.5 ${dark ? 'border-emerald-800/40 bg-emerald-900/20' : 'border-emerald-200 bg-emerald-50'}`}>
+        <p className={`text-xs font-semibold ${dark ? 'text-emerald-300' : 'text-emerald-800'}`}>
+          <span className={`font-black ${dark ? 'text-emerald-200' : 'text-emerald-950'}`}>Room Assignment</span>
+          {' '}reads and writes the saved schedule for AY {term.ay} · {term.sem} Semester.
+          Changes here are immediately reflected everywhere that schedule is used.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/scheduler')}
+          className={`ml-4 shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-black ${dark ? 'bg-emerald-800/50 text-emerald-100 hover:bg-emerald-700/60' : 'bg-emerald-700 text-white hover:bg-emerald-800'}`}
+        >
+          ← Back to Scheduler
+        </button>
+      </div>
+
       <div className={`overflow-hidden rounded-2xl border border-emerald-950/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
         <div className="flex items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
