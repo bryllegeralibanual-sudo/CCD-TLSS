@@ -11,6 +11,7 @@ import { PROGRAMS, getSections, programLabel } from '../../data/programs'
 import ScheduleViewByProgram from '../../components/ScheduleViewByProgram'
 import { runGreedySchedule } from '../../utils/greedyScheduler'
 import { useTheme } from '../../context/ThemeContext'
+import ConfirmDialog from '../../components/ConfirmDialog'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -875,6 +876,7 @@ export default function SchedulerPage() {
   const [editErrors, setEditErrors] = useState([])
   const [overrideItem, setOverrideItem] = useState(null)
   const [overrideDraft, setOverrideDraft] = useState(null)
+  const [confirm, setConfirm] = useState(null)
   const scheduleResolveRef = useRef(null)
   const rulesResolveRef = useRef(null)
 
@@ -932,10 +934,19 @@ export default function SchedulerPage() {
 
   function generate() {
     if (result?.scheduled?.length) {
-      const ok = window.confirm('Regenerate the schedule? This will replace the current unsaved generated result.')
-      if (!ok) return
+      setConfirm({
+        title: 'Regenerate Schedule',
+        message: 'Regenerate the schedule? This will replace the current unsaved generated result.',
+        confirmLabel: 'Regenerate',
+        variant: 'danger',
+        onConfirm: () => { setConfirm(null); _doGenerate() },
+      })
+      return
     }
-    // Prefer the new greedy scheduler (fast, high coverage). Keep the original
+    _doGenerate()
+  }
+
+  function _doGenerate() {
     // makeSchedule as a fallback if desired.
     const greedy = runGreedySchedule({ approved, subjectsById, facultyById, rooms, yearBlocks, settings })
     const initial = applyPolicyGuards({ scheduled: greedy.scheduled, unscheduled: greedy.unscheduled, offCampus: [] })
@@ -968,10 +979,17 @@ export default function SchedulerPage() {
   }
 
   function finalizeCurrentSchedule() {
-    const ok = window.confirm('Finalize this schedule? After finalization, admins cannot regenerate it unless it is reopened.')
-    if (!ok) return
-    const response = finalizeScheduleForTerm(term.ay, term.sem, account)
-    if (response?.ok) setResult(prev => prev ? { ...prev, status: 'finalized', finalized: true, finalizedBy: account?.id || 'system', finalizedAt: new Date().toISOString() } : prev)
+    setConfirm({
+      title: 'Finalize Schedule',
+      message: 'Finalize this schedule? After finalization, admins cannot regenerate it unless it is reopened.',
+      confirmLabel: 'Finalize',
+      variant: 'default',
+      onConfirm: () => {
+        setConfirm(null)
+        const response = finalizeScheduleForTerm(term.ay, term.sem, account)
+        if (response?.ok) setResult(prev => prev ? { ...prev, status: 'finalized', finalized: true, finalizedBy: account?.id || 'system', finalizedAt: new Date().toISOString() } : prev)
+      },
+    })
   }
 
   function reopenCurrentSchedule() {
@@ -981,10 +999,17 @@ export default function SchedulerPage() {
 
   function submitCurrentScheduleForApproval() {
     if (!result || scheduleLocked) return
-    const ok = window.confirm('Submit this generated schedule to the Program Head for approval?')
-    if (!ok) return
-    submitScheduleForApproval(term.ay, term.sem, account)
-    setResult(prev => prev ? { ...prev, status: 'pending_approval', submittedBy: account?.id, submittedAt: new Date().toISOString() } : prev)
+    setConfirm({
+      title: 'Submit for Approval',
+      message: 'Submit this generated schedule to the Program Head for approval?',
+      confirmLabel: 'Submit',
+      variant: 'default',
+      onConfirm: () => {
+        setConfirm(null)
+        submitScheduleForApproval(term.ay, term.sem, account)
+        setResult(prev => prev ? { ...prev, status: 'pending_approval', submittedBy: account?.id, submittedAt: new Date().toISOString() } : prev)
+      },
+    })
   }
 
   function goToConflictResolution(item) {
@@ -1592,6 +1617,15 @@ export default function SchedulerPage() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title}
+        message={confirm?.message}
+        variant={confirm?.variant || 'default'}
+        confirmLabel={confirm?.confirmLabel || 'Confirm'}
+        onConfirm={confirm?.onConfirm}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }

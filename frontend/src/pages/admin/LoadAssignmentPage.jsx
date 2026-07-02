@@ -8,6 +8,7 @@ import { useData } from '../../data/DataContext'
 import { PROGRAMS, getSections } from '../../data/programs'
 import { canTeachProgram, checkAssignmentCompatibility, getFacultyMaxUnits, getFacultyUnits, specMatchScore } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
+import ConfirmDialog from '../../components/ConfirmDialog'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -662,6 +663,7 @@ export default function LoadAssignmentPage() {
       return new Set()
     }
   })
+  const [confirm, setConfirm] = useState(null)
 
   // Persist submitted sections and reset when program changes
   useEffect(() => {
@@ -996,14 +998,18 @@ export default function LoadAssignmentPage() {
       notify('error', 'No draft assignments to submit.')
       return
     }
-    const ok = window.confirm(`Submit ${sectionAssignments.length} draft assignment(s) for ${sectionName} to the Program Head?`)
-    if (!ok) return
-
-    // Submit draft assignments to program head for review
-    const assignmentIds = sectionAssignments.map(a => a.id)
-    submitToProgramHead(assignmentIds, account)
-    setSubmittedSections(prev => new Set([...prev, sectionName]))
-    notify('success', `${sectionName} submitted to program head for review. ${sectionAssignments.length} assignment(s) pending.`)
+    setConfirm({
+      title: 'Submit for Review',
+      message: `Submit ${sectionAssignments.length} draft assignment(s) for ${sectionName} to the Program Head?`,
+      confirmLabel: 'Submit',
+      onConfirm: () => {
+        setConfirm(null)
+        const assignmentIds = sectionAssignments.map(a => a.id)
+        submitToProgramHead(assignmentIds, account)
+        setSubmittedSections(prev => new Set([...prev, sectionName]))
+        notify('success', `${sectionName} submitted to program head for review. ${sectionAssignments.length} assignment(s) pending.`)
+      },
+    })
   }
 
   function focusStatus(status) {
@@ -1206,6 +1212,15 @@ export default function LoadAssignmentPage() {
           term={term}
         />
       </div>
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title}
+        message={confirm?.message}
+        variant={confirm?.variant || 'default'}
+        confirmLabel={confirm?.confirmLabel || 'Confirm'}
+        onConfirm={confirm?.onConfirm}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }

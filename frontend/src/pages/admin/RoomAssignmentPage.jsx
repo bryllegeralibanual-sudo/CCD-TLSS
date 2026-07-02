@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { useTheme } from '../../context/ThemeContext'
+import ConfirmDialog from '../../components/ConfirmDialog'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -139,6 +140,7 @@ export default function RoomAssignmentPage() {
   const [sortBy, setSortBy] = useState('name')
   const [autoStrategy, setAutoStrategy] = useState('early_finish')
   const [pendingAssignments, setPendingAssignments] = useState({})
+  const [confirm, setConfirm] = useState(null)
 
   const savedSchedule = savedScheduleForTerm(term.ay, term.sem)
   const scheduleStatus = savedSchedule?.status
@@ -202,9 +204,16 @@ export default function RoomAssignmentPage() {
   function handleAutoAssign() {
     if (!scheduleRows.length) return
     const unassignedCount = scheduleRows.filter(row => !getResolvedRoomId(row)).length
-    const ok = window.confirm(`Auto-assign rooms for ${unassignedCount} unassigned class slot(s)? Existing pending room choices may be updated.`)
-    if (!ok) return
+    setConfirm({
+      title: 'Auto-Assign Rooms',
+      message: `Auto-assign rooms for ${unassignedCount} unassigned class slot(s)? Existing pending room choices may be updated.`,
+      confirmLabel: 'Auto-Assign',
+      variant: 'default',
+      onConfirm: () => { setConfirm(null); _doAutoAssign() },
+    })
+  }
 
+  function _doAutoAssign() {
     const nextAssignments = { ...pendingAssignments }
     const assignmentCounts = {}
     const unassignedRows = scheduleRows.filter(row => !getResolvedRoomId(row, nextAssignments))
@@ -268,20 +277,24 @@ export default function RoomAssignmentPage() {
 
   function handleSaveAssignments() {
     if (Object.keys(pendingAssignments).length === 0) return
-    const ok = window.confirm(`Save ${Object.keys(pendingAssignments).length} room assignment change(s) to the current schedule?`)
-    if (!ok) return
-
-    // Create the room assignments map
-    const roomAssignments = {}
-    Object.entries(pendingAssignments).forEach(([rowKey, roomId]) => {
-      roomAssignments[rowKey] = {
-        roomId,
-        roomName: rooms.find(r => r.id === roomId)?.name,
-      }
+    setConfirm({
+      title: 'Save Room Assignments',
+      message: `Save ${Object.keys(pendingAssignments).length} room assignment change(s) to the current schedule?`,
+      confirmLabel: 'Save',
+      variant: 'default',
+      onConfirm: () => {
+        setConfirm(null)
+        const roomAssignments = {}
+        Object.entries(pendingAssignments).forEach(([rowKey, roomId]) => {
+          roomAssignments[rowKey] = {
+            roomId,
+            roomName: rooms.find(r => r.id === roomId)?.name,
+          }
+        })
+        assignRoomsToSchedule(term.ay, term.sem, roomAssignments, account)
+        setPendingAssignments({})
+      },
     })
-
-    assignRoomsToSchedule(term.ay, term.sem, roomAssignments, account)
-    setPendingAssignments({})
   }
 
   if (!savedSchedule) {
@@ -492,6 +505,15 @@ export default function RoomAssignmentPage() {
           ))}
         </div>
       )}
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title}
+        message={confirm?.message}
+        variant={confirm?.variant || 'default'}
+        confirmLabel={confirm?.confirmLabel || 'Confirm'}
+        onConfirm={confirm?.onConfirm}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }

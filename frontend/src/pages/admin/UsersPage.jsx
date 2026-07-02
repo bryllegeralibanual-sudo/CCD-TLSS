@@ -3,6 +3,7 @@ import { CheckCircle2, KeyRound, Pencil, Plus, Search, ShieldCheck, UserCog, X }
 import { useData } from '../../data/DataContext'
 import { PROGRAMS, programLabel } from '../../data/programs'
 import { useTheme } from '../../context/ThemeContext'
+import ConfirmDialog from '../../components/ConfirmDialog'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -150,6 +151,7 @@ export default function UsersPage() {
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null)
   const [toast, setToast] = useState(null)
+  const [confirm, setConfirm] = useState(null) // { title, message, variant, onConfirm }
 
   const accounts = useMemo(() => users.map(account => ({ status: 'active', ...account })), [users])
 
@@ -214,9 +216,18 @@ export default function UsersPage() {
 
   function saveUser(record) {
     if (record.id && accounts.some(account => account.id === record.id && account.role !== record.role)) {
-      const ok = window.confirm(`Change ${record.name}'s role to ${ROLE_LABELS[record.role] || record.role}? This affects their access after the next login.`)
-      if (!ok) return
+      setConfirm({
+        title: 'Change User Role',
+        message: `Change ${record.name}'s role to ${ROLE_LABELS[record.role] || record.role}? This affects their access after the next login.`,
+        variant: 'default',
+        onConfirm: () => { setConfirm(null); _persistUser(record) },
+      })
+      return
     }
+    _persistUser(record)
+  }
+
+  function _persistUser(record) {
     const savedRecord = { ...record, managedEdited: true }
     setUsers(prev => {
       const existing = prev.some(user => user.id === savedRecord.id || user.email?.toLowerCase() === savedRecord.email?.toLowerCase())
@@ -231,15 +242,21 @@ export default function UsersPage() {
 
   function toggleStatus(account) {
     const nextStatus = account.status === 'inactive' ? 'active' : 'inactive'
-    const ok = window.confirm(`${nextStatus === 'inactive' ? 'Deactivate' : 'Reactivate'} ${account.name}?`)
-    if (!ok) return
-    saveUser({ ...account, status: account.status === 'inactive' ? 'active' : 'inactive' })
+    setConfirm({
+      title: nextStatus === 'inactive' ? 'Deactivate Account' : 'Reactivate Account',
+      message: `${nextStatus === 'inactive' ? 'Deactivate' : 'Reactivate'} ${account.name}?`,
+      variant: nextStatus === 'inactive' ? 'danger' : 'default',
+      onConfirm: () => { setConfirm(null); _persistUser({ ...account, status: nextStatus }) },
+    })
   }
 
   function resetPassword(account) {
-    const ok = window.confirm(`Reset password for ${account.name} to the default password?`)
-    if (!ok) return
-    saveUser({ ...account, password: account.seedPassword || 'password123' })
+    setConfirm({
+      title: 'Reset Password',
+      message: `Reset password for ${account.name} to the default password?`,
+      variant: 'danger',
+      onConfirm: () => { setConfirm(null); _persistUser({ ...account, password: account.seedPassword || 'password123' }) },
+    })
   }
 
   return (
@@ -328,6 +345,15 @@ export default function UsersPage() {
       ))}
 
       {editing && <UserModal user={editing} faculty={faculty} onClose={() => setEditing(null)} onSave={saveUser} />}
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title}
+        message={confirm?.message}
+        variant={confirm?.variant}
+        confirmLabel="Confirm"
+        onConfirm={confirm?.onConfirm}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }

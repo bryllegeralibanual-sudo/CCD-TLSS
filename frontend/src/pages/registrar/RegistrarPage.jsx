@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { AlertTriangle, CalendarDays, CheckCircle2, Lock, Unlock } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { useData } from '../../data/DataContext'
 import { useTheme } from '../../context/ThemeContext'
+import ConfirmDialog from '../../components/ConfirmDialog'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -28,10 +30,14 @@ export default function RegistrarPage() {
   const finalized = Boolean(schedule?.finalized)
   const canFinalize = schedule?.status === 'approved' && !finalized && blockers.length === 0
 
+  const [confirm, setConfirm] = useState(null)
+
   function finalize() {
-    const ok = window.confirm('Finalize the approved schedule for Registrar release? This locks the schedule for the term.')
-    if (!ok) return
-    finalizeScheduleForTerm(term.ay, term.sem, account)
+    setConfirm({
+      title: 'Finalize Schedule',
+      message: 'Finalize the approved schedule for Registrar release? This locks the schedule for the term.',
+      onConfirm: () => { setConfirm(null); finalizeScheduleForTerm(term.ay, term.sem, account) },
+    })
   }
 
   return (
@@ -140,6 +146,15 @@ export default function RegistrarPage() {
           </aside>
         </div>
       </section>
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title}
+        message={confirm?.message}
+        variant={confirm?.variant || 'default'}
+        confirmLabel="Finalize"
+        onConfirm={confirm?.onConfirm}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }
