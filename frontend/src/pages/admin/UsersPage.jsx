@@ -4,6 +4,7 @@ import { useData } from '../../data/DataContext'
 import { PROGRAMS, programLabel } from '../../data/programs'
 import { useTheme } from '../../context/ThemeContext'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import Toast from '../../components/Toast'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -236,8 +237,8 @@ export default function UsersPage() {
         : [...prev, savedRecord]
     })
     setEditing(null)
-    setToast(`${record.name} saved.`)
-    window.setTimeout(() => setToast(null), 2600)
+    setToast({ type: 'success', message: `${record.name} saved.` })
+    window.setTimeout(() => setToast(null), 3500)
   }
 
   function toggleStatus(account) {
@@ -261,11 +262,7 @@ export default function UsersPage() {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-4">
-      {toast && (
-        <div className={`fixed right-4 top-4 z-50 rounded-xl border px-4 py-3 text-sm font-bold shadow-xl ${dark ? 'border-emerald-700/30 bg-[#101F18] text-emerald-100' : 'border-emerald-200 bg-white text-emerald-900'}`}>
-          {toast}
-        </div>
-      )}
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <div className={`overflow-hidden rounded-2xl border border-emerald-900/10 ${dark ? 'bg-[#101F18]' : 'bg-white'} shadow-sm`}>
         <div className="flex items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(105deg, ${FOREST}, ${MID_GREEN})` }}>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">

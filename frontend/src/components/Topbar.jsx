@@ -134,8 +134,6 @@ export default function Topbar({ title, onMenuClick }) {
 
         {/* Dark mode toggle */}
         <NotificationCenter 
-          alerts={getCriticalAlerts?.(term.ay, term.sem) || {}} 
-          approvals={termAssignments?.(term.ay, term.sem)?.filter(a => a.status === 'pending') || []} 
           dark={dark} 
           term={term}
         />

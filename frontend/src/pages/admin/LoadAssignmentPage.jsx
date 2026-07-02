@@ -9,6 +9,7 @@ import { PROGRAMS, getSections } from '../../data/programs'
 import { canTeachProgram, checkAssignmentCompatibility, getFacultyMaxUnits, getFacultyUnits, specMatchScore } from '../../data/validation'
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import Toast from '../../components/Toast'
 
 const FOREST = '#033826'
 const MID_GREEN = '#0F6B3C'
@@ -98,34 +99,6 @@ function StatTile({ label, value, tone = 'neutral', active, onClick }) {
       <p style={{ margin: 0, fontSize: 11, color: 'rgba(3,56,38,0.45)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
       <p style={{ margin: '4px 0 0', fontSize: 22, lineHeight: 1, color: toneStyle.color, fontWeight: 900, fontFamily: "'EB Garamond',Georgia,serif" }}>{value}</p>
     </button>
-  )
-}
-
-function Toast({ toast, onClose }) {
-  if (!toast) return null
-  const danger = toast.type === 'error'
-  return (
-    <div style={{
-      position: 'fixed',
-      right: 20,
-      bottom: 20,
-      zIndex: 50,
-      maxWidth: 360,
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: 10,
-      padding: '12px 14px',
-      borderRadius: 12,
-      background: '#fff',
-      border: `1.5px solid ${danger ? 'rgba(220,38,38,0.25)' : 'rgba(16,185,129,0.25)'}`,
-      boxShadow: '0 12px 28px rgba(3,56,38,0.16)',
-    }}>
-      {danger ? <AlertTriangle size={15} style={{ color: '#DC2626', marginTop: 1 }} /> : <CheckCircle2 size={15} style={{ color: MID_GREEN, marginTop: 1 }} />}
-      <p style={{ margin: 0, flex: 1, fontSize: 12, color: danger ? '#991B1B' : FOREST, fontWeight: 700 }}>{toast.message}</p>
-      <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'rgba(3,56,38,0.45)', padding: 0 }}>
-        <X size={14} />
-      </button>
-    </div>
   )
 }
 
